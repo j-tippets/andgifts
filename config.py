@@ -19,19 +19,19 @@ class Config:
     DB_HOST = os.environ.get("DB_HOST", "localhost")
     DB_PORT = os.environ.get("DB_PORT", "25060")  # DO managed MySQL default
     DB_NAME = os.environ.get("DB_NAME", "ag_crm")
-    # DO managed databases require SSL by default
-    DB_SSL_MODE = os.environ.get("DB_SSL_MODE", "REQUIRED")
 
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
         os.environ.get("LOCAL_SQLITE_URI")
-        or f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        f"?ssl_mode={DB_SSL_MODE}",
+        or f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,   # avoids stale-connection errors on managed DBs
         "pool_recycle": 280,
+        # DO managed MySQL requires SSL. PyMySQL (not mysqlclient) expects
+        # SSL config passed here via connect_args, not as a URI query param.
+        "connect_args": {"ssl": {"ssl": {}}},
     }
 
     # --- Sessions / auth ---
