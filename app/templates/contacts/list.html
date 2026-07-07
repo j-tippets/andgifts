@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Contacts — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Your book of business</div>
+    <h1>Contacts</h1>
+  </div>
+  <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+</div>
+
+<div style="margin-bottom:20px; display:flex; gap:8px;">
+  <a href="{{ url_for('contacts.list_contacts') }}" class="btn {{ 'btn-primary' if not status_filter else 'btn-ghost' }}">All</a>
+  <a href="{{ url_for('contacts.list_contacts', status='new') }}" class="btn {{ 'btn-primary' if status_filter == 'new' else 'btn-ghost' }}">New</a>
+  <a href="{{ url_for('contacts.list_contacts', status='active') }}" class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-ghost' }}">Active</a>
+  <a href="{{ url_for('contacts.list_contacts', status='past') }}" class="btn {{ 'btn-primary' if status_filter == 'past' else 'btn-ghost' }}">Past</a>
+</div>
+
+{% if contacts %}
+  {% for contact in contacts %}
+    {% set head = contact.primary_person() %}
+    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="contact-row">
+      <div>
+        <strong>{{ contact.household_name }}</strong>
+        {% if head %}<span class="subdued"> — {{ head.full_name }}</span>{% endif %}
+      </div>
+      <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span>
+    </a>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <h3>No contacts yet</h3>
+    <p>Add your first client to start building their timeline.</p>
+    <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Ag{% endblock %}
+{% block auth_content %}
+<div style="max-width:380px; margin:80px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+  <div class="eyebrow">Ag</div>
+  <h1 style="margin-bottom:20px;">Welcome back</h1>
+  <form method="POST">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" name="email" required autofocus>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" name="password" required>
+    </div>
+    <button class="btn btn-primary" type="submit" style="width:100%;">Sign in</button>
+  </form>
+  <p class="subdued" style="margin-top:16px;">No account yet? <a href="{{ url_for('auth.register') }}">Create one</a>.</p>
+</div>
+{% endblock %}

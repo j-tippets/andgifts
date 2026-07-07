@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Today — Ag{% endblock %}
+{% block content %}
+<div class="eyebrow">{{ "Today's suggestions" if ai_enabled else "Upcoming" }}</div>
+<h1 style="margin-bottom:8px;">Keep the relationship alive</h1>
+<p class="subdued" style="margin-bottom:28px;">
+  {% if ai_enabled %}
+    Here's what's coming up in the next two weeks. Approve to queue it, or skip.
+  {% else %}
+    Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.
+  {% endif %}
+</p>
+
+{% if suggestions %}
+  {% for s in suggestions %}
+    <div class="suggestion-card">
+      <div>
+        <div class="suggestion-reason">{{ s.reason_text }}</div>
+        <div class="suggestion-meta">{{ s.action_type }} · {{ s.contact.household_name }} · {{ s.target_date.strftime('%b %-d') }}</div>
+      </div>
+      <div class="suggestion-actions">
+        <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}">
+          <button class="btn btn-primary" type="submit">Approve</button>
+        </form>
+        <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}">
+          <button class="btn btn-skip" type="submit">Skip</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <h3>Nothing needs your attention right now</h3>
+    <p>New suggestions will show up here as timeline events approach.</p>
+  </div>
+{% endif %}
+{% endblock %}

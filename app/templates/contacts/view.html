@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ contact.household_name }} — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start;">
+  <div>
+    <div class="eyebrow">{{ contact.status|capitalize }} client</div>
+    <h1>{{ contact.household_name }}</h1>
+  </div>
+  <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px; margin-top:28px;">
+  <div>
+    <h2>People</h2>
+    {% for person in contact.people %}
+      <div style="margin-bottom:14px;">
+        <strong>{{ person.full_name }}</strong> <span class="subdued">({{ person.household_role }})</span>
+        {% for method in person.contact_methods %}
+          <div class="subdued">{{ method.method_type|capitalize }}: {{ method.value }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
+    <h2 style="margin-top:24px;">Interests</h2>
+    {% if contact.interests %}
+      <div class="checkbox-grid">
+        {% for interest in contact.interests %}
+          <span class="status-pill status-active">{{ interest.name }}</span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="subdued">No interests recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2>Timeline</h2>
+    <div class="timeline">
+      {% for event in contact.timeline_events %}
+        <div class="timeline-item">
+          <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
+          <strong>{{ event.display_label() }}</strong>
+          {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
+        </div>
+      {% else %}
+        <p class="subdued">No timeline events yet.</p>
+      {% endfor %}
+    </div>
+
+    <details style="margin-top:16px;">
+      <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
+      <form method="POST" action="{{ url_for('contacts.add_timeline_event', contact_id=contact.id) }}" style="margin-top:14px;">
+        <div class="field">
+          <label>Event type</label>
+          <select name="event_type">
+            {% for et in event_types %}
+              <option value="{{ et }}">{{ et.replace('_', ' ')|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Custom label (optional)</label><input type="text" name="label"></div>
+          <div class="field"><label>Date</label><input type="date" name="event_date" required></div>
+        </div>
+        <div class="field">
+          <label class="checkbox-chip"><input type="checkbox" name="is_recurring" value="1"> Repeats annually</label>
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea name="notes" rows="2"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add event</button>
+      </form>
+    </details>
+  </div>
+</div>
+{% endblock %}
