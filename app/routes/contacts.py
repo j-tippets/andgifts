@@ -6,7 +6,7 @@ from app.models import (
     Contact, ContactPerson, ContactMethod, Interest,
     TimelineEvent, STANDARD_EVENT_TYPES,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
-    SuggestedAction, ActionLog,
+    SuggestedAction, ActionLog, User,
 )
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
@@ -236,6 +236,13 @@ def edit_contact(contact_id):
         spouse = next((p for p in contact.people if p.household_role == "spouse"), None)
         custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
         action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
+        org_members = (
+            User.query.filter_by(org_id=current_user.org_id, status="active")
+            .order_by(User.first_name, User.last_name)
+            .all()
+            if current_user.is_admin
+            else []
+        )
         return render_template(
             "contacts/edit.html",
             contact=contact,
@@ -245,11 +252,20 @@ def edit_contact(contact_id):
             custom_fields=custom_fields,
             custom_values=custom_values,
             action_log_count=action_log_count,
+            org_members=org_members,
         )
 
     contact.household_name = request.form["household_name"]
     contact.status = request.form.get("status", contact.status)
-    if not current_user.is_admin:
+    if current_user.is_admin:
+        new_owner_id = request.form.get("owner_user_id", "").strip()
+        if not new_owner_id:
+            contact.owner_user_id = None
+        else:
+            new_owner = User.query.filter_by(id=new_owner_id, org_id=current_user.org_id).first()
+            if new_owner:
+                contact.owner_user_id = new_owner.id
+    else:
         contact.owner_user_id = current_user.id if request.form.get("keep_private") else None
 
     head = contact.primary_person()

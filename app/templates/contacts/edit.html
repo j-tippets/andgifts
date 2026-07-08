@@ -75,7 +75,20 @@
   </fieldset>
   {% endif %}
 
-  {% if not current_user.is_admin %}
+  {% if current_user.is_admin %}
+  <fieldset>
+    <legend>Assignment</legend>
+    <div class="field">
+      <label>Assigned to</label>
+      <select name="owner_user_id">
+        <option value="" {{ 'selected' if not contact.owner_user_id else '' }}>Shared (visible to everyone)</option>
+        {% for member in org_members %}
+          <option value="{{ member.id }}" {{ 'selected' if contact.owner_user_id == member.id else '' }}>{{ member.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </fieldset>
+  {% else %}
   <label>
     <input type="checkbox" name="keep_private" {{ 'checked' if contact.owner_user_id else '' }}>
     Keep this contact private to me (hide from other agents in the agency)
