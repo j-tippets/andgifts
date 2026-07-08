@@ -14,12 +14,15 @@
     <legend>Photo</legend>
     <div style="display:flex; align-items:center; gap:20px;">
       {% if member.photo_url %}
-        <img src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-lg">
+        <img id="avatar-preview" src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-lg">
       {% else %}
-        <div class="avatar avatar-lg avatar-placeholder">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
+        <img id="avatar-preview" src="" alt="{{ member.full_name }}" class="avatar avatar-lg" style="display:none;">
       {% endif %}
+      <div id="avatar-placeholder" class="avatar avatar-lg avatar-placeholder" style="{{ 'display:none;' if member.photo_url else '' }}">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
       <div>
-        <input type="file" name="photo" accept="image/png,image/jpeg,image/webp">
+        <label class="btn btn-ghost file-input-label" for="photo-input">Choose photo</label>
+        <input type="file" id="photo-input" name="photo" accept="image/png,image/jpeg,image/webp" class="file-input-hidden">
+        <span class="file-input-name" id="photo-input-name">No file chosen</span>
         <div class="subdued" style="margin-top:6px;"><small>PNG, JPG, or WEBP. Max 5MB.</small></div>
         {% if member.photo_url %}
           <label class="checkbox-chip" style="margin-top:8px;">
@@ -29,6 +32,31 @@
       </div>
     </div>
   </fieldset>
+
+  <script>
+    (function () {
+      var input = document.getElementById('photo-input');
+      var nameLabel = document.getElementById('photo-input-name');
+      var preview = document.getElementById('avatar-preview');
+      var placeholder = document.getElementById('avatar-placeholder');
+
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) {
+          nameLabel.textContent = 'No file chosen';
+          return;
+        }
+        nameLabel.textContent = file.name;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      });
+    })();
+  </script>
 
   <fieldset>
     <legend>Details</legend>
@@ -63,7 +91,7 @@
 
 {% if member.id != current_user.id %}
 <div class="danger-zone">
-  <h2>Danger zone</h2>
+  <h2>Remove this profile</h2>
   <p class="subdued">Permanently delete this profile. This can't be undone.</p>
 
   <form method="post" action="{{ url_for('team.delete_member', user_id=member.id) }}"
