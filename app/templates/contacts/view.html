@@ -6,7 +6,10 @@
     <div class="eyebrow">{{ contact.status|capitalize }} client</div>
     <h1>{{ contact.household_name }}</h1>
   </div>
-  <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a>
+  <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn btn-ghost">Edit</a>
+    <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a>
+  </div>
 </div>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px; margin-top:28px;">
@@ -30,6 +33,23 @@
       </div>
     {% else %}
       <p class="subdued">No interests recorded yet.</p>
+    {% endif %}
+
+    {% if custom_fields %}
+      <h2 style="margin-top:24px;">Custom fields</h2>
+      {% for field in custom_fields %}
+        {% set val = custom_values.get(field.id) %}
+        {% if val %}
+          <div style="margin-bottom:8px;">
+            <span class="subdued">{{ field.label }}:</span>
+            {% if field.field_type == 'checkbox' %}
+              {{ 'Yes' if val == '1' else 'No' }}
+            {% else %}
+              {{ val }}
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
     {% endif %}
   </div>
 

@@ -183,6 +183,8 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
   color: var(--ink);
 }
 .team-row:hover { border-color: var(--gold); }
+.static-row { cursor: default; }
+.static-row:hover { border-color: var(--line); }
 .role-pill {
   font-size: 11px;
   text-transform: uppercase;

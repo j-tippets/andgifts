@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Custom fields — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Contacts</div>
+    <h1>Custom fields</h1>
+  </div>
+  <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a>
+</div>
+
+<h2>Organization fields</h2>
+<p class="subdued">Visible and usable by everyone in {{ current_user.org.name }}.</p>
+
+{% if org_fields %}
+  {% for field in org_fields %}
+    <div class="team-row static-row">
+      <div>
+        <strong>{{ field.label }}</strong>
+        <span class="subdued"> — {{ field.field_type|capitalize }}{% if field.field_type == 'select' %}: {{ field.option_list()|join(', ') }}{% endif %}</span>
+      </div>
+      {% if current_user.is_admin %}
+        <form method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
+              onsubmit="return confirm('Remove the {{ field.label }} field from every contact? This cannot be undone.');">
+          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">No organization-wide fields yet.</p>
+{% endif %}
+
+{% if current_user.is_admin %}
+<details style="margin-top:12px; margin-bottom:32px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add organization field</summary>
+  <form method="post" action="{{ url_for('contacts.new_field') }}" style="margin-top:14px;">
+    <input type="hidden" name="scope" value="org">
+    <div class="field-row">
+      <div class="field"><label>Field name</label><input type="text" name="label" placeholder="e.g. Referral source" required></div>
+      <div class="field">
+        <label>Type</label>
+        <select name="field_type">
+          {% for t in field_types %}<option value="{{ t }}">{{ t|capitalize }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Options (for "Select" fields only)</label>
+      <input type="text" name="options" placeholder="Comma-separated, e.g. Zillow, Referral, Open House">
+    </div>
+    <button type="submit" class="btn btn-primary">Add field</button>
+  </form>
+</details>
+{% else %}
+<p class="subdued" style="margin-bottom:32px;"><small>Only an org admin can add or remove organization-wide fields.</small></p>
+{% endif %}
+
+<h2>My fields</h2>
+<p class="subdued">Only visible to you, on any contact you can see.</p>
+
+{% if my_fields %}
+  {% for field in my_fields %}
+    <div class="team-row static-row">
+      <div>
+        <strong>{{ field.label }}</strong>
+        <span class="subdued"> — {{ field.field_type|capitalize }}{% if field.field_type == 'select' %}: {{ field.option_list()|join(', ') }}{% endif %}</span>
+      </div>
+      <form method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
+            onsubmit="return confirm('Remove your {{ field.label }} field from every contact? This cannot be undone.');">
+        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+      </form>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">You haven't added any personal fields yet.</p>
+{% endif %}
+
+<details style="margin-top:12px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add personal field</summary>
+  <form method="post" action="{{ url_for('contacts.new_field') }}" style="margin-top:14px;">
+    <input type="hidden" name="scope" value="personal">
+    <div class="field-row">
+      <div class="field"><label>Field name</label><input type="text" name="label" placeholder="e.g. Coffee order" required></div>
+      <div class="field">
+        <label>Type</label>
+        <select name="field_type">
+          {% for t in field_types %}<option value="{{ t }}">{{ t|capitalize }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Options (for "Select" fields only)</label>
+      <input type="text" name="options" placeholder="Comma-separated, e.g. Zillow, Referral, Open House">
+    </div>
+    <button type="submit" class="btn btn-primary">Add field</button>
+  </form>
+</details>
+{% endblock %}
