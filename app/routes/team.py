@@ -6,7 +6,9 @@ from flask_login import login_required, current_user, login_user
 
 from app.extensions import db
 from app.models import User
+from app.models.contact import Contact
 from app.decorators import admin_required
+from app.services.storage import upload_avatar, delete_avatar, StorageError
 
 team_bp = Blueprint("team", __name__, url_prefix="/team")
 
@@ -121,6 +123,90 @@ def accept_invite(token):
         return redirect(url_for("dashboard.index"))
 
     return render_template("team/accept_invite.html", user=user)
+
+
+@team_bp.route("/<user_id>/edit", methods=["GET", "POST"])
+@admin_required
+def edit_member(user_id):
+    member = User.query.filter_by(id=user_id, org_id=current_user.org_id).first_or_404()
+    owned_contacts_count = Contact.query.filter_by(
+        org_id=current_user.org_id, owner_user_id=member.id
+    ).count()
+
+    if request.method == "GET":
+        return render_template(
+            "team/edit.html", member=member, owned_contacts_count=owned_contacts_count
+        )
+
+    member.first_name = request.form.get("first_name", "").strip()
+    member.last_name = request.form.get("last_name", "").strip()
+
+    new_email = request.form.get("email", "").strip().lower()
+    if new_email and new_email != member.email:
+        if User.query.filter(User.email == new_email, User.id != member.id).first():
+            flash("Another account already uses that email.", "error")
+            return redirect(url_for("team.edit_member", user_id=member.id))
+        member.email = new_email
+
+    if member.id != current_user.id:
+        member.role = request.form.get("role", member.role)
+
+    if request.form.get("remove_photo") == "1" and member.photo_url:
+        delete_avatar(member.photo_url)
+        member.photo_url = None
+
+    photo = request.files.get("photo")
+    if photo and photo.filename:
+        try:
+            old_photo_url = member.photo_url
+            member.photo_url = upload_avatar(photo, member.id)
+            if old_photo_url:
+                delete_avatar(old_photo_url)
+        except StorageError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("team.edit_member", user_id=member.id))
+
+    db.session.commit()
+    flash(f"{member.full_name}'s profile has been updated.", "success")
+    return redirect(url_for("team.list_members"))
+
+
+@team_bp.route("/<user_id>/delete", methods=["POST"])
+@admin_required
+def delete_member(user_id):
+    member = User.query.filter_by(id=user_id, org_id=current_user.org_id).first_or_404()
+    if member.id == current_user.id:
+        flash("You can't delete your own account.", "error")
+        return redirect(url_for("team.list_members"))
+
+    owned_contacts_count = Contact.query.filter_by(
+        org_id=current_user.org_id, owner_user_id=member.id
+    ).count()
+
+    if owned_contacts_count and request.form.get("reassign_contacts") != "1":
+        flash(
+            f"{member.full_name} owns {owned_contacts_count} contact(s). "
+            f"Check the confirmation box to unassign them and delete the profile.",
+            "error",
+        )
+        return redirect(url_for("team.edit_member", user_id=member.id))
+
+    if owned_contacts_count:
+        Contact.query.filter_by(org_id=current_user.org_id, owner_user_id=member.id).update(
+            {"owner_user_id": None}
+        )
+
+    # Clear self-referential invite attribution so the FK doesn't block delete.
+    User.query.filter_by(invited_by_user_id=member.id).update({"invited_by_user_id": None})
+
+    if member.photo_url:
+        delete_avatar(member.photo_url)
+
+    name = member.full_name
+    db.session.delete(member)
+    db.session.commit()
+    flash(f"{name}'s profile has been permanently deleted.", "success")
+    return redirect(url_for("team.list_members"))
 
 
 @team_bp.route("/<user_id>/disable", methods=["POST"])

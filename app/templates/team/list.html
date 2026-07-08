@@ -19,13 +19,21 @@
 {% if members %}
   {% for member in members %}
     <div class="team-row">
-      <div>
-        <strong>{{ member.full_name }}</strong>
-        <span class="subdued"> — {{ member.email }}</span>
+      <div style="display:flex; align-items:center; gap:12px;">
+        {% if member.photo_url %}
+          <img src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-sm">
+        {% else %}
+          <div class="avatar avatar-sm avatar-placeholder">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
+        {% endif %}
+        <div>
+          <strong>{{ member.full_name }}</strong>
+          <span class="subdued"> — {{ member.email }}</span>
+        </div>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <span class="role-pill role-{{ member.role }}">{{ member.role|capitalize }}</span>
         <span class="status-pill status-{{ member.status }}">{{ member.status|capitalize }}</span>
+        <a href="{{ url_for('team.edit_member', user_id=member.id) }}" class="btn btn-ghost btn-small">Edit</a>
         {% if member.id != current_user.id %}
           {% if member.status == 'disabled' %}
             <form method="post" action="{{ url_for('team.reactivate_member', user_id=member.id) }}">

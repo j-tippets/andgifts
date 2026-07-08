@@ -39,6 +39,15 @@ class Config:
     SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") != "development"
     SESSION_COOKIE_HTTPONLY = True
 
+    # --- DigitalOcean Spaces (avatar / photo storage) ---
+    SPACES_KEY = os.environ.get("SPACES_KEY", "")
+    SPACES_SECRET = os.environ.get("SPACES_SECRET", "")
+    SPACES_BUCKET = os.environ.get("SPACES_BUCKET", "")
+    SPACES_REGION = os.environ.get("SPACES_REGION", "nyc3")
+    # Optional: a CDN-fronted domain for the Space (e.g. "my-bucket.nyc3.cdn.digitaloceanspaces.com").
+    # If unset, falls back to the plain Spaces origin URL.
+    SPACES_CDN_DOMAIN = os.environ.get("SPACES_CDN_DOMAIN", "")
+
     # --- Third-party services (populated later) ---
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
     STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
