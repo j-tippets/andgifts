@@ -33,7 +33,12 @@
         <strong>{{ contact.household_name }}</strong>
         {% if head %}<span class="subdued"> — {{ head.full_name }}</span>{% endif %}
       </div>
-      <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        {% if current_user.is_admin %}
+          <span class="subdued">{{ contact.owner.full_name if contact.owner else 'Shared' }}</span>
+        {% endif %}
+        <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span>
+      </div>
     </a>
   {% endfor %}
 {% else %}
