@@ -398,3 +398,22 @@ def add_timeline_event(contact_id):
     db.session.commit()
     flash("Timeline event added.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
+@contacts_bp.route("/<contact_id>/timeline/<event_id>/edit", methods=["POST"])
+@login_required
+def edit_timeline_event(contact_id, event_id):
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+    event = TimelineEvent.query.filter_by(id=event_id, contact_id=contact.id).first_or_404()
+
+    event.event_type = request.form["event_type"]
+    event.label = request.form.get("label") or None
+    event.event_date = datetime.strptime(request.form["event_date"], "%Y-%m-%d").date()
+    event.notes = request.form.get("notes")
+    event.is_recurring = bool(request.form.get("is_recurring"))
+    event.recurrence_rule = "annual" if event.is_recurring else "none"
+
+    db.session.commit()
+    flash("Timeline event updated.", "success")
+    return redirect(url_for("contacts.view_contact", contact_id=contact.id))

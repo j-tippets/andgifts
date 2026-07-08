@@ -1,0 +1,24 @@
+{% macro timeline_event_form(action_url, event_types, event=none, submit_label='Add event', button_class='btn-primary') %}
+  <form method="POST" action="{{ action_url }}" style="margin-top:14px;">
+    <div class="field">
+      <label>Event type</label>
+      <select name="event_type">
+        {% for et in event_types %}
+          <option value="{{ et }}" {{ 'selected' if event and event.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Custom label (optional)</label><input type="text" name="label" value="{{ event.label if event and event.label else '' }}"></div>
+      <div class="field"><label>Date</label><input type="date" name="event_date" value="{{ event.event_date.isoformat() if event else '' }}" required></div>
+    </div>
+    <div class="field">
+      <label class="checkbox-chip"><input type="checkbox" name="is_recurring" value="1" {{ 'checked' if event and event.is_recurring else '' }}> Repeats annually</label>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes" rows="2">{{ event.notes if event and event.notes else '' }}</textarea>
+    </div>
+    <button type="submit" class="btn {{ button_class }}">{{ submit_label }}</button>
+  </form>
+{% endmacro %}

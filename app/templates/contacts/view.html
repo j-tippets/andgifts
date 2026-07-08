@@ -24,17 +24,6 @@
       </div>
     {% endfor %}
 
-    <h2 style="margin-top:24px;">Interests</h2>
-    {% if contact.interests %}
-      <div class="checkbox-grid">
-        {% for interest in contact.interests %}
-          <span class="status-pill status-active">{{ interest.name }}</span>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="subdued">No interests recorded yet.</p>
-    {% endif %}
-
     {% if custom_fields %}
       <h2 style="margin-top:24px;">Custom fields</h2>
       {% for field in custom_fields %}
@@ -55,12 +44,20 @@
 
   <div>
     <h2>Timeline</h2>
+    {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
     <div class="timeline">
       {% for event in contact.timeline_events %}
         <div class="timeline-item">
           <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
           <strong>{{ event.display_label() }}</strong>
           {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
+          <details>
+            <summary style="cursor:pointer; color:var(--evergreen); font-size:13px; font-weight:600; margin-top:4px;">Edit</summary>
+            {{ timeline_event_form(
+              url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
+              event_types, event=event, submit_label='Save changes', button_class='btn-primary btn-small'
+            ) }}
+          </details>
         </div>
       {% else %}
         <p class="subdued">No timeline events yet.</p>
@@ -69,28 +66,10 @@
 
     <details style="margin-top:16px;">
       <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
-      <form method="POST" action="{{ url_for('contacts.add_timeline_event', contact_id=contact.id) }}" style="margin-top:14px;">
-        <div class="field">
-          <label>Event type</label>
-          <select name="event_type">
-            {% for et in event_types %}
-              <option value="{{ et }}">{{ et.replace('_', ' ')|title }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Custom label (optional)</label><input type="text" name="label"></div>
-          <div class="field"><label>Date</label><input type="date" name="event_date" required></div>
-        </div>
-        <div class="field">
-          <label class="checkbox-chip"><input type="checkbox" name="is_recurring" value="1"> Repeats annually</label>
-        </div>
-        <div class="field">
-          <label>Notes</label>
-          <textarea name="notes" rows="2"></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Add event</button>
-      </form>
+      {{ timeline_event_form(
+        url_for('contacts.add_timeline_event', contact_id=contact.id),
+        event_types, submit_label='Add event'
+      ) }}
     </details>
   </div>
 </div>
