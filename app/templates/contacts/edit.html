@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ contact.household_name }} — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">{{ contact.status|capitalize }} client</div>
+    <h1>Edit {{ contact.household_name }}</h1>
+  </div>
+  <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="btn btn-ghost">&larr; Back to {{ contact.household_name }}</a>
+</div>
+
+<form method="POST">
+  <fieldset>
+    <legend>Household</legend>
+    <div class="field">
+      <label>Household name</label>
+      <input type="text" name="household_name" value="{{ contact.household_name }}" required>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select name="status">
+        <option value="new" {{ 'selected' if contact.status == 'new' else '' }}>New</option>
+        <option value="active" {{ 'selected' if contact.status == 'active' else '' }}>Active</option>
+        <option value="past" {{ 'selected' if contact.status == 'past' else '' }}>Past</option>
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Head of household</legend>
+    <div class="field-row">
+      <div class="field"><label>First name</label><input type="text" name="head_first_name" value="{{ head.first_name if head else '' }}" required></div>
+      <div class="field"><label>Last name</label><input type="text" name="head_last_name" value="{{ head.last_name if head else '' }}" required></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email</label><input type="email" name="head_email" value="{{ head.contact_methods|selectattr('method_type', 'equalto', 'email')|map(attribute='value')|first|default('') }}"></div>
+      <div class="field"><label>Phone</label><input type="tel" name="head_phone" value="{{ head.contact_methods|selectattr('method_type', 'equalto', 'phone')|map(attribute='value')|first|default('') }}"></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Spouse / partner (optional)</legend>
+    <div class="field-row">
+      <div class="field"><label>First name</label><input type="text" name="spouse_first_name" value="{{ spouse.first_name if spouse else '' }}"></div>
+      <div class="field"><label>Last name</label><input type="text" name="spouse_last_name" value="{{ spouse.last_name if spouse else '' }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email</label><input type="email" name="spouse_email" value="{{ spouse.contact_methods|selectattr('method_type', 'equalto', 'email')|map(attribute='value')|first|default('') if spouse else '' }}"></div>
+      <div class="field"><label>Phone</label><input type="tel" name="spouse_phone" value="{{ spouse.contact_methods|selectattr('method_type', 'equalto', 'phone')|map(attribute='value')|first|default('') if spouse else '' }}"></div>
+    </div>
+    {% if spouse %}<p class="subdued"><small>Clearing the first name above removes this spouse/partner record.</small></p>{% endif %}
+  </fieldset>
+
+  {% if interests %}
+  <fieldset>
+    <legend>Interests</legend>
+    <div class="checkbox-grid">
+      {% set contact_interest_ids = contact.interests|map(attribute='id')|list %}
+      {% for interest in interests %}
+      <label class="checkbox-chip">
+        <input type="checkbox" name="interests" value="{{ interest.id }}" {{ 'checked' if interest.id in contact_interest_ids else '' }}> {{ interest.name }}
+      </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endif %}
+
+  {% if custom_fields %}
+  <fieldset>
+    <legend>Custom fields</legend>
+    {% from "contacts/_custom_fields_macro.html" import custom_field_input %}
+    {% for field in custom_fields %}
+      {{ custom_field_input(field, custom_values.get(field.id, '')) }}
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
+  {% if not current_user.is_admin %}
+  <label>
+    <input type="checkbox" name="keep_private" {{ 'checked' if contact.owner_user_id else '' }}>
+    Keep this contact private to me (hide from other agents in the agency)
+  </label>
+  {% endif %}
+
+  <button type="submit" class="btn btn-primary">Save changes</button>
+  <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="btn btn-ghost">Cancel</a>
+</form>
+
+<div class="danger-zone">
+  <h2>Remove this contact</h2>
+  <p class="subdued">Permanently delete {{ contact.household_name }} and their timeline. This can't be undone.</p>
+  <form method="post" action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}"
+        onsubmit="return confirm('Permanently delete {{ contact.household_name }}? This cannot be undone.');">
+    {% if action_log_count %}
+      <div class="flash flash-error">
+        {{ contact.household_name }} has {{ action_log_count }} sent-gift record{{ 's' if action_log_count != 1 else '' }} on file
+        (used for spend/tax tracking). Deleting this contact will delete {{ 'those records' if action_log_count != 1 else 'that record' }} too.
+      </div>
+      <label class="checkbox-chip" style="margin-bottom:12px;">
+        <input type="checkbox" name="confirm_delete_history" value="1" required>
+        I understand — delete {{ contact.household_name }}'s {{ action_log_count }} sent-gift record{{ 's' if action_log_count != 1 else '' }} along with this contact
+      </label><br>
+    {% endif %}
+    <button type="submit" class="btn btn-danger">Delete contact</button>
+  </form>
+</div>
+{% endblock %}

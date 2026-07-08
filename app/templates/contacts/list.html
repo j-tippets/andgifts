@@ -6,14 +6,23 @@
     <div class="eyebrow">Your book of business</div>
     <h1>Contacts</h1>
   </div>
-  <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+  <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('contacts.manage_fields') }}" class="btn btn-ghost">Manage fields</a>
+    <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+  </div>
 </div>
 
+<form method="get" style="margin-bottom:16px;">
+  {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+  <input type="text" name="q" value="{{ search_term }}" placeholder="Search name, email, phone, or custom fields&hellip;"
+         style="width:100%; max-width:420px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; font-family:var(--font-body); font-size:14px; background:var(--paper-raised);">
+</form>
+
 <div style="margin-bottom:20px; display:flex; gap:8px;">
-  <a href="{{ url_for('contacts.list_contacts') }}" class="btn {{ 'btn-primary' if not status_filter else 'btn-ghost' }}">All</a>
-  <a href="{{ url_for('contacts.list_contacts', status='new') }}" class="btn {{ 'btn-primary' if status_filter == 'new' else 'btn-ghost' }}">New</a>
-  <a href="{{ url_for('contacts.list_contacts', status='active') }}" class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-ghost' }}">Active</a>
-  <a href="{{ url_for('contacts.list_contacts', status='past') }}" class="btn {{ 'btn-primary' if status_filter == 'past' else 'btn-ghost' }}">Past</a>
+  <a href="{{ url_for('contacts.list_contacts', q=search_term) }}" class="btn {{ 'btn-primary' if not status_filter else 'btn-ghost' }}">All</a>
+  <a href="{{ url_for('contacts.list_contacts', status='new', q=search_term) }}" class="btn {{ 'btn-primary' if status_filter == 'new' else 'btn-ghost' }}">New</a>
+  <a href="{{ url_for('contacts.list_contacts', status='active', q=search_term) }}" class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-ghost' }}">Active</a>
+  <a href="{{ url_for('contacts.list_contacts', status='past', q=search_term) }}" class="btn {{ 'btn-primary' if status_filter == 'past' else 'btn-ghost' }}">Past</a>
 </div>
 
 {% if contacts %}
@@ -29,9 +38,14 @@
   {% endfor %}
 {% else %}
   <div class="empty-state">
-    <h3>No contacts yet</h3>
-    <p>Add your first client to start building their timeline.</p>
-    <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+    {% if search_term %}
+      <h3>No matches for &ldquo;{{ search_term }}&rdquo;</h3>
+      <p>Try a different name, email, phone number, or field value.</p>
+    {% else %}
+      <h3>No contacts yet</h3>
+      <p>Add your first client to start building their timeline.</p>
+      <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+    {% endif %}
   </div>
 {% endif %}
 {% endblock %}

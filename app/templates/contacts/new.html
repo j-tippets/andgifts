@@ -58,6 +58,16 @@
   </fieldset>
   {% endif %}
 
+  {% if custom_fields %}
+  <fieldset>
+    <legend>Custom fields</legend>
+    {% from "contacts/_custom_fields_macro.html" import custom_field_input %}
+    {% for field in custom_fields %}
+      {{ custom_field_input(field, custom_values.get(field.id, '')) }}
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
   {% if not current_user.is_admin %}
   <label>
     <input type="checkbox" name="keep_private">

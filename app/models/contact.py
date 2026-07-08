@@ -44,6 +44,9 @@ class Contact(db.Model):
         order_by="TimelineEvent.event_date",
     )
     interests = db.relationship("Interest", secondary=contact_interests, back_populates="contacts")
+    custom_values = db.relationship(
+        "CustomFieldValue", back_populates="contact", cascade="all, delete-orphan"
+    )
 
     def primary_person(self):
         return next((p for p in self.people if p.household_role == "head"), self.people[0] if self.people else None)
@@ -112,3 +115,64 @@ class Interest(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
 
     contacts = db.relationship("Contact", secondary=contact_interests, back_populates="interests")
+
+
+CUSTOM_FIELD_TYPES = ["text", "textarea", "number", "date", "checkbox", "select"]
+
+
+class CustomFieldDefinition(db.Model):
+    """
+    A custom field an org (admin-managed, shared) or an individual agent
+    (personal, private to them) has added to the Contact record. The actual
+    per-contact data lives in CustomFieldValue.
+    """
+    __tablename__ = "custom_field_definitions"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
+
+    # "org"      = defined by an admin, visible/usable by every agent in the org.
+    # "personal" = defined by one agent, visible/usable only by that agent.
+    scope = db.Column(db.Enum("org", "personal", name="custom_field_scope"), nullable=False)
+    owner_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+
+    label = db.Column(db.String(100), nullable=False)
+    field_type = db.Column(db.Enum(*CUSTOM_FIELD_TYPES, name="custom_field_type"), nullable=False, default="text")
+    # For "select" fields: comma-separated list of options, e.g. "Gold,Silver,Bronze".
+    options = db.Column(db.String(500), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    owner = db.relationship("User", foreign_keys=[owner_user_id])
+    values = db.relationship(
+        "CustomFieldValue", back_populates="field_definition", cascade="all, delete-orphan"
+    )
+
+    def option_list(self):
+        return [o.strip() for o in (self.options or "").split(",") if o.strip()]
+
+    @staticmethod
+    def visible_to(query, user):
+        """Org-wide fields, plus this user's own personal fields."""
+        return query.filter(
+            (CustomFieldDefinition.scope == "org")
+            | (CustomFieldDefinition.owner_user_id == user.id)
+        )
+
+
+class CustomFieldValue(db.Model):
+    """One field's value for one contact."""
+    __tablename__ = "custom_field_values"
+    __table_args__ = (
+        db.UniqueConstraint("contact_id", "field_definition_id", name="uq_custom_field_value"),
+    )
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    contact_id = db.Column(db.String(36), db.ForeignKey("contacts.id"), nullable=False, index=True)
+    field_definition_id = db.Column(
+        db.String(36), db.ForeignKey("custom_field_definitions.id"), nullable=False, index=True
+    )
+    value = db.Column(db.Text, nullable=True)
+
+    contact = db.relationship("Contact", back_populates="custom_values")
+    field_definition = db.relationship("CustomFieldDefinition", back_populates="values")

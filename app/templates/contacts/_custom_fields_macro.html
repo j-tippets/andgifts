@@ -1,0 +1,26 @@
+{% macro custom_field_input(field, value='') %}
+  <div class="field">
+    <label>{{ field.label }}{% if field.scope == 'personal' %} <span class="subdued">(personal)</span>{% endif %}</label>
+    {% if field.field_type == 'textarea' %}
+      <textarea name="custom_{{ field.id }}" rows="2">{{ value }}</textarea>
+    {% elif field.field_type == 'checkbox' %}
+      <label class="checkbox-chip">
+        <input type="checkbox" name="custom_{{ field.id }}" value="1" {{ 'checked' if value == '1' else '' }}>
+        Yes
+      </label>
+    {% elif field.field_type == 'select' %}
+      <select name="custom_{{ field.id }}">
+        <option value="">&mdash;</option>
+        {% for opt in field.option_list() %}
+          <option value="{{ opt }}" {{ 'selected' if value == opt else '' }}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+    {% elif field.field_type == 'date' %}
+      <input type="date" name="custom_{{ field.id }}" value="{{ value }}">
+    {% elif field.field_type == 'number' %}
+      <input type="number" name="custom_{{ field.id }}" value="{{ value }}" step="any">
+    {% else %}
+      <input type="text" name="custom_{{ field.id }}" value="{{ value }}">
+    {% endif %}
+  </div>
+{% endmacro %}
