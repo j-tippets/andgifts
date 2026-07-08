@@ -138,7 +138,7 @@ h3 { font-size: 17px; }
 
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--evergreen); }
-.field input, .field select, .field textarea {
+.field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--line);
@@ -146,6 +146,12 @@ h3 { font-size: 17px; }
   font-family: var(--font-body);
   font-size: 14px;
   background: var(--paper-raised);
+}
+/* Checkboxes/radios inside a .field (e.g. "Repeats annually" nested in a checkbox-chip
+   label) were inheriting width:100% from the rule above, stretching the input's own box
+   across the row and shoving its label text far to the right. Keep them their natural size. */
+.field input[type="checkbox"], .field input[type="radio"] {
+  width: auto;
 }
 .field-row { display: flex; gap: 16px; }
 .field-row .field { flex: 1; }
@@ -294,7 +300,12 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
   background: var(--gold);
 }
 .timeline-date { font-size: 12px; color: #8A8375; }
-.timeline-summary { cursor: pointer; }
+.timeline-summary {
+  cursor: pointer;
+  list-style: none;
+}
+.timeline-summary::-webkit-details-marker { display: none; }
+.timeline-summary::marker { content: ""; }
 
 /* ---- Dashboard suggestion cards: index-card / rolodex motif ---- */
 .suggestion-card {
