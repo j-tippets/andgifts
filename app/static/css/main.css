@@ -65,6 +65,26 @@ a { color: inherit; }
 
 .nav-spacer { flex: 1; }
 
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #EFEAE0;
+}
+.sidebar-profile:hover { background: rgba(255,255,255,0.06); }
+.sidebar-profile.active { background: rgba(255,255,255,0.1); }
+.sidebar-profile-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-profile .avatar-placeholder { background: var(--gold); color: var(--evergreen); }
+
 .tier-badge {
   font-size: 12px;
   text-transform: uppercase;
