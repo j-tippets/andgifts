@@ -5,6 +5,9 @@
   <div>
     <div class="eyebrow">{{ contact.status|capitalize }} client</div>
     <h1>{{ contact.household_name }}</h1>
+    {% if current_user.is_admin %}
+      <p class="subdued">Assigned to: {{ contact.owner.full_name if contact.owner else 'Shared' }}</p>
+    {% endif %}
   </div>
   <div style="display:flex; gap:8px;">
     <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn btn-ghost">Edit</a>
@@ -44,6 +47,18 @@
           </div>
         {% endif %}
       {% endfor %}
+    {% endif %}
+
+    <h2 style="margin-top:24px;">Recent activity</h2>
+    {% if recent_activity %}
+      {% for entry in recent_activity %}
+        <div style="margin-bottom:10px;">
+          <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
+          <div class="subdued">{{ entry.summary }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="subdued">No activity recorded yet.</p>
     {% endif %}
   </div>
 

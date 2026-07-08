@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Activity — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Contacts</div>
+    <h1>Activity</h1>
+    <p class="subdued">Recent changes across every contact in {{ current_user.org.name }}.</p>
+  </div>
+  <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a>
+</div>
+
+{% if entries %}
+  <div class="timeline">
+    {% for entry in entries %}
+      <div class="timeline-item">
+        <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
+        <strong>
+          {% if entry.contact_id %}
+            <a href="{{ url_for('contacts.view_contact', contact_id=entry.contact_id) }}">{{ entry.contact_name_snapshot }}</a>
+          {% else %}
+            {{ entry.contact_name_snapshot }} <span class="subdued">(deleted)</span>
+          {% endif %}
+        </strong>
+        <div class="subdued">{{ entry.summary }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="subdued">No activity recorded yet.</p>
+{% endif %}
+{% endblock %}
