@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import (
-    Contact, ContactPerson, ContactMethod, Interest,
+    Contact, ContactPerson, ContactMethod,
     TimelineEvent, STANDARD_EVENT_TYPES,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User,
@@ -37,16 +37,18 @@ def list_contacts():
 
 def _search_contact_ids(search_term):
     """
-    Contact ids (within the current org) whose household name, any person's
-    name, any contact method (email/phone), or any custom field value visible
-    to the current user matches the search term. Callers are expected to
-    further scope the result through Contact.visible_to.
+    Contact ids (within the current org) whose household name, household
+    notes, any person's name, any contact method (email/phone), or any
+    custom field value visible to the current user matches the search
+    term. Callers are expected to further scope the result through
+    Contact.visible_to.
     """
     like = f"%{search_term}%"
     matching_ids = set()
 
     name_matches = Contact.query.filter(
-        Contact.org_id == current_user.org_id, Contact.household_name.ilike(like)
+        Contact.org_id == current_user.org_id,
+        (Contact.household_name.ilike(like)) | (Contact.notes.ilike(like)),
     )
     matching_ids.update(c.id for c in name_matches.all())
 
@@ -92,10 +94,8 @@ def new_contact():
                 "error",
             )
             return redirect(url_for("contacts.list_contacts"))
-        all_interests = Interest.query.order_by(Interest.name).all()
         return render_template(
             "contacts/new.html",
-            interests=all_interests,
             custom_fields=_visible_custom_fields(),
             custom_values={},
         )
@@ -108,6 +108,7 @@ def new_contact():
         org_id=org.id,
         household_name=request.form["household_name"],
         status=request.form.get("status", "new"),
+        notes=request.form.get("notes", "").strip() or None,
         owner_user_id=current_user.id if request.form.get("keep_private") else None,
     )
     db.session.add(contact)
@@ -135,11 +136,6 @@ def new_contact():
         db.session.add(spouse)
         db.session.flush()
         _add_contact_methods(spouse.id, request.form, prefix="spouse")
-
-    # Interests (checkboxes, list of interest ids)
-    interest_ids = request.form.getlist("interests")
-    if interest_ids:
-        contact.interests = Interest.query.filter(Interest.id.in_(interest_ids)).all()
 
     _save_custom_field_values(contact, request.form, _visible_custom_fields())
 
@@ -232,7 +228,6 @@ def edit_contact(contact_id):
     custom_fields = _visible_custom_fields()
 
     if request.method == "GET":
-        all_interests = Interest.query.order_by(Interest.name).all()
         spouse = next((p for p in contact.people if p.household_role == "spouse"), None)
         custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
         action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
@@ -246,7 +241,6 @@ def edit_contact(contact_id):
         return render_template(
             "contacts/edit.html",
             contact=contact,
-            interests=all_interests,
             head=contact.primary_person(),
             spouse=spouse,
             custom_fields=custom_fields,
@@ -257,6 +251,7 @@ def edit_contact(contact_id):
 
     contact.household_name = request.form["household_name"]
     contact.status = request.form.get("status", contact.status)
+    contact.notes = request.form.get("notes", "").strip() or None
     if current_user.is_admin:
         new_owner_id = request.form.get("owner_user_id", "").strip()
         if not new_owner_id:
@@ -292,9 +287,6 @@ def edit_contact(contact_id):
         _sync_contact_method(spouse.id, "phone", "mobile", request.form.get("spouse_phone", "").strip())
     elif spouse:
         db.session.delete(spouse)
-
-    interest_ids = request.form.getlist("interests")
-    contact.interests = Interest.query.filter(Interest.id.in_(interest_ids)).all() if interest_ids else []
 
     _save_custom_field_values(contact, request.form, custom_fields)
 

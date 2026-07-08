@@ -24,6 +24,11 @@
       </div>
     {% endfor %}
 
+    {% if contact.notes %}
+      <h2 style="margin-top:24px;">Notes</h2>
+      <p class="subdued" style="white-space:pre-wrap;">{{ contact.notes }}</p>
+    {% endif %}
+
     {% if custom_fields %}
       <h2 style="margin-top:24px;">Custom fields</h2>
       {% for field in custom_fields %}

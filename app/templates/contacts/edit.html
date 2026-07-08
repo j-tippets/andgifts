@@ -51,19 +51,13 @@
     {% if spouse %}<p class="subdued"><small>Clearing the first name above removes this spouse/partner record.</small></p>{% endif %}
   </fieldset>
 
-  {% if interests %}
   <fieldset>
-    <legend>Interests</legend>
-    <div class="checkbox-grid">
-      {% set contact_interest_ids = contact.interests|map(attribute='id')|list %}
-      {% for interest in interests %}
-      <label class="checkbox-chip">
-        <input type="checkbox" name="interests" value="{{ interest.id }}" {{ 'checked' if interest.id in contact_interest_ids else '' }}> {{ interest.name }}
-      </label>
-      {% endfor %}
+    <legend>Notes</legend>
+    <div class="field">
+      <label>Household notes (optional)</label>
+      <textarea name="notes" rows="3" placeholder="Anything worth remembering about this household&hellip;">{{ contact.notes or '' }}</textarea>
     </div>
   </fieldset>
-  {% endif %}
 
   {% if custom_fields %}
   <fieldset>

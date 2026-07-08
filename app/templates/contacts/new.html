@@ -45,18 +45,13 @@
     </div>
   </fieldset>
 
-  {% if interests %}
   <fieldset>
-    <legend>Interests</legend>
-    <div class="checkbox-grid">
-      {% for interest in interests %}
-      <label class="checkbox-chip">
-        <input type="checkbox" name="interests" value="{{ interest.id }}"> {{ interest.name }}
-      </label>
-      {% endfor %}
+    <legend>Notes</legend>
+    <div class="field">
+      <label>Household notes (optional)</label>
+      <textarea name="notes" rows="3" placeholder="Anything worth remembering about this household&hellip;"></textarea>
     </div>
   </fieldset>
-  {% endif %}
 
   {% if custom_fields %}
   <fieldset>
