@@ -1,15 +1,19 @@
-{% macro timeline_event_form(action_url, event_types, event=none, submit_label='Add event', button_class='btn-primary') %}
+{% macro timeline_event_form(action_url, event_types, event=none, submit_label='Add event', button_class='btn-primary', form_id=none) %}
+  {% set fid = form_id or (event.id if event else 'new') %}
   <form method="POST" action="{{ action_url }}" style="margin-top:14px;">
     <div class="field">
       <label>Event type</label>
-      <select name="event_type">
+      <select name="event_type" class="timeline-event-type" data-label-target="timeline-label-field-{{ fid }}">
         {% for et in event_types %}
           <option value="{{ et }}" {{ 'selected' if event and event.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="field-row">
-      <div class="field"><label>Custom label (optional)</label><input type="text" name="label" value="{{ event.label if event and event.label else '' }}"></div>
+      <div class="field" id="timeline-label-field-{{ fid }}" style="display:none;">
+        <label>Custom label (optional)</label>
+        <input type="text" name="label" value="{{ event.label if event and event.label else '' }}">
+      </div>
       <div class="field"><label>Date</label><input type="date" name="event_date" value="{{ event.event_date.isoformat() if event else '' }}" required></div>
     </div>
     <div class="field">

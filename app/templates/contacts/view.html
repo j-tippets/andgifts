@@ -48,11 +48,12 @@
     <div class="timeline">
       {% for event in contact.timeline_events %}
         <div class="timeline-item">
-          <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
-          <strong>{{ event.display_label() }}</strong>
-          {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
           <details>
-            <summary style="cursor:pointer; color:var(--evergreen); font-size:13px; font-weight:600; margin-top:4px;">Edit</summary>
+            <summary class="timeline-summary">
+              <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
+              <strong>{{ event.display_label() }}</strong>
+              {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
+            </summary>
             {{ timeline_event_form(
               url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
               event_types, event=event, submit_label='Save changes', button_class='btn-primary btn-small'
@@ -73,4 +74,18 @@
     </details>
   </div>
 </div>
+
+<script>
+  (function () {
+    function toggleLabelField(select) {
+      var target = document.getElementById(select.dataset.labelTarget);
+      if (!target) return;
+      target.style.display = (select.value === 'custom') ? 'block' : 'none';
+    }
+    document.querySelectorAll('.timeline-event-type').forEach(function (select) {
+      toggleLabelField(select);
+      select.addEventListener('change', function () { toggleLabelField(select); });
+    });
+  })();
+</script>
 {% endblock %}
