@@ -1,41 +1,49 @@
 {% extends "base.html" %}
-{% block title %}Team{% endblock %}
+{% block title %}Team — Ag{% endblock %}
 {% block content %}
-<h1>Team</h1>
-<p>{{ org.name }} &middot; {{ org.seat_count() }}{% if org.limit_for('seats') %} / {{ org.limit_for('seats') }}{% endif %} seats used</p>
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Your organization</div>
+    <h1>Team</h1>
+    <p class="subdued">{{ org.name }} &middot; {{ org.seat_count() }}{% if org.limit_for('seats') %} / {{ org.limit_for('seats') }}{% endif %} seats used</p>
+  </div>
+  {% if can_add_seat %}
+    <a href="{{ url_for('team.new_member') }}" class="btn btn-primary">+ Add agent</a>
+  {% endif %}
+</div>
 
-<table>
-  <thead>
-    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
-  </thead>
-  <tbody>
-    {% for member in members %}
-    <tr>
-      <td>{{ member.full_name }}</td>
-      <td>{{ member.email }}</td>
-      <td>{{ member.role|capitalize }}</td>
-      <td>{{ member.status|capitalize }}</td>
-      <td>
+{% if not can_add_seat %}
+  <div class="flash flash-error">You've reached your plan's seat limit. Upgrade to add more agents.</div>
+{% endif %}
+
+{% if members %}
+  {% for member in members %}
+    <div class="team-row">
+      <div>
+        <strong>{{ member.full_name }}</strong>
+        <span class="subdued"> — {{ member.email }}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="role-pill role-{{ member.role }}">{{ member.role|capitalize }}</span>
+        <span class="status-pill status-{{ member.status }}">{{ member.status|capitalize }}</span>
         {% if member.id != current_user.id %}
           {% if member.status == 'disabled' %}
             <form method="post" action="{{ url_for('team.reactivate_member', user_id=member.id) }}">
-              <button type="submit">Reactivate</button>
+              <button type="submit" class="btn btn-ghost btn-small">Reactivate</button>
             </form>
           {% else %}
             <form method="post" action="{{ url_for('team.disable_member', user_id=member.id) }}">
-              <button type="submit">Disable</button>
+              <button type="submit" class="btn btn-ghost btn-small">Disable</button>
             </form>
           {% endif %}
         {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-{% if can_add_seat %}
-  <a href="{{ url_for('team.new_member') }}">+ Add agent</a>
+      </div>
+    </div>
+  {% endfor %}
 {% else %}
-  <p>You've reached your plan's seat limit. Upgrade to add more agents.</p>
+  <div class="empty-state">
+    <h3>No teammates yet</h3>
+    <p>Add your first agent to start collaborating.</p>
+  </div>
 {% endif %}
 {% endblock %}
