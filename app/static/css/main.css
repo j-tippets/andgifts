@@ -153,6 +153,11 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 16px; mar
 legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; color: var(--evergreen); }
 .checkbox-grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .checkbox-chip { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+/* .field label sets display:block (for normal field labels) and, by descendant-selector
+   specificity, was silently beating .checkbox-chip's own display:flex whenever a
+   checkbox-chip label was nested inside a .field -- this restores the intended
+   flex row (checkbox, then its text) in that case. */
+.field .checkbox-chip { display: flex; align-items: center; gap: 6px; }
 
 /* ---- Flash messages ---- */
 .flash-stack { margin-bottom: 20px; }
@@ -289,6 +294,7 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
   background: var(--gold);
 }
 .timeline-date { font-size: 12px; color: #8A8375; }
+.timeline-summary { cursor: pointer; }
 
 /* ---- Dashboard suggestion cards: index-card / rolodex motif ---- */
 .suggestion-card {
