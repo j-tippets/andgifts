@@ -4,7 +4,10 @@
 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
   <div>
     <div class="eyebrow">{{ contact.status|capitalize }} client</div>
-    <h1>{{ contact.household_name }}</h1>
+    <h1 style="display:flex; align-items:center; gap:10px;">
+      {{ contact.household_name }}
+      <span class="status-pill status-{{ contact.status }}">{{ contact.status|capitalize }}</span>
+    </h1>
     {% if current_user.is_admin %}
       <p class="subdued">Assigned to: {{ contact.owner.full_name if contact.owner else 'Shared' }}</p>
     {% endif %}
@@ -49,24 +52,28 @@
       {% endfor %}
     {% endif %}
 
-    <h2 style="margin-top:24px;">Recent activity</h2>
-    {% if recent_activity %}
-      {% for entry in recent_activity %}
-        <div style="margin-bottom:10px;">
-          <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
-          <div class="subdued">{{ entry.summary }}</div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p class="subdued">No activity recorded yet.</p>
-    {% endif %}
+    <details style="margin-top:24px;">
+      <summary style="cursor:pointer; font-weight:600; color:var(--evergreen); font-family:var(--font-display); font-size:17px;">Recent activity</summary>
+      <div style="margin-top:14px;">
+        {% if recent_activity %}
+          {% for entry in recent_activity %}
+            <div style="margin-bottom:10px;">
+              <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
+              <div class="subdued">{{ entry.summary }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="subdued">No activity recorded yet.</p>
+        {% endif %}
+      </div>
+    </details>
   </div>
 
   <div>
     <h2>Timeline</h2>
     {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
-    <div class="timeline">
-      {% for event in contact.timeline_events %}
+    <div class="timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
+      {% for event in contact.timeline_events|reverse %}
         <div class="timeline-item">
           <details>
             <summary class="timeline-summary">
@@ -86,7 +93,7 @@
     </div>
 
     <details style="margin-top:16px;">
-      <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
+      <summary class="timeline-summary" style="font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
       {{ timeline_event_form(
         url_for('contacts.add_timeline_event', contact_id=contact.id),
         event_types, submit_label='Add event'
