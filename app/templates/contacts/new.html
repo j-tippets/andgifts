@@ -58,6 +58,13 @@
   </fieldset>
   {% endif %}
 
+  {% if not current_user.is_admin %}
+  <label>
+    <input type="checkbox" name="keep_private">
+    Keep this contact private to me (hide from other agents in the agency)
+  </label>
+  {% endif %}
+
   <button type="submit" class="btn btn-primary">Save contact</button>
   <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">Cancel</a>
 </form>

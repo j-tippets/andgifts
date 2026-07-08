@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Add agent{% endblock %}
+{% block content %}
+<h1>Add an agent</h1>
+<form method="post">
+  <label>First name <input type="text" name="first_name"></label>
+  <label>Last name <input type="text" name="last_name"></label>
+  <label>Email <input type="email" name="email" required></label>
+
+  <label>Role
+    <select name="role">
+      <option value="agent">Agent</option>
+      <option value="admin">Admin</option>
+    </select>
+  </label>
+
+  <fieldset>
+    <legend>How should they get access?</legend>
+    <label>
+      <input type="radio" name="method" value="invite" checked>
+      Email invite &mdash; they'll set their own password
+      <small>(link is generated for you to send manually until email sending is wired up)</small>
+    </label>
+    <label>
+      <input type="radio" name="method" value="direct">
+      Create directly &mdash; you set a temporary password now
+    </label>
+  </fieldset>
+
+  <label>Temporary password (only used for "Create directly")
+    <input type="text" name="temp_password" placeholder="Leave blank to auto-generate">
+  </label>
+
+  <button type="submit">Add agent</button>
+</form>
+{% endblock %}

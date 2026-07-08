@@ -15,6 +15,7 @@ contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 def list_contacts():
     status_filter = request.args.get("status")
     query = Contact.query.filter_by(org_id=current_user.org_id)
+    query = Contact.visible_to(query, current_user)
     if status_filter in ("new", "active", "past"):
         query = query.filter_by(status=status_filter)
     contacts = query.order_by(Contact.household_name).all()
@@ -45,6 +46,7 @@ def new_contact():
         org_id=org.id,
         household_name=request.form["household_name"],
         status=request.form.get("status", "new"),
+        owner_user_id=current_user.id if request.form.get("keep_private") else None,
     )
     db.session.add(contact)
     db.session.flush()
@@ -102,14 +104,16 @@ def _add_contact_methods(person_id, form, prefix):
 @contacts_bp.route("/<contact_id>")
 @login_required
 def view_contact(contact_id):
-    contact = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id).first_or_404()
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
     return render_template("contacts/view.html", contact=contact, event_types=STANDARD_EVENT_TYPES)
 
 
 @contacts_bp.route("/<contact_id>/timeline/new", methods=["POST"])
 @login_required
 def add_timeline_event(contact_id):
-    contact = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id).first_or_404()
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
 
     event = TimelineEvent(
         contact_id=contact.id,

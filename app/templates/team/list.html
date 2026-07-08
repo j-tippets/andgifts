@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Team{% endblock %}
+{% block content %}
+<h1>Team</h1>
+<p>{{ org.name }} &middot; {{ org.seat_count() }}{% if org.limit_for('seats') %} / {{ org.limit_for('seats') }}{% endif %} seats used</p>
+
+<table>
+  <thead>
+    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for member in members %}
+    <tr>
+      <td>{{ member.full_name }}</td>
+      <td>{{ member.email }}</td>
+      <td>{{ member.role|capitalize }}</td>
+      <td>{{ member.status|capitalize }}</td>
+      <td>
+        {% if member.id != current_user.id %}
+          {% if member.status == 'disabled' %}
+            <form method="post" action="{{ url_for('team.reactivate_member', user_id=member.id) }}">
+              <button type="submit">Reactivate</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('team.disable_member', user_id=member.id) }}">
+              <button type="submit">Disable</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if can_add_seat %}
+  <a href="{{ url_for('team.new_member') }}">+ Add agent</a>
+{% else %}
+  <p>You've reached your plan's seat limit. Upgrade to add more agents.</p>
+{% endif %}
+{% endblock %}

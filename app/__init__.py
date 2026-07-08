@@ -25,9 +25,11 @@ def create_app(config_name=None):
     from app.routes.auth import auth_bp
     from app.routes.contacts import contacts_bp
     from app.routes.dashboard import dashboard_bp
+    from app.routes.team import team_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(contacts_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(team_bp)
 
     return app

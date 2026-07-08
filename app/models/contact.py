@@ -21,6 +21,10 @@ class Contact(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
 
+    # NULL = shared org-wide contact, visible to every agent in the agency.
+    # Set = private to that one agent (admins can still see everything).
+    owner_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+
     household_name = db.Column(db.String(255), nullable=False)  # "The Smiths"
     status = db.Column(
         db.Enum("new", "active", "past", name="contact_status"),
@@ -33,6 +37,7 @@ class Contact(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     org = db.relationship("Org", back_populates="contacts")
+    owner = db.relationship("User", foreign_keys=[owner_user_id])
     people = db.relationship("ContactPerson", back_populates="contact", cascade="all, delete-orphan")
     timeline_events = db.relationship(
         "TimelineEvent", back_populates="contact", cascade="all, delete-orphan",
@@ -42,6 +47,19 @@ class Contact(db.Model):
 
     def primary_person(self):
         return next((p for p in self.people if p.household_role == "head"), self.people[0] if self.people else None)
+
+    @staticmethod
+    def visible_to(query, user):
+        """
+        Scope a Contact query to what `user` is allowed to see:
+        admins see every contact in the org; agents see shared (org-wide)
+        contacts plus their own private ones.
+        """
+        if user.is_admin:
+            return query
+        return query.filter(
+            (Contact.owner_user_id.is_(None)) | (Contact.owner_user_id == user.id)
+        )
 
 
 class ContactPerson(db.Model):

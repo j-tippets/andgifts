@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Join {{ user.org.name }}{% endblock %}
+{% block auth_content %}
+<h1>Join {{ user.org.name }} on &Gifts</h1>
+<p>You've been invited as {{ user.email }}. Set a password to finish setting up your account.</p>
+<form method="post">
+  <label>Password <input type="password" name="password" required></label>
+  <label>Confirm password <input type="password" name="confirm_password" required></label>
+  <button type="submit">Set password &amp; sign in</button>
+</form>
+{% endblock %}
