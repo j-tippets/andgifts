@@ -179,7 +179,10 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
   border: 1px solid var(--line);
   border-radius: 8px;
   margin-bottom: 8px;
+  text-decoration: none;
+  color: var(--ink);
 }
+.team-row:hover { border-color: var(--gold); }
 .role-pill {
   font-size: 11px;
   text-transform: uppercase;
