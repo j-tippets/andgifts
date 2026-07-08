@@ -356,9 +356,13 @@ def delete_contact(contact_id):
         )
         return redirect(url_for("contacts.edit_contact", contact_id=contact.id))
 
-    SuggestedAction.query.filter_by(contact_id=contact.id).delete()
+    # ActionLog.suggested_action_id is a FK to suggested_actions.id, so the
+    # ActionLog rows (child) must be cleared before the SuggestedAction rows
+    # (parent) they may reference, or the SuggestedAction delete fails with an
+    # FK constraint error.
     if action_log_count:
         ActionLog.query.filter_by(contact_id=contact.id).delete()
+    SuggestedAction.query.filter_by(contact_id=contact.id).delete()
 
     name = contact.household_name
     _log_contact_activity(contact, "deleted", f"Deleted by {current_user.full_name}.")
