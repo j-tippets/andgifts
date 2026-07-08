@@ -7,6 +7,9 @@
     <h1>Contacts</h1>
   </div>
   <div style="display:flex; gap:8px;">
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('contacts.activity_feed') }}" class="btn btn-ghost">Activity</a>
+    {% endif %}
     <a href="{{ url_for('contacts.manage_fields') }}" class="btn btn-ghost">Manage fields</a>
     <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
   </div>

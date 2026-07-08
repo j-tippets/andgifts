@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user, login_user
 
 from app.extensions import db
-from app.models import User
+from app.models import User, ContactAuditLog
 from app.models.contact import Contact
 from app.decorators import admin_required
 from app.services.storage import upload_avatar, delete_avatar, StorageError
@@ -198,6 +198,10 @@ def delete_member(user_id):
 
     # Clear self-referential invite attribution so the FK doesn't block delete.
     User.query.filter_by(invited_by_user_id=member.id).update({"invited_by_user_id": None})
+
+    # Same for the contact audit trail -- keep the history (via actor_name_snapshot)
+    # but detach it from this user's id so the FK doesn't block delete.
+    ContactAuditLog.query.filter_by(actor_user_id=member.id).update({"actor_user_id": None})
 
     if member.photo_url:
         delete_avatar(member.photo_url)

@@ -6,8 +6,9 @@ from app.models import (
     Contact, ContactPerson, ContactMethod,
     TimelineEvent, STANDARD_EVENT_TYPES,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
-    SuggestedAction, ActionLog, User,
+    SuggestedAction, ActionLog, User, ContactAuditLog,
 )
+from app.decorators import admin_required
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -139,6 +140,8 @@ def new_contact():
 
     _save_custom_field_values(contact, request.form, _visible_custom_fields())
 
+    _log_contact_activity(contact, "created", f"Created by {current_user.full_name}.")
+
     # Seed first_contact timeline event automatically
     db.session.add(TimelineEvent(
         contact_id=contact.id,
@@ -150,6 +153,18 @@ def new_contact():
     db.session.commit()
     flash(f"Added {contact.household_name}.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
+def _log_contact_activity(contact, action, summary):
+    db.session.add(ContactAuditLog(
+        org_id=contact.org_id,
+        contact_id=contact.id,
+        contact_name_snapshot=contact.household_name,
+        actor_user_id=current_user.id,
+        actor_name_snapshot=current_user.full_name,
+        action=action,
+        summary=summary,
+    ))
 
 
 def _add_contact_methods(person_id, form, prefix):
@@ -211,12 +226,19 @@ def view_contact(contact_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
+    recent_activity = (
+        ContactAuditLog.query.filter_by(contact_id=contact.id)
+        .order_by(ContactAuditLog.created_at.desc())
+        .limit(15)
+        .all()
+    )
     return render_template(
         "contacts/view.html",
         contact=contact,
         event_types=STANDARD_EVENT_TYPES,
         custom_fields=_visible_custom_fields(),
         custom_values=custom_values,
+        recent_activity=recent_activity,
     )
 
 
@@ -248,6 +270,11 @@ def edit_contact(contact_id):
             action_log_count=action_log_count,
             org_members=org_members,
         )
+
+    old_household_name = contact.household_name
+    old_status = contact.status
+    old_owner_id = contact.owner_user_id
+    old_owner_name = contact.owner.full_name if contact.owner else "Shared"
 
     contact.household_name = request.form["household_name"]
     contact.status = request.form.get("status", contact.status)
@@ -290,6 +317,24 @@ def edit_contact(contact_id):
 
     _save_custom_field_values(contact, request.form, custom_fields)
 
+    changes = []
+    if old_household_name != contact.household_name:
+        changes.append(f"Renamed from '{old_household_name}' to '{contact.household_name}'.")
+    if old_status != contact.status:
+        changes.append(f"Status changed from {old_status} to {contact.status}.")
+    if old_owner_id != contact.owner_user_id:
+        new_owner_obj = User.query.get(contact.owner_user_id) if contact.owner_user_id else None
+        new_owner_name = new_owner_obj.full_name if new_owner_obj else "Shared"
+        changes.append(f"Reassigned from {old_owner_name} to {new_owner_name}.")
+
+    if changes:
+        action = "reassigned" if old_owner_id != contact.owner_user_id and len(changes) == 1 else (
+            "status_changed" if old_status != contact.status and len(changes) == 1 else "updated"
+        )
+        _log_contact_activity(contact, action, " ".join(changes))
+    else:
+        _log_contact_activity(contact, "updated", "Contact details updated.")
+
     db.session.commit()
     flash(f"Updated {contact.household_name}.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
@@ -316,10 +361,28 @@ def delete_contact(contact_id):
         ActionLog.query.filter_by(contact_id=contact.id).delete()
 
     name = contact.household_name
+    _log_contact_activity(contact, "deleted", f"Deleted by {current_user.full_name}.")
+    db.session.flush()
+    # Preserve the audit trail (via the denormalized name/actor snapshots) but
+    # detach it from the contact_id FK so the delete below doesn't get blocked.
+    ContactAuditLog.query.filter_by(contact_id=contact.id).update({"contact_id": None})
+
     db.session.delete(contact)
     db.session.commit()
     flash(f"{name} has been deleted.", "success")
     return redirect(url_for("contacts.list_contacts"))
+
+
+@contacts_bp.route("/activity")
+@admin_required
+def activity_feed():
+    entries = (
+        ContactAuditLog.query.filter_by(org_id=current_user.org_id)
+        .order_by(ContactAuditLog.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return render_template("contacts/activity.html", entries=entries)
 
 
 @contacts_bp.route("/fields")
@@ -403,6 +466,10 @@ def add_timeline_event(contact_id):
         recurrence_rule="annual" if request.form.get("is_recurring") else "none",
     )
     db.session.add(event)
+    _log_contact_activity(
+        contact, "timeline_added",
+        f"Added timeline event: {event.display_label()} on {event.event_date.isoformat()}.",
+    )
     db.session.commit()
     flash("Timeline event added.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
@@ -422,6 +489,10 @@ def edit_timeline_event(contact_id, event_id):
     event.is_recurring = bool(request.form.get("is_recurring"))
     event.recurrence_rule = "annual" if event.is_recurring else "none"
 
+    _log_contact_activity(
+        contact, "timeline_updated",
+        f"Updated timeline event: {event.display_label()} on {event.event_date.isoformat()}.",
+    )
     db.session.commit()
     flash("Timeline event updated.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
