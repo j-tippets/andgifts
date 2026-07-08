@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}My Profile — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">My account</div>
+    <h1>{{ current_user.full_name }}</h1>
+  </div>
+  <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost">Sign out</a>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  <fieldset>
+    <legend>Photo</legend>
+    <div style="display:flex; align-items:center; gap:20px;">
+      {% if current_user.photo_url %}
+        <img id="avatar-preview" src="{{ current_user.photo_url }}" alt="{{ current_user.full_name }}" class="avatar avatar-lg">
+      {% else %}
+        <img id="avatar-preview" src="" alt="{{ current_user.full_name }}" class="avatar avatar-lg" style="display:none;">
+      {% endif %}
+      <div id="avatar-placeholder" class="avatar avatar-lg avatar-placeholder" style="{{ 'display:none;' if current_user.photo_url else '' }}">{{ (current_user.first_name or '')[:1] }}{{ (current_user.last_name or '')[:1] }}</div>
+      <div>
+        <label class="btn btn-ghost file-input-label" for="photo-input">Choose photo</label>
+        <input type="file" id="photo-input" name="photo" accept="image/png,image/jpeg,image/webp" class="file-input-hidden">
+        <span class="file-input-name" id="photo-input-name">No file chosen</span>
+        <div class="subdued" style="margin-top:6px;"><small>PNG, JPG, or WEBP. Max 5MB.</small></div>
+        {% if current_user.photo_url %}
+          <label class="checkbox-chip" style="margin-top:8px;">
+            <input type="checkbox" name="remove_photo" value="1"> Remove current photo
+          </label>
+        {% endif %}
+      </div>
+    </div>
+  </fieldset>
+
+  <script>
+    (function () {
+      var input = document.getElementById('photo-input');
+      var nameLabel = document.getElementById('photo-input-name');
+      var preview = document.getElementById('avatar-preview');
+      var placeholder = document.getElementById('avatar-placeholder');
+
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) {
+          nameLabel.textContent = 'No file chosen';
+          return;
+        }
+        nameLabel.textContent = file.name;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      });
+    })();
+  </script>
+
+  <fieldset>
+    <legend>Details</legend>
+    <div class="field-row">
+      <div class="field"><label>First name</label><input type="text" name="first_name" value="{{ current_user.first_name or '' }}"></div>
+      <div class="field"><label>Last name</label><input type="text" name="last_name" value="{{ current_user.last_name or '' }}"></div>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" name="email" value="{{ current_user.email }}" required>
+    </div>
+    <p class="subdued"><small>Role: {{ current_user.role|capitalize }} &middot; only an org admin can change this.</small></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Change password</legend>
+    <p class="subdued" style="margin-top:0;"><small>Leave these blank to keep your current password.</small></p>
+    <div class="field">
+      <label>Current password</label>
+      <input type="password" name="current_password" autocomplete="current-password">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>New password</label><input type="password" name="new_password" autocomplete="new-password"></div>
+      <div class="field"><label>Confirm new password</label><input type="password" name="confirm_password" autocomplete="new-password"></div>
+    </div>
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Save changes</button>
+</form>
+{% endblock %}
