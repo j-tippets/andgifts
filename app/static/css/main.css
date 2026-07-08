@@ -166,6 +166,47 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
 .status-new { background: #E4EEF7; color: #2A5D8A; }
 .status-active { background: var(--gold-soft); color: #8A6A1F; }
 .status-past { background: #EDEAE3; color: #7A7466; }
+.status-pending { background: #E4EEF7; color: #2A5D8A; }
+.status-disabled { background: #F7E7E3; color: var(--danger); }
+
+/* ---- Team list ---- */
+.team-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.role-pill {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.role-admin { background: var(--evergreen); color: #fff; }
+.role-agent { background: #EDEAE3; color: #7A7466; }
+.btn-small { padding: 5px 12px; font-size: 12px; }
+
+/* ---- Segmented access-method choice (Add agent form) ---- */
+.access-method { display: flex; flex-direction: column; gap: 10px; }
+.access-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.access-option:has(input:checked) { border-color: var(--gold); background: var(--gold-soft); }
+.access-option input[type="radio"] { margin-top: 3px; }
+.access-option .option-title { font-weight: 600; }
+.access-option .subdued small { display: block; margin-top: 2px; }
 
 /* ---- Timeline ---- */
 .timeline { border-left: 2px solid var(--line); padding-left: 20px; margin-left: 6px; }

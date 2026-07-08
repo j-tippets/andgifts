@@ -1,0 +1,215 @@
+diff --git a/app/static/css/main.css b/app/static/css/main.css
+index 93ab58e..fd5facb 100644
+--- a/app/static/css/main.css
++++ b/app/static/css/main.css
+@@ -166,6 +166,47 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
+ .status-new { background: #E4EEF7; color: #2A5D8A; }
+ .status-active { background: var(--gold-soft); color: #8A6A1F; }
+ .status-past { background: #EDEAE3; color: #7A7466; }
++.status-pending { background: #E4EEF7; color: #2A5D8A; }
++.status-disabled { background: #F7E7E3; color: var(--danger); }
++
++/* ---- Team list ---- */
++.team-row {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  padding: 14px 16px;
++  background: var(--paper-raised);
++  border: 1px solid var(--line);
++  border-radius: 8px;
++  margin-bottom: 8px;
++}
++.role-pill {
++  font-size: 11px;
++  text-transform: uppercase;
++  letter-spacing: 0.06em;
++  padding: 3px 9px;
++  border-radius: 20px;
++  font-weight: 600;
++}
++.role-admin { background: var(--evergreen); color: #fff; }
++.role-agent { background: #EDEAE3; color: #7A7466; }
++.btn-small { padding: 5px 12px; font-size: 12px; }
++
++/* ---- Segmented access-method choice (Add agent form) ---- */
++.access-method { display: flex; flex-direction: column; gap: 10px; }
++.access-option {
++  display: flex;
++  align-items: flex-start;
++  gap: 10px;
++  padding: 12px 14px;
++  border: 1px solid var(--line);
++  border-radius: 8px;
++  cursor: pointer;
++}
++.access-option:has(input:checked) { border-color: var(--gold); background: var(--gold-soft); }
++.access-option input[type="radio"] { margin-top: 3px; }
++.access-option .option-title { font-weight: 600; }
++.access-option .subdued small { display: block; margin-top: 2px; }
+ 
+ /* ---- Timeline ---- */
+ .timeline { border-left: 2px solid var(--line); padding-left: 20px; margin-left: 6px; }
+diff --git a/app/templates/team/list.html b/app/templates/team/list.html
+index 3b10d75..819602f 100644
+--- a/app/templates/team/list.html
++++ b/app/templates/team/list.html
+@@ -1,41 +1,49 @@
+ {% extends "base.html" %}
+-{% block title %}Team{% endblock %}
++{% block title %}Team — Ag{% endblock %}
+ {% block content %}
+-<h1>Team</h1>
+-<p>{{ org.name }} &middot; {{ org.seat_count() }}{% if org.limit_for('seats') %} / {{ org.limit_for('seats') }}{% endif %} seats used</p>
++<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
++  <div>
++    <div class="eyebrow">Your organization</div>
++    <h1>Team</h1>
++    <p class="subdued">{{ org.name }} &middot; {{ org.seat_count() }}{% if org.limit_for('seats') %} / {{ org.limit_for('seats') }}{% endif %} seats used</p>
++  </div>
++  {% if can_add_seat %}
++    <a href="{{ url_for('team.new_member') }}" class="btn btn-primary">+ Add agent</a>
++  {% endif %}
++</div>
+ 
+-<table>
+-  <thead>
+-    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
+-  </thead>
+-  <tbody>
+-    {% for member in members %}
+-    <tr>
+-      <td>{{ member.full_name }}</td>
+-      <td>{{ member.email }}</td>
+-      <td>{{ member.role|capitalize }}</td>
+-      <td>{{ member.status|capitalize }}</td>
+-      <td>
++{% if not can_add_seat %}
++  <div class="flash flash-error">You've reached your plan's seat limit. Upgrade to add more agents.</div>
++{% endif %}
++
++{% if members %}
++  {% for member in members %}
++    <div class="team-row">
++      <div>
++        <strong>{{ member.full_name }}</strong>
++        <span class="subdued"> — {{ member.email }}</span>
++      </div>
++      <div style="display:flex; align-items:center; gap:10px;">
++        <span class="role-pill role-{{ member.role }}">{{ member.role|capitalize }}</span>
++        <span class="status-pill status-{{ member.status }}">{{ member.status|capitalize }}</span>
+         {% if member.id != current_user.id %}
+           {% if member.status == 'disabled' %}
+             <form method="post" action="{{ url_for('team.reactivate_member', user_id=member.id) }}">
+-              <button type="submit">Reactivate</button>
++              <button type="submit" class="btn btn-ghost btn-small">Reactivate</button>
+             </form>
+           {% else %}
+             <form method="post" action="{{ url_for('team.disable_member', user_id=member.id) }}">
+-              <button type="submit">Disable</button>
++              <button type="submit" class="btn btn-ghost btn-small">Disable</button>
+             </form>
+           {% endif %}
+         {% endif %}
+-      </td>
+-    </tr>
+-    {% endfor %}
+-  </tbody>
+-</table>
+-
+-{% if can_add_seat %}
+-  <a href="{{ url_for('team.new_member') }}">+ Add agent</a>
++      </div>
++    </div>
++  {% endfor %}
+ {% else %}
+-  <p>You've reached your plan's seat limit. Upgrade to add more agents.</p>
++  <div class="empty-state">
++    <h3>No teammates yet</h3>
++    <p>Add your first agent to start collaborating.</p>
++  </div>
+ {% endif %}
+ {% endblock %}
+diff --git a/app/templates/team/new.html b/app/templates/team/new.html
+index 89a2dc0..b94ef07 100644
+--- a/app/templates/team/new.html
++++ b/app/templates/team/new.html
+@@ -1,36 +1,54 @@
+ {% extends "base.html" %}
+-{% block title %}Add agent{% endblock %}
++{% block title %}Add agent — Ag{% endblock %}
+ {% block content %}
+-<h1>Add an agent</h1>
+-<form method="post">
+-  <label>First name <input type="text" name="first_name"></label>
+-  <label>Last name <input type="text" name="last_name"></label>
+-  <label>Email <input type="email" name="email" required></label>
++<div class="eyebrow">Your organization</div>
++<h1 style="margin-bottom:24px;">Add an agent</h1>
+ 
+-  <label>Role
+-    <select name="role">
+-      <option value="agent">Agent</option>
+-      <option value="admin">Admin</option>
+-    </select>
+-  </label>
++<form method="post">
++  <fieldset>
++    <legend>Details</legend>
++    <div class="field-row">
++      <div class="field"><label>First name</label><input type="text" name="first_name"></div>
++      <div class="field"><label>Last name</label><input type="text" name="last_name"></div>
++    </div>
++    <div class="field-row">
++      <div class="field"><label>Email</label><input type="email" name="email" required></div>
++      <div class="field">
++        <label>Role</label>
++        <select name="role">
++          <option value="agent">Agent</option>
++          <option value="admin">Admin</option>
++        </select>
++      </div>
++    </div>
++  </fieldset>
+ 
+   <fieldset>
+     <legend>How should they get access?</legend>
+-    <label>
+-      <input type="radio" name="method" value="invite" checked>
+-      Email invite &mdash; they'll set their own password
+-      <small>(link is generated for you to send manually until email sending is wired up)</small>
+-    </label>
+-    <label>
+-      <input type="radio" name="method" value="direct">
+-      Create directly &mdash; you set a temporary password now
+-    </label>
++    <div class="access-method">
++      <label class="access-option">
++        <input type="radio" name="method" value="invite" checked>
++        <div>
++          <div class="option-title">Email invite</div>
++          <div class="subdued">They'll set their own password. <small>(Link is generated for you to send manually until email sending is wired up.)</small></div>
++        </div>
++      </label>
++      <label class="access-option">
++        <input type="radio" name="method" value="direct">
++        <div>
++          <div class="option-title">Create directly</div>
++          <div class="subdued">You set a temporary password now.</div>
++        </div>
++      </label>
++    </div>
+   </fieldset>
+ 
+-  <label>Temporary password (only used for "Create directly")
++  <div class="field">
++    <label>Temporary password (only used for "Create directly")</label>
+     <input type="text" name="temp_password" placeholder="Leave blank to auto-generate">
+-  </label>
++  </div>
+ 
+-  <button type="submit">Add agent</button>
++  <button type="submit" class="btn btn-primary">Add agent</button>
++  <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">Cancel</a>
+ </form>
+ {% endblock %}

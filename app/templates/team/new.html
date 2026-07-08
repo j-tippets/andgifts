@@ -1,36 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Add agent{% endblock %}
+{% block title %}Add agent — Ag{% endblock %}
 {% block content %}
-<h1>Add an agent</h1>
-<form method="post">
-  <label>First name <input type="text" name="first_name"></label>
-  <label>Last name <input type="text" name="last_name"></label>
-  <label>Email <input type="email" name="email" required></label>
+<div class="eyebrow">Your organization</div>
+<h1 style="margin-bottom:24px;">Add an agent</h1>
 
-  <label>Role
-    <select name="role">
-      <option value="agent">Agent</option>
-      <option value="admin">Admin</option>
-    </select>
-  </label>
+<form method="post">
+  <fieldset>
+    <legend>Details</legend>
+    <div class="field-row">
+      <div class="field"><label>First name</label><input type="text" name="first_name"></div>
+      <div class="field"><label>Last name</label><input type="text" name="last_name"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email</label><input type="email" name="email" required></div>
+      <div class="field">
+        <label>Role</label>
+        <select name="role">
+          <option value="agent">Agent</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+  </fieldset>
 
   <fieldset>
     <legend>How should they get access?</legend>
-    <label>
-      <input type="radio" name="method" value="invite" checked>
-      Email invite &mdash; they'll set their own password
-      <small>(link is generated for you to send manually until email sending is wired up)</small>
-    </label>
-    <label>
-      <input type="radio" name="method" value="direct">
-      Create directly &mdash; you set a temporary password now
-    </label>
+    <div class="access-method">
+      <label class="access-option">
+        <input type="radio" name="method" value="invite" checked>
+        <div>
+          <div class="option-title">Email invite</div>
+          <div class="subdued">They'll set their own password. <small>(Link is generated for you to send manually until email sending is wired up.)</small></div>
+        </div>
+      </label>
+      <label class="access-option">
+        <input type="radio" name="method" value="direct">
+        <div>
+          <div class="option-title">Create directly</div>
+          <div class="subdued">You set a temporary password now.</div>
+        </div>
+      </label>
+    </div>
   </fieldset>
 
-  <label>Temporary password (only used for "Create directly")
+  <div class="field">
+    <label>Temporary password (only used for "Create directly")</label>
     <input type="text" name="temp_password" placeholder="Leave blank to auto-generate">
-  </label>
+  </div>
 
-  <button type="submit">Add agent</button>
+  <button type="submit" class="btn btn-primary">Add agent</button>
+  <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">Cancel</a>
 </form>
 {% endblock %}
