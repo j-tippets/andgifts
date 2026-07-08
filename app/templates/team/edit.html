@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ member.full_name }} — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Team member</div>
+    <h1>{{ member.full_name }}</h1>
+  </div>
+  <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">&larr; All team</a>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  <fieldset>
+    <legend>Photo</legend>
+    <div style="display:flex; align-items:center; gap:20px;">
+      {% if member.photo_url %}
+        <img src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-lg">
+      {% else %}
+        <div class="avatar avatar-lg avatar-placeholder">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
+      {% endif %}
+      <div>
+        <input type="file" name="photo" accept="image/png,image/jpeg,image/webp">
+        <div class="subdued" style="margin-top:6px;"><small>PNG, JPG, or WEBP. Max 5MB.</small></div>
+        {% if member.photo_url %}
+          <label class="checkbox-chip" style="margin-top:8px;">
+            <input type="checkbox" name="remove_photo" value="1"> Remove current photo
+          </label>
+        {% endif %}
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Details</legend>
+    <div class="field-row">
+      <div class="field"><label>First name</label><input type="text" name="first_name" value="{{ member.first_name or '' }}"></div>
+      <div class="field"><label>Last name</label><input type="text" name="last_name" value="{{ member.last_name or '' }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email</label><input type="email" name="email" value="{{ member.email }}" required></div>
+      <div class="field">
+        <label>Role</label>
+        {% if member.id == current_user.id %}
+          <input type="text" value="{{ member.role|capitalize }}" disabled>
+          <div class="subdued"><small>You can't change your own role.</small></div>
+        {% else %}
+          <select name="role">
+            <option value="agent" {{ 'selected' if member.role == 'agent' else '' }}>Agent</option>
+            <option value="admin" {{ 'selected' if member.role == 'admin' else '' }}>Admin</option>
+          </select>
+        {% endif %}
+      </div>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <div><span class="status-pill status-{{ member.status }}">{{ member.status|capitalize }}</span></div>
+    </div>
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Save changes</button>
+  <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">Cancel</a>
+</form>
+
+{% if member.id != current_user.id %}
+<div class="danger-zone">
+  <h2>Danger zone</h2>
+  <p class="subdued">Permanently delete this profile. This can't be undone.</p>
+
+  <form method="post" action="{{ url_for('team.delete_member', user_id=member.id) }}"
+        onsubmit="return confirm('Permanently delete {{ member.full_name }}? This cannot be undone.');">
+    {% if owned_contacts_count %}
+      <div class="flash flash-error">
+        {{ member.full_name }} owns {{ owned_contacts_count }} contact{{ 's' if owned_contacts_count != 1 else '' }}.
+        Deleting will unassign {{ 'them' if owned_contacts_count != 1 else 'it' }} rather than delete
+        {{ 'them' if owned_contacts_count != 1 else 'it' }}.
+      </div>
+      <label class="checkbox-chip" style="margin-bottom:12px;">
+        <input type="checkbox" name="reassign_contacts" value="1" required>
+        I understand — unassign {{ member.full_name }}'s {{ owned_contacts_count }} contact{{ 's' if owned_contacts_count != 1 else '' }} and delete this profile
+      </label><br>
+    {% endif %}
+    <button type="submit" class="btn btn-danger">Delete profile</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

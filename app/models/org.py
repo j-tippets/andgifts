@@ -76,6 +76,7 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(100))
     last_name = db.Column(db.String(100))
     role = db.Column(db.Enum("admin", "agent", name="user_role"), default="agent")
+    photo_url = db.Column(db.String(500), nullable=True)
 
     # --- Sub-account lifecycle ---
     # active  = normal, can log in

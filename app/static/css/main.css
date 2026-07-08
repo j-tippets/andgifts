@@ -191,6 +191,30 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
 .role-admin { background: var(--evergreen); color: #fff; }
 .role-agent { background: #EDEAE3; color: #7A7466; }
 .btn-small { padding: 5px 12px; font-size: 12px; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #8A3325; }
+
+.avatar { border-radius: 50%; object-fit: cover; display: block; }
+.avatar-sm { width: 32px; height: 32px; }
+.avatar-lg { width: 76px; height: 76px; }
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--evergreen);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.avatar-sm.avatar-placeholder { font-size: 13px; }
+.avatar-lg.avatar-placeholder { font-size: 26px; }
+
+.danger-zone {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.danger-zone h2 { color: var(--danger); }
 
 /* ---- Segmented access-method choice (Add agent form) ---- */
 .access-method { display: flex; flex-direction: column; gap: 10px; }
