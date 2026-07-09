@@ -59,6 +59,21 @@
     </div>
   </fieldset>
 
+  <fieldset>
+    <legend>Contact preferences</legend>
+    <label class="checkbox-chip">
+      <input type="checkbox" name="marketing_opt_out" {{ 'checked' if contact.marketing_opt_out else '' }}>
+      Opted out of marketing &mdash; don't include in bulk/marketing sends. Milestone gifts still apply.
+    </label>
+    <label class="checkbox-chip" style="margin-top:6px;">
+      <input type="checkbox" name="do_not_contact" {{ 'checked' if contact.do_not_contact else '' }}>
+      Do Not Contact &mdash; hard stop, no gifts, emails, texts, or suggestions of any kind
+    </label>
+    {% if contact.do_not_contact %}
+      <p class="subdued" style="margin-top:6px;"><small>Unchecking this will resume future suggestions, but won't restore any that were already cancelled.</small></p>
+    {% endif %}
+  </fieldset>
+
   {% if custom_fields %}
   <fieldset>
     <legend>Custom fields</legend>

@@ -33,6 +33,15 @@ class Contact(db.Model):
     )
     notes = db.Column(db.Text, nullable=True)
 
+    # Marketing opt-out: stop including this household in bulk/marketing
+    # sends. Relationship-driven milestone gifts (birthdays, closing
+    # anniversaries, etc.) are NOT marketing and are unaffected by this flag.
+    marketing_opt_out = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Do Not Contact: a hard stop. No gifts, emails, texts, or suggestions
+    # of any kind should be generated for this household once this is set.
+    do_not_contact = db.Column(db.Boolean, default=False, nullable=False)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

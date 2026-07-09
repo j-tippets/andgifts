@@ -7,6 +7,11 @@
     <h1 style="display:flex; align-items:center; gap:10px;">
       {{ contact.household_name }}
       <span class="status-pill status-{{ contact.status }}">{{ contact.status|capitalize }}</span>
+      {% if contact.do_not_contact %}
+        <span class="status-pill pill-do-not-contact">Do Not Contact</span>
+      {% elif contact.marketing_opt_out %}
+        <span class="status-pill pill-marketing-opt-out">Marketing opt-out</span>
+      {% endif %}
     </h1>
     {% if current_user.is_admin %}
       <p class="subdued">Assigned to: {{ contact.owner.full_name if contact.owner else 'Shared' }}</p>

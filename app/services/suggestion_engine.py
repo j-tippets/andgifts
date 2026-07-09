@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
 from app.extensions import db
-from app.models import TimelineEvent, SuggestedAction, GiftTrigger, GiftCatalogItem
+from app.models import TimelineEvent, SuggestedAction, GiftTrigger, GiftCatalogItem, Contact
 
 LOOKAHEAD_DAYS = 14
 
@@ -29,6 +29,7 @@ def generate_suggestions_for_org(org, today=None):
         TimelineEvent.query
         .join(TimelineEvent.contact)
         .filter_by(org_id=org.id)
+        .filter(Contact.do_not_contact.is_(False))
         .all()
     )
 
