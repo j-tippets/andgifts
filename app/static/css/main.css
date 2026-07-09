@@ -316,6 +316,18 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
 .timeline-summary::-webkit-details-marker { display: none; }
 .timeline-summary::marker { content: ""; }
 
+.catalog-caret { display:inline-block; transition: transform 0.15s ease; color: #9A9686; }
+details[open] > summary .catalog-caret { transform: rotate(90deg); }
+.tag-chip {
+  display: inline-block;
+  background: #EDEAE3;
+  color: #6B6459;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  margin: 2px 4px 2px 0;
+}
+
 /* ---- Dashboard suggestion cards: index-card / rolodex motif ---- */
 .suggestion-card {
   background: var(--paper-raised);
