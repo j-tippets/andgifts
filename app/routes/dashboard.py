@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import SuggestedAction, ActionLog
-from app.services.suggestion_engine import generate_suggestions_for_org
+from app.services.suggestion_engine import generate_suggestions_for_org, generate_campaign_suggestions_for_org
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -17,6 +17,7 @@ def index():
     # already run. Cheap because it's idempotent (skips dates already covered).
     if org.feature_enabled("ai_dashboard"):
         generate_suggestions_for_org(org)
+        generate_campaign_suggestions_for_org(org)
 
     pending = (
         SuggestedAction.query
@@ -41,7 +42,7 @@ def approve_action(action_id):
         contact_id=action.contact_id,
         suggested_action_id=action.id,
         action_type=action.action_type,
-        detail=action.reason_text,
+        detail=action.generated_message or action.reason_text,
     ))
     db.session.commit()
     flash("Action approved and queued.", "success")
