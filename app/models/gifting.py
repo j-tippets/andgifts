@@ -19,6 +19,15 @@ class GiftCatalogItem(db.Model):
     price_cents = db.Column(db.Integer, nullable=False)
     image_url = db.Column(db.String(500), nullable=True)
 
+    # "product" = a physical, shippable item (the common case today).
+    # "service" = something redeemed/booked rather than shipped (e.g. a
+    # gift card, an experience). No fulfillment automation differs yet --
+    # this is a tag for future filtering/reporting.
+    item_type = db.Column(
+        db.Enum("product", "service", name="gift_item_type"),
+        default="product", nullable=False,
+    )
+
     # Loose CSV tag match against Interest.name for MVP simplicity;
     # can be normalized to a proper join table later if needed.
     interest_tags = db.Column(db.String(500), nullable=True)

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Gift Catalog — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Products &amp; services you can send</div>
+    <h1>Gift Catalog</h1>
+  </div>
+  <a href="{{ url_for('catalog.new_item') }}" class="btn btn-primary">+ Add catalog item</a>
+</div>
+
+<h2>Global catalog <span class="subdued" style="font-weight:400; font-size:14px;">— available to every agency</span></h2>
+{% if not current_user.platform_admin %}
+  <p class="subdued" style="margin-top:-8px;"><small>Managed by the &amp;Gifts team. You can browse these but can't edit them.</small></p>
+{% endif %}
+{% if global_items %}
+  {% for item in global_items %}
+    <div class="contact-row" style="cursor:default;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        {% if item.image_url %}
+          <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
+        {% else %}
+          <div class="avatar avatar-sm avatar-placeholder">🎁</div>
+        {% endif %}
+        <div>
+          <strong>{{ item.name }}</strong>
+          <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
+          {% if not item.is_active %}<span class="status-pill pill-do-not-contact">Inactive</span>{% endif %}
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="status-pill status-new">{{ item.item_type|capitalize }}</span>
+        {% if current_user.platform_admin %}
+          <a href="{{ url_for('catalog.edit_item', item_id=item.id) }}" class="btn btn-ghost btn-small">Edit</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">No global catalog items yet.</p>
+{% endif %}
+
+<h2 style="margin-top:32px;">Your agency's custom items</h2>
+{% if org_items %}
+  {% for item in org_items %}
+    <div class="contact-row" style="cursor:default;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        {% if item.image_url %}
+          <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
+        {% else %}
+          <div class="avatar avatar-sm avatar-placeholder">🎁</div>
+        {% endif %}
+        <div>
+          <strong>{{ item.name }}</strong>
+          <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
+          {% if not item.is_active %}<span class="status-pill pill-do-not-contact">Inactive</span>{% endif %}
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="status-pill status-new">{{ item.item_type|capitalize }}</span>
+        <a href="{{ url_for('catalog.edit_item', item_id=item.id) }}" class="btn btn-ghost btn-small">Edit</a>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <h3>No custom items yet</h3>
+    <p>Add something specific to your agency, on top of the global catalog above.</p>
+    <a href="{{ url_for('catalog.new_item') }}" class="btn btn-primary">+ Add catalog item</a>
+  </div>
+{% endif %}
+{% endblock %}

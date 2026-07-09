@@ -13,3 +13,16 @@ def admin_required(view_func):
             abort(403)
         return view_func(*args, **kwargs)
     return wrapped
+
+
+def platform_admin_required(view_func):
+    """Restrict a route to the platform operator only -- e.g. editing the
+    shared global gift catalog. Distinct from admin_required, which is
+    scoped per-org."""
+    @wraps(view_func)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not current_user.platform_admin:
+            abort(403)
+        return view_func(*args, **kwargs)
+    return wrapped

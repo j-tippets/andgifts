@@ -76,6 +76,11 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(100))
     last_name = db.Column(db.String(100))
     role = db.Column(db.Enum("admin", "agent", name="user_role"), default="agent")
+    # Platform-operator flag (you), separate from per-org admin. Org admins
+    # can manage their own org's contacts/team/custom catalog items; only a
+    # platform_admin can create/edit the *global* gift catalog shared by
+    # every agency on &Gifts.
+    platform_admin = db.Column(db.Boolean, default=False, nullable=False)
     photo_url = db.Column(db.String(500), nullable=True)
 
     # --- Sub-account lifecycle ---

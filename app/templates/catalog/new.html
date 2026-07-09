@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Add catalog item — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">New catalog item</div>
+    <h1>Add a gift</h1>
+  </div>
+  <a href="{{ url_for('catalog.list_catalog') }}" class="btn btn-ghost">&larr; Back to catalog</a>
+</div>
+
+<form method="POST">
+  <fieldset>
+    <legend>Basics</legend>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" name="name" placeholder="e.g. Swedish Candy Box" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Price (USD)</label>
+        <input type="text" name="price" placeholder="49.00" required>
+      </div>
+      <div class="field">
+        <label>Type</label>
+        <select name="item_type">
+          <option value="product">Product (shipped)</option>
+          <option value="service">Service (booked/redeemed)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Contents / description</label>
+      <textarea name="description" rows="3" placeholder="What's in it, e.g. Swedish candy; candle; gift note"></textarea>
+    </div>
+    <div class="field">
+      <label>Interest tags</label>
+      <input type="text" name="interest_tags" placeholder="golf, sports, men, country club">
+      <p class="subdued" style="margin-top:4px;"><small>Comma-separated. Used to match this gift to a contact's interests.</small></p>
+    </div>
+    <div class="field">
+      <label>Image URL (optional)</label>
+      <input type="text" name="image_url" placeholder="https://…">
+    </div>
+  </fieldset>
+
+  {% if current_user.platform_admin %}
+  <fieldset>
+    <legend>Availability</legend>
+    <label class="checkbox-chip">
+      <input type="radio" name="scope" value="global" checked>
+      Global catalog &mdash; every agency on &amp;Gifts can send this
+    </label>
+    <label class="checkbox-chip" style="margin-top:6px;">
+      <input type="radio" name="scope" value="org">
+      Just for my agency
+    </label>
+  </fieldset>
+  {% endif %}
+
+  <button type="submit" class="btn btn-primary">Add to catalog</button>
+  <a href="{{ url_for('catalog.list_catalog') }}" class="btn btn-ghost">Cancel</a>
+</form>
+{% endblock %}
