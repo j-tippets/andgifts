@@ -28,6 +28,7 @@ def create_app(config_name=None):
     from app.routes.team import team_bp
     from app.routes.profile import profile_bp
     from app.routes.catalog import catalog_bp
+    from app.routes.app_admin import app_admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(contacts_bp)
@@ -35,5 +36,6 @@ def create_app(config_name=None):
     app.register_blueprint(team_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(catalog_bp)
+    app.register_blueprint(app_admin_bp)
 
     return app

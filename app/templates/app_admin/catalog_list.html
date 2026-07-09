@@ -1,19 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Gift Catalog — Ag{% endblock %}
+{% block title %}Global Gift Catalog — App Admin{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">Products &amp; services your agency can send</div>
-    <h1>Gift Catalog</h1>
+    <div class="eyebrow">App Admin</div>
+    <h1>Global Gift Catalog</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Visible and sendable by every agency on &amp;Gifts. Only you can edit this.</small></p>
   </div>
-  <a href="{{ url_for('catalog.new_item') }}" class="btn btn-primary">+ Add catalog item</a>
+  <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
+    <a href="{{ url_for('app_admin.catalog_new') }}" class="btn btn-primary">+ Add global item</a>
+  </div>
 </div>
-<p class="subdued" style="margin-top:-16px; margin-bottom:20px;">
-  <small>This is your agency's own catalog. The &amp;Gifts global catalog (available to every agency) is managed separately.</small>
-</p>
 
-{% if org_items %}
-  {% for item in org_items %}
+{% if items %}
+  {% for item in items %}
     <div class="contact-row" style="cursor:default;">
       <div style="display:flex; align-items:center; gap:12px;">
         {% if item.image_url %}
@@ -29,15 +30,14 @@
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <span class="status-pill status-new">{{ item.item_type|capitalize }}</span>
-        <a href="{{ url_for('catalog.edit_item', item_id=item.id) }}" class="btn btn-ghost btn-small">Edit</a>
+        <a href="{{ url_for('app_admin.catalog_edit', item_id=item.id) }}" class="btn btn-ghost btn-small">Edit</a>
       </div>
     </div>
   {% endfor %}
 {% else %}
   <div class="empty-state">
-    <h3>No custom items yet</h3>
-    <p>Add something specific to your agency, on top of the global catalog.</p>
-    <a href="{{ url_for('catalog.new_item') }}" class="btn btn-primary">+ Add catalog item</a>
+    <h3>No global catalog items yet</h3>
+    <a href="{{ url_for('app_admin.catalog_new') }}" class="btn btn-primary">+ Add global item</a>
   </div>
 {% endif %}
 {% endblock %}

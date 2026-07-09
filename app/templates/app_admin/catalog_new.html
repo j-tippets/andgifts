@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Add catalog item — Ag{% endblock %}
+{% block title %}Add global item — App Admin{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">New catalog item</div>
-    <h1>Add a gift</h1>
+    <div class="eyebrow">App Admin · Global catalog</div>
+    <h1>Add a global gift</h1>
   </div>
-  <a href="{{ url_for('catalog.list_catalog') }}" class="btn btn-ghost">&larr; Back to catalog</a>
+  <a href="{{ url_for('app_admin.catalog_list') }}" class="btn btn-ghost">&larr; Back to catalog</a>
 </div>
 
 <form method="POST">
@@ -44,11 +44,7 @@
     </div>
   </fieldset>
 
-  {% if current_user.platform_admin %}
-    <p class="subdued"><small>To add this to the shared global catalog instead of just your agency, use <a href="{{ url_for('app_admin.catalog_list') }}">App Admin → Gift Catalog</a>.</small></p>
-  {% endif %}
-
-  <button type="submit" class="btn btn-primary">Add to catalog</button>
-  <a href="{{ url_for('catalog.list_catalog') }}" class="btn btn-ghost">Cancel</a>
+  <button type="submit" class="btn btn-primary">Add to global catalog</button>
+  <a href="{{ url_for('app_admin.catalog_list') }}" class="btn btn-ghost">Cancel</a>
 </form>
 {% endblock %}
