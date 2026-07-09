@@ -19,6 +19,12 @@
     <span class="subdued"><small>Overview of every agency on &amp;Gifts.</small></span>
   </a>
 
+  <a href="{{ url_for('app_admin.recipe_list') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Recipe Book</strong>
+    <span class="subdued">{{ recipe_count }} active recipe{{ 's' if recipe_count != 1 else '' }}</span>
+    <span class="subdued"><small>Campaign templates agencies and agents can add.</small></span>
+  </a>
+
   <a href="{{ url_for('app_admin.billing') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
     <strong>Billing</strong>
     <span class="subdued">Coming soon</span>
