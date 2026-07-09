@@ -37,6 +37,11 @@ class Org(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Global gift catalog curation: False (default) = this agency can send
+    # any active global catalog item. True = only items in
+    # OrgCatalogSelection are available, even if that ends up being zero.
+    catalog_curated = db.Column(db.Boolean, default=False, nullable=False)
+
     users = db.relationship("User", back_populates="org", cascade="all, delete-orphan")
     contacts = db.relationship("Contact", back_populates="org", cascade="all, delete-orphan")
 
@@ -62,6 +67,28 @@ class Org(db.Model):
     def can_add_seat(self):
         limit = self.limit_for("seats")
         return limit is None or self.seat_count() < limit
+
+    # --- Gift catalog curation ---
+    def available_catalog_items(self):
+        """Active global catalog items this org can currently send."""
+        from app.models.gifting import GiftCatalogItem, OrgCatalogSelection
+        query = GiftCatalogItem.query.filter_by(org_id=None, is_active=True)
+        if self.catalog_curated:
+            selected_ids = [
+                s.gift_catalog_item_id
+                for s in OrgCatalogSelection.query.filter_by(org_id=self.id).all()
+            ]
+            query = query.filter(GiftCatalogItem.id.in_(selected_ids))
+        return query.order_by(GiftCatalogItem.price_cents, GiftCatalogItem.name).all()
+
+    def selected_item_ids(self):
+        """IDs currently in this org's selection table (only meaningful
+        when catalog_curated is True, but harmless to call regardless)."""
+        from app.models.gifting import OrgCatalogSelection
+        return {
+            s.gift_catalog_item_id
+            for s in OrgCatalogSelection.query.filter_by(org_id=self.id).all()
+        }
 
 
 class User(UserMixin, db.Model):
