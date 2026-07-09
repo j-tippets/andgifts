@@ -15,9 +15,9 @@
       <div class="brand">Ag</div>
       <a href="{{ url_for('dashboard.index') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard.index' }}">Today</a>
       <a href="{{ url_for('contacts.list_contacts') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('contacts.') }}">Contacts</a>
+      <a href="{{ url_for('catalog.list_catalog') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Catalog</a>
       {% if current_user.is_admin %}
       <a href="{{ url_for('team.list_members') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('team.') }}">Team</a>
-      <a href="{{ url_for('catalog.list_catalog') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Catalog</a>
       {% endif %}
       {% if current_user.platform_admin %}
       <div class="nav-section-label">Platform</div>
