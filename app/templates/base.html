@@ -17,6 +17,7 @@
       <a href="{{ url_for('contacts.list_contacts') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('contacts.') }}">Contacts</a>
       {% if current_user.is_admin %}
       <a href="{{ url_for('team.list_members') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('team.') }}">Team</a>
+      <a href="{{ url_for('catalog.list_catalog') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Catalog</a>
       {% endif %}
       <div class="nav-spacer"></div>
       <div class="tier-badge">{{ current_user.org.tier|capitalize }} plan</div>
