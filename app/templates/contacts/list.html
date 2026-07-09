@@ -40,6 +40,11 @@
         {% if current_user.is_admin %}
           <span class="subdued">{{ contact.owner.full_name if contact.owner else 'Shared' }}</span>
         {% endif %}
+        {% if contact.do_not_contact %}
+          <span class="status-pill pill-do-not-contact">Do Not Contact</span>
+        {% elif contact.marketing_opt_out %}
+          <span class="status-pill pill-marketing-opt-out">Opted out</span>
+        {% endif %}
         <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span>
       </div>
     </a>

@@ -275,10 +275,14 @@ def edit_contact(contact_id):
     old_status = contact.status
     old_owner_id = contact.owner_user_id
     old_owner_name = contact.owner.full_name if contact.owner else "Shared"
+    old_do_not_contact = contact.do_not_contact
+    old_marketing_opt_out = contact.marketing_opt_out
 
     contact.household_name = request.form["household_name"]
     contact.status = request.form.get("status", contact.status)
     contact.notes = request.form.get("notes", "").strip() or None
+    contact.marketing_opt_out = bool(request.form.get("marketing_opt_out"))
+    contact.do_not_contact = bool(request.form.get("do_not_contact"))
     if current_user.is_admin:
         new_owner_id = request.form.get("owner_user_id", "").strip()
         if not new_owner_id:
@@ -326,6 +330,26 @@ def edit_contact(contact_id):
         new_owner_obj = User.query.get(contact.owner_user_id) if contact.owner_user_id else None
         new_owner_name = new_owner_obj.full_name if new_owner_obj else "Shared"
         changes.append(f"Reassigned from {old_owner_name} to {new_owner_name}.")
+    if old_marketing_opt_out != contact.marketing_opt_out:
+        changes.append(
+            "Opted out of marketing." if contact.marketing_opt_out else "Opted back into marketing."
+        )
+    if old_do_not_contact != contact.do_not_contact:
+        if contact.do_not_contact:
+            cancelled = (
+                SuggestedAction.query
+                .filter_by(contact_id=contact.id, status="pending")
+                .all()
+            )
+            for suggestion in cancelled:
+                suggestion.status = "skipped"
+                suggestion.resolved_at = datetime.utcnow()
+            changes.append(
+                f"Marked Do Not Contact. Cancelled {len(cancelled)} pending suggestion{'s' if len(cancelled) != 1 else ''}."
+                if cancelled else "Marked Do Not Contact."
+            )
+        else:
+            changes.append("Removed Do Not Contact.")
 
     if changes:
         action = "reassigned" if old_owner_id != contact.owner_user_id and len(changes) == 1 else (

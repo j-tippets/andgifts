@@ -198,6 +198,8 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
 .status-active { background: var(--gold-soft); color: #8A6A1F; }
 .status-past { background: #EDEAE3; color: #7A7466; }
 .status-pending { background: #E4EEF7; color: #2A5D8A; }
+.pill-do-not-contact { background: #F5E1DC; color: var(--danger); }
+.pill-marketing-opt-out { background: #EDEAE3; color: #7A7466; }
 .status-disabled { background: #F7E7E3; color: var(--danger); }
 
 /* ---- Team list ---- */
