@@ -77,8 +77,8 @@
   <div>
     <h2>Timeline</h2>
     {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
-    <div class="timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
-      {% for event in contact.timeline_events|reverse %}
+    <div class="timeline" id="contact-timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
+      {% for event in contact.timeline_events %}
         <div class="timeline-item">
           <details>
             <summary class="timeline-summary">
@@ -118,6 +118,11 @@
       toggleLabelField(select);
       select.addEventListener('change', function () { toggleLabelField(select); });
     });
+
+    var timelineEl = document.getElementById('contact-timeline');
+    if (timelineEl) {
+      timelineEl.scrollTop = timelineEl.scrollHeight;
+    }
   })();
 </script>
 {% endblock %}
