@@ -2,7 +2,7 @@
 {% block title %}Gift Catalog — Ag{% endblock %}
 {% block content %}
 <div style="margin-bottom:20px;">
-  <div class="eyebrow">What your agency can send</div>
+  <div class="eyebrow">{{ 'What your agency can send' if current_user.is_admin else 'Browse what your agency can send' }}</div>
   <h1>Gift Catalog</h1>
 </div>
 
@@ -16,11 +16,13 @@
 {% if catalog_curated %}
   <div class="flash" style="background:#EDEAE3; color:#6B6459; display:flex; justify-content:space-between; align-items:center;">
     <span>Custom selection — {{ selected_ids|length }} of {{ items|length }} items available.</span>
-    <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;">
-      <button type="submit" class="btn btn-ghost btn-small">Reset to all items</button>
-    </form>
+    {% if current_user.is_admin %}
+      <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;">
+        <button type="submit" class="btn btn-ghost btn-small">Reset to all items</button>
+      </form>
+    {% endif %}
   </div>
-{% else %}
+{% elif current_user.is_admin %}
   <p class="subdued" style="margin-top:-4px; margin-bottom:20px;">
     <small>Your agency can currently send any item below. Remove an item to start a custom selection.</small>
   </p>
@@ -71,9 +73,11 @@
         </div>
       </div>
     </details>
-    <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:2px 0 0;" onclick="event.stopPropagation()">
-      <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add back' }}</button>
-    </form>
+    {% if current_user.is_admin %}
+      <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:2px 0 0;" onclick="event.stopPropagation()">
+        <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add back' }}</button>
+      </form>
+    {% endif %}
   </div>
 {% endmacro %}
 
@@ -83,10 +87,10 @@
       {{ catalog_card(item, true) }}
     {% endfor %}
   {% else %}
-    <p class="subdued">No items available. Reset to all items above, or check back once the catalog has items.</p>
+    <p class="subdued">No items available right now{{ ' — reset to all items above, or check back once the catalog has items.' if current_user.is_admin else '.' }}</p>
   {% endif %}
 
-  {% if excluded_items %}
+  {% if current_user.is_admin and excluded_items %}
     <h2 style="margin-top:32px;">Excluded</h2>
     <p class="subdued" style="margin-top:-8px;"><small>Not available for your agency to send.</small></p>
     {% for item in excluded_items %}

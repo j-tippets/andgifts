@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
-from flask_login import current_user
+from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import GiftCatalogItem, OrgCatalogSelection
@@ -9,7 +9,7 @@ catalog_bp = Blueprint("catalog", __name__, url_prefix="/catalog")
 
 
 @catalog_bp.route("/")
-@admin_required
+@login_required
 def list_catalog():
     org = current_user.org
     items = (
