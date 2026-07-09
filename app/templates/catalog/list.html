@@ -1,59 +1,99 @@
 {% extends "base.html" %}
 {% block title %}Gift Catalog — Ag{% endblock %}
 {% block content %}
-<div style="margin-bottom:24px;">
+<div style="margin-bottom:20px;">
   <div class="eyebrow">What your agency can send</div>
   <h1>Gift Catalog</h1>
 </div>
 
+<input
+  type="text"
+  id="catalog-search"
+  placeholder="Search by name or tag&hellip;"
+  style="width:100%; max-width:420px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; font-family:var(--font-body); font-size:14px; background:var(--paper-raised); margin-bottom:20px;"
+>
+
 {% if catalog_curated %}
   <div class="flash" style="background:#EDEAE3; color:#6B6459; display:flex; justify-content:space-between; align-items:center;">
-    <span>Your agency uses a custom selection — {{ selected_ids|length }} of {{ items|length }} items available.</span>
+    <span>Custom selection — {{ selected_ids|length }} of {{ items|length }} items available.</span>
     <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;">
       <button type="submit" class="btn btn-ghost btn-small">Reset to all items</button>
     </form>
   </div>
 {% else %}
-  <p class="subdued" style="margin-top:-16px; margin-bottom:20px;">
-    <small>Your agency can currently send any item below. Uncheck an item to start a custom selection.</small>
+  <p class="subdued" style="margin-top:-4px; margin-bottom:20px;">
+    <small>Your agency can currently send any item below. Remove an item to start a custom selection.</small>
   </p>
 {% endif %}
 
-{% if items %}
-  {% for item in items %}
-    {% set included = item.id in selected_ids %}
-    <div class="contact-row" style="cursor:default;">
-      <div style="display:flex; align-items:center; gap:12px;">
-        {% if item.image_url %}
-          <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
-        {% else %}
-          <div class="avatar avatar-sm avatar-placeholder">🎁</div>
-        {% endif %}
-        <div>
-          <strong>{{ item.name }}</strong>
-          <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
-          {% if item.interest_tags %}
-            <div class="subdued"><small>{{ item.interest_tags }}</small></div>
+{% set included_items = items|selectattr('id', 'in', selected_ids)|list %}
+{% set excluded_items = items|rejectattr('id', 'in', selected_ids)|list %}
+
+<div id="catalog-items">
+  {% if included_items %}
+    {% for item in included_items %}
+      <div class="contact-row catalog-item-row" style="cursor:default;" data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}">
+        <div style="display:flex; align-items:center; gap:12px;">
+          {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
+          {% else %}
+            <div class="avatar avatar-sm avatar-placeholder">🎁</div>
           {% endif %}
+          <div>
+            <strong>{{ item.name }}</strong>
+            <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
+            {% if item.interest_tags %}
+              <div class="subdued"><small>{{ item.interest_tags }}</small></div>
+            {% endif %}
+          </div>
         </div>
-      </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span class="status-pill status-new">{{ item.item_type|capitalize }}</span>
-        {% if included %}
-          <span class="status-pill status-active">Included</span>
-        {% else %}
-          <span class="status-pill pill-do-not-contact">Excluded</span>
-        {% endif %}
         <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:0;">
-          <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add' }}</button>
+          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
         </form>
       </div>
-    </div>
-  {% endfor %}
-{% else %}
-  <div class="empty-state">
-    <h3>No global catalog items yet</h3>
-    <p>Nothing has been added to the &amp;Gifts catalog yet — check back soon.</p>
-  </div>
-{% endif %}
+    {% endfor %}
+  {% else %}
+    <p class="subdued">No items available. Reset to all items above, or check back once the catalog has items.</p>
+  {% endif %}
+
+  {% if excluded_items %}
+    <h2 style="margin-top:32px;">Excluded</h2>
+    <p class="subdued" style="margin-top:-8px;"><small>Not available for your agency to send.</small></p>
+    {% for item in excluded_items %}
+      <div class="contact-row catalog-item-row" style="cursor:default; opacity:0.6;" data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}">
+        <div style="display:flex; align-items:center; gap:12px;">
+          {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
+          {% else %}
+            <div class="avatar avatar-sm avatar-placeholder">🎁</div>
+          {% endif %}
+          <div>
+            <strong>{{ item.name }}</strong>
+            <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
+            {% if item.interest_tags %}
+              <div class="subdued"><small>{{ item.interest_tags }}</small></div>
+            {% endif %}
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:0;">
+          <button type="submit" class="btn btn-ghost btn-small">Add back</button>
+        </form>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<script>
+  (function () {
+    var input = document.getElementById('catalog-search');
+    if (!input) return;
+    input.addEventListener('input', function () {
+      var q = input.value.trim().toLowerCase();
+      document.querySelectorAll('.catalog-item-row').forEach(function (row) {
+        var haystack = row.dataset.search || '';
+        row.style.display = (!q || haystack.indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  })();
+</script>
 {% endblock %}
