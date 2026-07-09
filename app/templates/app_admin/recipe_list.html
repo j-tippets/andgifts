@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Recipe Book — App Admin{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">App Admin</div>
+    <h1>Recipe Book</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Templates agencies and agents can copy into their own campaigns. Editing one here never changes campaigns already copied from it.</small></p>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
+    <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add recipe</a>
+  </div>
+</div>
+
+{% if recipes %}
+  {% for recipe in recipes %}
+    <div class="contact-row" style="cursor:default; {{ 'opacity:0.6;' if not recipe.is_active else '' }}">
+      <div>
+        <strong>{{ recipe.name }}</strong>
+        <div class="subdued">
+          <small>
+            {{ recipe.event_type.replace('_', ' ')|title }}, {{ recipe.timing_label() }}
+            &rarr; {{ recipe.action_type.replace('_', ' ')|title }}
+            {% if recipe.use_llm_gift_selection %} (LLM picks the gift){% endif %}
+            {% if recipe.use_llm_copy %} (LLM writes the message){% endif %}
+          </small>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        {% if not recipe.is_active %}<span class="status-pill pill-do-not-contact">Inactive</span>{% endif %}
+        <a href="{{ url_for('app_admin.recipe_edit', recipe_id=recipe.id) }}" class="btn btn-ghost btn-small">Edit</a>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <h3>No recipes yet</h3>
+    <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add recipe</a>
+  </div>
+{% endif %}
+{% endblock %}

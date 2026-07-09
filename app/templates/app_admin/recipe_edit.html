@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ recipe.name }} — App Admin{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">App Admin · Recipe Book</div>
+    <h1>Edit {{ recipe.name }}</h1>
+  </div>
+  <a href="{{ url_for('app_admin.recipe_list') }}" class="btn btn-ghost">&larr; Back to Recipe Book</a>
+</div>
+
+<form method="POST">
+  <fieldset>
+    <legend>Basics</legend>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" name="name" value="{{ recipe.name }}" required>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea name="description" rows="2">{{ recipe.description or '' }}</textarea>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Trigger</legend>
+    <div class="field-row">
+      <div class="field">
+        <label>Event</label>
+        <select name="event_type" required>
+          {% for et in event_types %}
+            <option value="{{ et }}" {{ 'selected' if recipe.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Timing (days)</label>
+        <input type="text" name="offset_days" value="{{ recipe.offset_days }}">
+        <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Conditions (optional)</legend>
+    <div class="field">
+      <label>Only if contact has this interest tag</label>
+      <input type="text" name="interest_tag" value="{{ recipe.interest_tag or '' }}" placeholder="e.g. golf">
+    </div>
+    <div class="field">
+      <label>Max gift price (USD)</label>
+      <input type="text" name="price_max" value="{{ price_max_display }}" placeholder="e.g. 150.00">
+    </div>
+    <label class="checkbox-chip">
+      <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if recipe.use_llm_gift_selection else '' }}>
+      Let the LLM pick the best gift (within the price cap above) instead of a fixed item
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Action</legend>
+    <div class="field">
+      <label>Type</label>
+      <select name="action_type" id="action_type" required>
+        <option value="gift" {{ 'selected' if recipe.action_type == 'gift' else '' }}>Gift</option>
+        <option value="email" {{ 'selected' if recipe.action_type == 'email' else '' }}>Email</option>
+        <option value="text" {{ 'selected' if recipe.action_type == 'text' else '' }}>Text</option>
+        <option value="handwritten_note" {{ 'selected' if recipe.action_type == 'handwritten_note' else '' }}>Handwritten note</option>
+      </select>
+    </div>
+
+    <div class="field" id="fixed-gift-field">
+      <label>Fixed gift (used unless LLM selection is checked above)</label>
+      <select name="suggested_gift_id">
+        <option value="">— none —</option>
+        {% for g in gift_items %}
+          <option value="{{ g.id }}" {{ 'selected' if recipe.suggested_gift_id == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field" id="message-fields">
+      <label class="checkbox-chip">
+        <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if recipe.use_llm_copy else '' }}>
+        Let the LLM write the message instead of a fixed template
+      </label>
+      <div id="template-field" style="margin-top:10px;">
+        <label>Message template</label>
+        <textarea name="message_template" rows="2">{{ recipe.message_template or '' }}</textarea>
+        <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+      </div>
+      <div id="llm-hint-field" style="margin-top:10px;">
+        <label>What should the LLM say?</label>
+        <textarea name="llm_prompt_hint" rows="2">{{ recipe.llm_prompt_hint or '' }}</textarea>
+      </div>
+    </div>
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Save changes</button>
+  <a href="{{ url_for('app_admin.recipe_list') }}" class="btn btn-ghost">Cancel</a>
+</form>
+
+<div class="danger-zone">
+  <h2>{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this recipe</h2>
+  <p class="subdued">
+    {% if recipe.is_active %}
+      Removes it from the book so it can't be copied into new campaigns. Agencies who already copied it keep using their copy unaffected.
+    {% else %}
+      Makes it available in the book again.
+    {% endif %}
+  </p>
+  <form method="post" action="{{ url_for('app_admin.recipe_toggle_active', recipe_id=recipe.id) }}">
+    <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }}</button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var actionType = document.getElementById('action_type');
+    var fixedGiftField = document.getElementById('fixed-gift-field');
+    var messageFields = document.getElementById('message-fields');
+    var useLlmCopy = document.getElementById('use_llm_copy');
+    var templateField = document.getElementById('template-field');
+    var llmHintField = document.getElementById('llm-hint-field');
+
+    function refresh() {
+      var isGift = actionType.value === 'gift';
+      fixedGiftField.style.display = isGift ? '' : 'none';
+      messageFields.style.display = isGift ? 'none' : '';
+      templateField.style.display = useLlmCopy.checked ? 'none' : '';
+      llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
+    }
+    actionType.addEventListener('change', refresh);
+    useLlmCopy.addEventListener('change', refresh);
+    refresh();
+  })();
+</script>
+{% endblock %}
