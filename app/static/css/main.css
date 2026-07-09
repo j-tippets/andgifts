@@ -342,6 +342,15 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   gap: 20px;
 }
 .suggestion-reason { font-size: 15px; line-height: 1.5; }
+.suggestion-message {
+  font-size: 14px;
+  font-style: italic;
+  color: #6B6459;
+  background: #F0ECE0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
 .suggestion-meta { font-size: 12px; color: #8A8375; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
 .suggestion-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .empty-state { text-align: center; padding: 60px 20px; color: #8A8375; }

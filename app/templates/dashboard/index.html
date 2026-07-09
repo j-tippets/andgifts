@@ -16,7 +16,10 @@
     <div class="suggestion-card">
       <div>
         <div class="suggestion-reason">{{ s.reason_text }}</div>
-        <div class="suggestion-meta">{{ s.action_type }} · {{ s.contact.household_name }} · {{ s.target_date.strftime('%b %-d') }}</div>
+        {% if s.generated_message %}
+          <div class="suggestion-message">&ldquo;{{ s.generated_message }}&rdquo;</div>
+        {% endif %}
+        <div class="suggestion-meta">{{ s.action_type.replace('_', ' ') }} · {{ s.contact.household_name }} · {{ s.target_date.strftime('%b %-d') }}</div>
       </div>
       <div class="suggestion-actions">
         <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}">
