@@ -29,11 +29,12 @@
 {% set included_items = items|selectattr('id', 'in', selected_ids)|list %}
 {% set excluded_items = items|rejectattr('id', 'in', selected_ids)|list %}
 
-<div id="catalog-items">
-  {% if included_items %}
-    {% for item in included_items %}
-      <div class="contact-row catalog-item-row" style="cursor:default;" data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}">
+{% macro catalog_card(item, included) %}
+  <div class="contact-row catalog-item-row" style="cursor:default; align-items:flex-start; {{ 'opacity:0.6;' if not included else '' }}" data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}">
+    <details style="flex:1;">
+      <summary class="timeline-summary" style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
         <div style="display:flex; align-items:center; gap:12px;">
+          <span class="catalog-caret">▸</span>
           {% if item.image_url %}
             <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
           {% else %}
@@ -42,15 +43,44 @@
           <div>
             <strong>{{ item.name }}</strong>
             <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
-            {% if item.interest_tags %}
-              <div class="subdued"><small>{{ item.interest_tags }}</small></div>
-            {% endif %}
           </div>
         </div>
-        <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:0;">
-          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
-        </form>
+      </summary>
+      <div style="padding:14px 4px 4px 52px; display:flex; gap:20px; align-items:flex-start;">
+        {% if item.image_url %}
+          <img src="{{ item.image_url }}" alt="" style="width:120px; height:120px; border-radius:8px; object-fit:cover; flex-shrink:0;">
+        {% else %}
+          <div class="avatar avatar-placeholder" style="width:120px; height:120px; font-size:36px; flex-shrink:0;">🎁</div>
+        {% endif %}
+        <div>
+          {% if item.description %}
+            <p style="margin:0 0 10px;"><strong>What's inside</strong></p>
+            <ul style="margin:0 0 14px; padding-left:18px;">
+              {% for line in item.description.split(';') %}
+                <li>{{ line.strip() }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if item.tag_list() %}
+            <div>
+              {% for tag in item.tag_list() %}
+                <span class="tag-chip">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
       </div>
+    </details>
+    <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:2px 0 0;" onclick="event.stopPropagation()">
+      <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add back' }}</button>
+    </form>
+  </div>
+{% endmacro %}
+
+<div id="catalog-items">
+  {% if included_items %}
+    {% for item in included_items %}
+      {{ catalog_card(item, true) }}
     {% endfor %}
   {% else %}
     <p class="subdued">No items available. Reset to all items above, or check back once the catalog has items.</p>
@@ -60,25 +90,7 @@
     <h2 style="margin-top:32px;">Excluded</h2>
     <p class="subdued" style="margin-top:-8px;"><small>Not available for your agency to send.</small></p>
     {% for item in excluded_items %}
-      <div class="contact-row catalog-item-row" style="cursor:default; opacity:0.6;" data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}">
-        <div style="display:flex; align-items:center; gap:12px;">
-          {% if item.image_url %}
-            <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
-          {% else %}
-            <div class="avatar avatar-sm avatar-placeholder">🎁</div>
-          {% endif %}
-          <div>
-            <strong>{{ item.name }}</strong>
-            <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
-            {% if item.interest_tags %}
-              <div class="subdued"><small>{{ item.interest_tags }}</small></div>
-            {% endif %}
-          </div>
-        </div>
-        <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:0;">
-          <button type="submit" class="btn btn-ghost btn-small">Add back</button>
-        </form>
-      </div>
+      {{ catalog_card(item, false) }}
     {% endfor %}
   {% endif %}
 </div>
