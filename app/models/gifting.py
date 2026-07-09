@@ -61,3 +61,25 @@ class GiftTrigger(db.Model):
     )
 
     suggested_gift = db.relationship("GiftCatalogItem")
+
+
+class OrgCatalogSelection(db.Model):
+    """
+    Marks one global catalog item as included in a specific org's curated
+    catalog. Only consulted when that Org's catalog_curated flag is True --
+    see Org.available_catalog_items(). Agencies no longer add their own
+    custom items; this is purely an allow-list over the global catalog.
+    """
+    __tablename__ = "org_catalog_selections"
+    __table_args__ = (
+        db.UniqueConstraint("org_id", "gift_catalog_item_id", name="uq_org_catalog_selection"),
+    )
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
+    gift_catalog_item_id = db.Column(
+        db.String(36), db.ForeignKey("gift_catalog_items.id"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    gift_catalog_item = db.relationship("GiftCatalogItem")

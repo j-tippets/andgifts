@@ -24,6 +24,7 @@ LOOKAHEAD_DAYS = 14
 def generate_suggestions_for_org(org, today=None):
     today = today or date.today()
     window_end = today + timedelta(days=LOOKAHEAD_DAYS)
+    available_item_ids = {i.id for i in org.available_catalog_items()}
 
     events = (
         TimelineEvent.query
@@ -42,7 +43,7 @@ def generate_suggestions_for_org(org, today=None):
         if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
             continue
 
-        gift_trigger = _match_gift_trigger(org.id, event)
+        gift_trigger = _match_gift_trigger(org.id, event, available_item_ids)
         reason = _build_reason_text(event, occurrence_date, gift_trigger)
 
         suggestion = SuggestedAction(
@@ -88,15 +89,21 @@ def _suggestion_exists(org_id, contact_id, event_id, target_date):
     ).scalar()
 
 
-def _match_gift_trigger(org_id, event):
+def _match_gift_trigger(org_id, event, available_item_ids):
     """Prefer an org-specific trigger over the global default; prefer a
-    trigger matching one of the contact's interests over a generic one."""
+    trigger matching one of the contact's interests over a generic one.
+    Any candidate pointing at a gift the org hasn't curated in (see
+    Org.available_catalog_items) is skipped entirely."""
     contact_interest_names = {i.name for i in event.contact.interests}
 
     candidates = GiftTrigger.query.filter(
         GiftTrigger.event_type == event.event_type,
         (GiftTrigger.org_id == org_id) | (GiftTrigger.org_id.is_(None)),
     ).all()
+    candidates = [
+        c for c in candidates
+        if c.suggested_gift_id is None or c.suggested_gift_id in available_item_ids
+    ]
     if not candidates:
         return None
 
