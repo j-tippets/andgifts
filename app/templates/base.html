@@ -19,6 +19,10 @@
       <a href="{{ url_for('team.list_members') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('team.') }}">Team</a>
       <a href="{{ url_for('catalog.list_catalog') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Catalog</a>
       {% endif %}
+      {% if current_user.platform_admin %}
+      <div class="nav-section-label">Platform</div>
+      <a href="{{ url_for('app_admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('app_admin.') }}">App Admin</a>
+      {% endif %}
       <div class="nav-spacer"></div>
       <div class="tier-badge">{{ current_user.org.tier|capitalize }} plan</div>
       <a href="{{ url_for('profile.edit_profile') }}" class="sidebar-profile {{ 'active' if request.endpoint and request.endpoint.startswith('profile.') }}">

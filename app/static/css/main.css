@@ -64,6 +64,13 @@ a { color: inherit; }
 .nav-link.muted { color: #9A9686; }
 
 .nav-spacer { flex: 1; }
+.nav-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9A9686;
+  padding: 12px 12px 2px;
+}
 
 .sidebar-profile {
   display: flex;

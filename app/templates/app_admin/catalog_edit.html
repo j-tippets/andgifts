@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Edit {{ item.name }} — Ag{% endblock %}
+{% block title %}Edit {{ item.name }} — App Admin{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">Your agency · {{ item.item_type|capitalize }}</div>
+    <div class="eyebrow">App Admin · Global catalog · {{ item.item_type|capitalize }}</div>
     <h1>Edit {{ item.name }}</h1>
   </div>
-  <a href="{{ url_for('catalog.list_catalog') }}" class="btn btn-ghost">&larr; Back to catalog</a>
+  <a href="{{ url_for('app_admin.catalog_list') }}" class="btn btn-ghost">&larr; Back to catalog</a>
 </div>
 
 <form method="POST">
@@ -45,7 +45,7 @@
   </fieldset>
 
   <button type="submit" class="btn btn-primary">Save changes</button>
-  <a href="{{ url_for('catalog.list_catalog') }}" class="btn btn-ghost">Cancel</a>
+  <a href="{{ url_for('app_admin.catalog_list') }}" class="btn btn-ghost">Cancel</a>
 </form>
 
 <div class="danger-zone">
@@ -54,10 +54,10 @@
     {% if item.is_active %}
       Hides it from future campaign matching without deleting its history. Safe even if it's referenced by a trigger.
     {% else %}
-      Makes it available for suggestions and manual sends again.
+      Makes it available for suggestions and manual sends again, across every agency.
     {% endif %}
   </p>
-  <form method="post" action="{{ url_for('catalog.toggle_active', item_id=item.id) }}">
+  <form method="post" action="{{ url_for('app_admin.catalog_toggle_active', item_id=item.id) }}">
     <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if item.is_active else 'Reactivate' }}</button>
   </form>
 </div>
@@ -70,9 +70,9 @@
       Remove those triggers first, or deactivate instead of deleting.
     </div>
   {% else %}
-    <p class="subdued">Permanently remove {{ item.name }} from the catalog. This can't be undone.</p>
-    <form method="post" action="{{ url_for('catalog.delete_item', item_id=item.id) }}"
-          onsubmit="return confirm('Permanently delete {{ item.name }}? This cannot be undone.');">
+    <p class="subdued">Permanently remove {{ item.name }} from the global catalog. This affects every agency and can't be undone.</p>
+    <form method="post" action="{{ url_for('app_admin.catalog_delete', item_id=item.id) }}"
+          onsubmit="return confirm('Permanently delete {{ item.name }} from the GLOBAL catalog? Every agency loses access to it. This cannot be undone.');">
       <button type="submit" class="btn btn-danger">Delete item</button>
     </form>
   {% endif %}

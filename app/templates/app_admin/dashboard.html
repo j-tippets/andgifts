@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}App Admin — Ag{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+  <div class="eyebrow">Platform tools — visible only to you</div>
+  <h1>App Admin</h1>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+  <a href="{{ url_for('app_admin.catalog_list') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Gift Catalog</strong>
+    <span class="subdued">{{ global_catalog_count }} global item{{ 's' if global_catalog_count != 1 else '' }}</span>
+    <span class="subdued"><small>Manage the shared catalog every agency can send from.</small></span>
+  </a>
+
+  <a href="{{ url_for('app_admin.orgs_list') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Orgs</strong>
+    <span class="subdued">{{ org_count }} agenc{{ 'y' if org_count == 1 else 'ies' }}</span>
+    <span class="subdued"><small>Overview of every agency on &amp;Gifts.</small></span>
+  </a>
+
+  <a href="{{ url_for('app_admin.billing') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Billing</strong>
+    <span class="subdued">Coming soon</span>
+    <span class="subdued"><small>Stripe / plan management across agencies.</small></span>
+  </a>
+</div>
+{% endblock %}
