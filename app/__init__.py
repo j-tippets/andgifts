@@ -29,6 +29,7 @@ def create_app(config_name=None):
     from app.routes.profile import profile_bp
     from app.routes.catalog import catalog_bp
     from app.routes.app_admin import app_admin_bp
+    from app.routes.campaigns import campaigns_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(contacts_bp)
@@ -37,5 +38,6 @@ def create_app(config_name=None):
     app.register_blueprint(profile_bp)
     app.register_blueprint(catalog_bp)
     app.register_blueprint(app_admin_bp)
+    app.register_blueprint(campaigns_bp)
 
     return app

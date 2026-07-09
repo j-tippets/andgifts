@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Recipe Book — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Campaign templates</div>
+    <h1>Recipe Book</h1>
+  </div>
+  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Campaigns</a>
+</div>
+
+{% if recipes %}
+  {% for recipe in recipes %}
+    <div class="contact-row" style="cursor:default; align-items:flex-start;">
+      <div>
+        <strong>{{ recipe.name }}</strong>
+        {% if recipe.description %}<p class="subdued" style="margin:4px 0;">{{ recipe.description }}</p>{% endif %}
+        <div class="subdued">
+          <small>
+            {{ recipe.event_type.replace('_', ' ')|title }}, {{ recipe.timing_label() }}
+            &rarr; {{ recipe.action_type.replace('_', ' ')|title }}
+            {% if recipe.use_llm_gift_selection %} (LLM picks the gift){% endif %}
+            {% if recipe.use_llm_copy %} (LLM writes the message){% endif %}
+          </small>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; flex-shrink:0;">
+        {% if current_user.is_admin %}
+          <form method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
+            <input type="hidden" name="scope" value="agency">
+            <button type="submit" class="btn btn-primary btn-small">Add for agency</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
+          <input type="hidden" name="scope" value="personal">
+          <button type="submit" class="btn btn-ghost btn-small">Add just for me</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <h3>No recipes available yet</h3>
+    <p>Check back once the &amp;Gifts team has added some to the book.</p>
+  </div>
+{% endif %}
+{% endblock %}

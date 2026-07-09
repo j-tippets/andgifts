@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Campaigns — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Automated touchpoints</div>
+    <h1>Campaigns</h1>
+  </div>
+  <a href="{{ url_for('campaigns.recipe_book') }}" class="btn btn-primary">+ Add from Recipe Book</a>
+</div>
+<p class="subdued" style="margin-top:-16px; margin-bottom:20px;">
+  <small>Every campaign only ever creates a pending suggestion on the dashboard for you to approve or skip &mdash; nothing sends automatically.</small>
+</p>
+
+{% macro campaign_row(c, can_manage) %}
+  <div class="contact-row" style="cursor:default; {{ 'opacity:0.6;' if not c.is_active else '' }}">
+    <div>
+      <strong>{{ c.name }}</strong>
+      <div class="subdued">
+        <small>
+          {{ c.event_type.replace('_', ' ')|title }}, {{ c.timing_label() }}
+          &rarr; {{ c.action_type.replace('_', ' ')|title }}
+          {% if c.use_llm_gift_selection %} (LLM picks the gift){% endif %}
+          {% if c.use_llm_copy %} (LLM writes the message){% endif %}
+        </small>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      {% if not c.is_active %}<span class="status-pill pill-do-not-contact">Paused</span>{% endif %}
+      {% if can_manage %}
+        <form method="post" action="{{ url_for('campaigns.toggle_active', campaign_id=c.id) }}" style="margin:0;">
+          <button type="submit" class="btn btn-ghost btn-small">{{ 'Pause' if c.is_active else 'Resume' }}</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+<h2>Agency-wide</h2>
+<p class="subdued" style="margin-top:-8px;"><small>Applies to every contact in the agency.</small></p>
+{% if agency_wide %}
+  {% for c in agency_wide %}
+    {{ campaign_row(c, current_user.is_admin) }}
+  {% endfor %}
+{% else %}
+  <p class="subdued">No agency-wide campaigns yet.</p>
+{% endif %}
+
+<h2 style="margin-top:32px;">My campaigns</h2>
+<p class="subdued" style="margin-top:-8px;"><small>Only applies to your own contacts.</small></p>
+{% if my_campaigns %}
+  {% for c in my_campaigns %}
+    {{ campaign_row(c, true) }}
+  {% endfor %}
+{% else %}
+  <p class="subdued">You haven't added any personal campaigns yet.</p>
+{% endif %}
+
+{% if current_user.is_admin and other_personal_by_agent %}
+  <h2 style="margin-top:32px;">Other agents' personal campaigns</h2>
+  <p class="subdued" style="margin-top:-8px;"><small>You can view and pause these, but they belong to each agent's own book.</small></p>
+  {% for owner, campaigns in other_personal_by_agent %}
+    <p class="subdued" style="margin:16px 0 4px;"><strong>{{ owner.full_name if owner else 'Unknown agent' }}</strong></p>
+    {% for c in campaigns %}
+      {{ campaign_row(c, true) }}
+    {% endfor %}
+  {% endfor %}
+{% endif %}
+{% endblock %}
