@@ -5,12 +5,30 @@
   <div>
     <div class="eyebrow">Campaigns</div>
     <h1>Build a new flow</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Just for your own contacts. For something the whole team can use, add it to your agency's <a href="{{ url_for('campaigns.recipe_book') }}">Flow Library</a> instead.</small></p>
+    {% if current_user.is_admin %}
+      <p class="subdued" style="margin-top:4px;"><small>Choose below whether this is just for you or for your whole agency's Flow Library.</small></p>
+    {% else %}
+      <p class="subdued" style="margin-top:4px;"><small>Just for your own contacts. For something the whole team can use, ask an agency admin to add it to the <a href="{{ url_for('campaigns.recipe_book') }}">Flow Library</a> instead.</small></p>
+    {% endif %}
   </div>
   <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Campaigns</a>
 </div>
 
 <form method="POST">
+  {% if current_user.is_admin %}
+    <fieldset>
+      <legend>Who is this for?</legend>
+      <label class="checkbox-chip">
+        <input type="radio" name="scope" value="personal" checked>
+        Just for me
+      </label>
+      <label class="checkbox-chip">
+        <input type="radio" name="scope" value="library">
+        Add to my agency's Flow Library &mdash; each agent (including me) still has to add their own copy before it applies to their contacts
+      </label>
+    </fieldset>
+  {% endif %}
+
   <fieldset>
     <legend>Basics</legend>
     <div class="field">
