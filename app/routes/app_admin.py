@@ -197,7 +197,7 @@ def recipe_new():
     _save_recipe_from_form(recipe)
     db.session.add(recipe)
     db.session.commit()
-    flash(f"Added \u201c{recipe.name}\u201d to the recipe book.", "success")
+    flash(f"Added \u201c{recipe.name}\u201d to the flow library.", "success")
     return redirect(url_for("app_admin.recipe_list"))
 
 
