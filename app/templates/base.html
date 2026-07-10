@@ -2,52 +2,114 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}Ag{% endblock %}</title>
+  <link rel="icon" href="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
   {% if current_user.is_authenticated %}
-  <div class="app-shell">
-    <nav class="sidebar">
-      <div class="brand">Ag</div>
-      <a href="{{ url_for('dashboard.index') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard.index' }}">Today</a>
-      <a href="{{ url_for('contacts.list_contacts') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('contacts.') }}">Contacts</a>
-      <a href="{{ url_for('catalog.list_catalog') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('catalog.') }}">Catalog</a>
-      <a href="{{ url_for('campaigns.list_campaigns') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('campaigns.') }}">Campaigns</a>
-      {% if current_user.is_admin %}
-      <a href="{{ url_for('team.list_members') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('team.') }}">Team</a>
+  {% set nav_items = [
+      ('dashboard.index', url_for('dashboard.index'), 'Today', 'today'),
+      ('contacts.', url_for('contacts.list_contacts'), 'Contacts', 'contacts'),
+      ('catalog.', url_for('catalog.list_catalog'), 'Catalog', 'catalog'),
+      ('campaigns.', url_for('campaigns.list_campaigns'), 'Campaigns', 'campaigns'),
+  ] %}
+
+  <!-- Mobile top bar -->
+  <header class="mobile-topbar">
+    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts">
+    <button class="account-chip" id="accountToggleMobile" aria-haspopup="true" aria-expanded="false">
+      <span class="plan-label">{{ current_user.org.tier|capitalize }}</span>
+      {% if current_user.photo_url %}
+        <img src="{{ current_user.photo_url }}" alt="{{ current_user.full_name }}" class="avatar">
+      {% else %}
+        <div class="avatar avatar-placeholder">{{ (current_user.first_name or '')[:1] }}{{ (current_user.last_name or '')[:1] }}</div>
       {% endif %}
-      {% if current_user.platform_admin %}
-      <div class="nav-section-label">Platform</div>
-      <a href="{{ url_for('app_admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('app_admin.') }}">App Admin</a>
+    </button>
+  </header>
+
+  <!-- Desktop top nav -->
+  <header class="topbar">
+    <div class="nav-left">
+      <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts">
+      <nav class="nav-links">
+        {% for endpoint_prefix, href, label, key in nav_items %}
+          <a href="{{ href }}" class="{{ 'active' if (request.endpoint == endpoint_prefix or (request.endpoint and request.endpoint.startswith(endpoint_prefix))) }}">{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </div>
+    <button class="account-chip" id="accountToggleDesktop" aria-haspopup="true" aria-expanded="false">
+      <span class="plan-label">{{ current_user.org.tier|capitalize }} plan</span>
+      {% if current_user.photo_url %}
+        <img src="{{ current_user.photo_url }}" alt="{{ current_user.full_name }}" class="avatar">
+      {% else %}
+        <div class="avatar avatar-placeholder">{{ (current_user.first_name or '')[:1] }}{{ (current_user.last_name or '')[:1] }}</div>
       {% endif %}
-      <div class="nav-spacer"></div>
-      <div class="tier-badge">{{ current_user.org.tier|capitalize }} plan</div>
-      <a href="{{ url_for('profile.edit_profile') }}" class="sidebar-profile {{ 'active' if request.endpoint and request.endpoint.startswith('profile.') }}">
-        {% if current_user.photo_url %}
-          <img src="{{ current_user.photo_url }}" alt="{{ current_user.full_name }}" class="avatar avatar-sm">
-        {% else %}
-          <div class="avatar avatar-sm avatar-placeholder">{{ (current_user.first_name or '')[:1] }}{{ (current_user.last_name or '')[:1] }}</div>
-        {% endif %}
-        <span class="sidebar-profile-name">{{ current_user.full_name }}</span>
-      </a>
-    </nav>
-    <main class="content">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="flash-stack">
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </main>
+    </button>
+  </header>
+
+  <!-- Shared account dropdown (positioned under whichever chip opened it) -->
+  <div class="account-menu" id="accountMenu" hidden>
+    <div class="account-menu-name">{{ current_user.full_name }}</div>
+    <a href="{{ url_for('profile.edit_profile') }}">Profile</a>
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('team.list_members') }}">Team</a>
+    {% endif %}
+    {% if current_user.platform_admin %}
+      <a href="{{ url_for('app_admin.dashboard') }}">App Admin</a>
+    {% endif %}
+    <a href="{{ url_for('auth.logout') }}" class="account-menu-signout">Sign out</a>
   </div>
+
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Mobile bottom tab bar -->
+  <nav class="bottom-nav">
+    {% for endpoint_prefix, href, label, key in nav_items %}
+      <a href="{{ href }}" class="{{ 'active' if (request.endpoint == endpoint_prefix or (request.endpoint and request.endpoint.startswith(endpoint_prefix))) }}">
+        <span class="icon-wrap">{% include 'icons/' + key + '.svg' %}</span>
+        {{ label }}
+      </a>
+    {% endfor %}
+  </nav>
+
+  <script>
+    (function(){
+      var menu = document.getElementById('accountMenu');
+      var toggles = [document.getElementById('accountToggleMobile'), document.getElementById('accountToggleDesktop')];
+      toggles.forEach(function(btn){
+        if(!btn) return;
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var opening = menu.hasAttribute('hidden');
+          menu.hidden = !opening;
+          btn.setAttribute('aria-expanded', opening);
+          if(opening){
+            var rect = btn.getBoundingClientRect();
+            menu.style.position = 'fixed';
+            menu.style.top = (rect.bottom + 8) + 'px';
+            menu.style.right = (window.innerWidth - rect.right) + 'px';
+          }
+        });
+      });
+      document.addEventListener('click', function(){ menu.hidden = true; });
+    })();
+  </script>
   {% else %}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

@@ -1,40 +1,66 @@
 {% extends "base.html" %}
 {% block title %}Today — Ag{% endblock %}
 {% block content %}
-<div class="eyebrow">{{ "Today's suggestions" if ai_enabled else "Upcoming" }}</div>
-<h1 style="margin-bottom:8px;">Keep the relationship alive</h1>
-<p class="subdued" style="margin-bottom:28px;">
-  {% if ai_enabled %}
-    Here's what's coming up in the next two weeks. Approve to queue it, or skip.
-  {% else %}
-    Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.
-  {% endif %}
-</p>
+<div class="page-head">
+  <div class="eyebrow">{{ "Today's suggestions" if ai_enabled else "Upcoming" }}</div>
+  <h1 style="margin-bottom:8px;">Keep the relationship alive.</h1>
+  <p class="subdued" style="margin-bottom:0;">
+    {% if ai_enabled %}
+      Here's what's coming up in the next two weeks. Swipe right to approve, left to skip.
+    {% else %}
+      Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.
+    {% endif %}
+  </p>
+</div>
 
 {% if suggestions %}
-  {% for s in suggestions %}
-    <div class="suggestion-card">
-      <div>
-        <div class="suggestion-reason">{{ s.reason_text }}</div>
-        {% if s.generated_message %}
-          <div class="suggestion-message">&ldquo;{{ s.generated_message }}&rdquo;</div>
-        {% endif %}
-        <div class="suggestion-meta">{{ s.action_type.replace('_', ' ') }} · {{ s.contact.household_name }} · {{ s.target_date.strftime('%b %-d') }}</div>
-      </div>
-      <div class="suggestion-actions">
-        <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}">
-          <button class="btn btn-primary" type="submit">Approve</button>
-        </form>
-        <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}">
-          <button class="btn btn-skip" type="submit">Skip</button>
-        </form>
+  <div class="progress-label" id="progressLabel">1 of {{ suggestions|length }}</div>
+  <div class="progress" id="progress"></div>
+
+  <div class="stack-wrap" id="stackWrap">
+    <div class="stack" id="stack">
+      {% for s in suggestions %}
+        <div class="s-card accent-{{ loop.cycle('gold', 'mint', 'coral') }}" data-index="{{ loop.index0 }}">
+          <div class="accent"></div>
+          <div class="stamp approve">&#10003;</div>
+          <div class="stamp skip">&#10005;</div>
+          <div class="s-card-top">
+            <h3>{{ s.reason_text }}</h3>
+            <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
+          </div>
+          {% if s.generated_message %}
+            <div class="s-quote">&ldquo;{{ s.generated_message }}&rdquo;</div>
+          {% endif %}
+          <div class="s-meta"><span>{{ s.action_type.replace('_', ' ')|capitalize }}</span><span>{{ s.contact.household_name }}</span></div>
+          <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve">
+            <button class="btn btn-primary" type="submit">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
+            <button class="btn btn-skip" type="submit">Skip</button>
+          </form>
+        </div>
+      {% endfor %}
+
+      <div class="empty-state-flip" id="emptyState">
+        <div class="empty-badge">&#127881;</div>
+        <h3>You're all caught up</h3>
+        <p>New suggestions will show up here as timeline events approach.</p>
       </div>
     </div>
-  {% endfor %}
+
+    <p class="swipe-hint" id="swipeHint">&larr; skip &middot; approve &rarr;</p>
+
+    <div class="actions" id="actionsRow">
+      <button class="action-btn skip" type="button" id="btnSkip">&#10005; Skip</button>
+      <button class="action-btn approve" type="button" id="btnApprove">&#10003; Approve</button>
+    </div>
+  </div>
 {% else %}
   <div class="empty-state">
     <h3>Nothing needs your attention right now</h3>
     <p>New suggestions will show up here as timeline events approach.</p>
   </div>
 {% endif %}
+
+<script src="{{ url_for('static', filename='js/today.js') }}" defer></script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Contacts — Ag{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+<div class="page-head with-action">
   <div>
     <div class="eyebrow">Your book of business</div>
     <h1>Contacts</h1>
@@ -15,31 +15,30 @@
   </div>
 </div>
 
-<form method="get" style="margin-bottom:16px;">
+<form method="get" class="search-wrap">
   {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-  <input type="text" name="q" value="{{ search_term }}" placeholder="Search name, email, phone, or custom fields&hellip;"
-         style="width:100%; max-width:420px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; font-family:var(--font-body); font-size:14px; background:var(--paper-raised);">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+  <input type="text" name="q" value="{{ search_term }}" placeholder="Search name, email, phone, or custom fields…">
 </form>
 
-<div style="margin-bottom:20px; display:flex; gap:8px;">
-  <a href="{{ url_for('contacts.list_contacts', q=search_term) }}" class="btn {{ 'btn-primary' if not status_filter else 'btn-ghost' }}">All</a>
-  <a href="{{ url_for('contacts.list_contacts', status='new', q=search_term) }}" class="btn {{ 'btn-primary' if status_filter == 'new' else 'btn-ghost' }}">New</a>
-  <a href="{{ url_for('contacts.list_contacts', status='active', q=search_term) }}" class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-ghost' }}">Active</a>
-  <a href="{{ url_for('contacts.list_contacts', status='past', q=search_term) }}" class="btn {{ 'btn-primary' if status_filter == 'past' else 'btn-ghost' }}">Past</a>
+<div class="chips">
+  <a href="{{ url_for('contacts.list_contacts', q=search_term) }}" class="chip {{ 'active' if not status_filter }}">All</a>
+  <a href="{{ url_for('contacts.list_contacts', status='new', q=search_term) }}" class="chip {{ 'active' if status_filter == 'new' }}">New</a>
+  <a href="{{ url_for('contacts.list_contacts', status='active', q=search_term) }}" class="chip {{ 'active' if status_filter == 'active' }}">Active</a>
+  <a href="{{ url_for('contacts.list_contacts', status='past', q=search_term) }}" class="chip {{ 'active' if status_filter == 'past' }}">Past</a>
 </div>
 
 {% if contacts %}
   {% for contact in contacts %}
     {% set head = contact.primary_person() %}
-    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="contact-row">
-      <div>
-        <strong>{{ contact.household_name }}</strong>
-        {% if head %}<span class="subdued"> — {{ head.full_name }}</span>{% endif %}
+    {% set initials = (head.first_name[:1] ~ head.last_name[:1]) if head else contact.household_name[:2] %}
+    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="contact-card-row">
+      <div class="avatar avatar-placeholder" style="width:42px; height:42px; font-size:14px;">{{ initials|upper }}</div>
+      <div class="info">
+        <h4>{{ contact.household_name }}{% if head %} <span class="subdued" style="font-weight:400;">— {{ head.full_name }}</span>{% endif %}</h4>
+        <div class="sub">{% if current_user.is_admin %}{{ contact.owner.full_name if contact.owner else 'Shared' }}{% else %}&nbsp;{% endif %}</div>
       </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        {% if current_user.is_admin %}
-          <span class="subdued">{{ contact.owner.full_name if contact.owner else 'Shared' }}</span>
-        {% endif %}
+      <div class="tags">
         {% if contact.do_not_contact %}
           <span class="status-pill pill-do-not-contact">Do Not Contact</span>
         {% elif contact.marketing_opt_out %}
@@ -47,6 +46,7 @@
         {% endif %}
         <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span>
       </div>
+      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </a>
   {% endfor %}
 {% else %}
