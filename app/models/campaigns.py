@@ -5,19 +5,23 @@ from app.models.org import gen_uuid
 
 class CampaignRecipe(db.Model):
     """
-    A platform-authored campaign template ("recipe book" entry) -- e.g.
-    "5 days after a showing, ask for feedback by text" or "6 months after
-    closing, send a handwritten thank-you + referral ask". Not active
-    anywhere on its own: an agency admin or agent copies one into a real
-    Campaign (see campaigns.py) to actually use it. Editing a recipe here
-    never touches Campaigns that were already copied from it.
+    A campaign template in the Flow Library -- e.g. "5 days after a
+    showing, ask for feedback by text" or "6 months after closing, send
+    a handwritten thank-you + referral ask". Not active anywhere on its
+    own: an agency admin or agent copies one into a real Campaign (see
+    campaigns.py) to actually use it. Editing a recipe here never
+    touches Campaigns that were already copied from it.
 
-    Only a platform_admin can create/edit recipes. Every agency and agent
-    can browse the book and copy from it.
+    org_id is NULL for a global flow -- authored by the platform, shown
+    in every agency's Flow Library, manageable only by a platform_admin.
+    org_id set to an agency's org id makes it a local (agency) flow --
+    authored by that agency's own admin, shown only in that agency's
+    Flow Library, manageable only by an admin in that same org.
     """
     __tablename__ = "campaign_recipes"
 
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=True, index=True)
 
     name = db.Column(db.String(255), nullable=False)  # "Post-showing feedback ask"
     description = db.Column(db.Text, nullable=True)  # shown in the recipe book, explains the intent
@@ -58,6 +62,11 @@ class CampaignRecipe(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     suggested_gift = db.relationship("GiftCatalogItem")
+    org = db.relationship("Org")
+
+    @property
+    def is_global(self):
+        return self.org_id is None
 
     def timing_label(self):
         if self.offset_days == 0:
