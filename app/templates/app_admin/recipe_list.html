@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Recipe Book — App Admin{% endblock %}
+{% block title %}Flow Library — App Admin{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
     <div class="eyebrow">App Admin</div>
-    <h1>Recipe Book</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Templates agencies and agents can copy into their own campaigns. Editing one here never changes campaigns already copied from it.</small></p>
+    <h1>Flow Library</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Flows agencies and agents can copy into their own campaigns. Editing one here never changes campaigns already copied from it.</small></p>
   </div>
   <div style="display:flex; gap:8px;">
     <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
-    <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add recipe</a>
+    <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add flow</a>
   </div>
 </div>
 
@@ -35,8 +35,8 @@
   {% endfor %}
 {% else %}
   <div class="empty-state">
-    <h3>No recipes yet</h3>
-    <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add recipe</a>
+    <h3>No flows yet</h3>
+    <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add flow</a>
   </div>
 {% endif %}
 {% endblock %}

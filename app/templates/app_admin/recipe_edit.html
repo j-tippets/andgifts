@@ -3,10 +3,10 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">App Admin · Recipe Book</div>
+    <div class="eyebrow">App Admin · Flow Library</div>
     <h1>Edit {{ recipe.name }}</h1>
   </div>
-  <a href="{{ url_for('app_admin.recipe_list') }}" class="btn btn-ghost">&larr; Back to Recipe Book</a>
+  <a href="{{ url_for('app_admin.recipe_list') }}" class="btn btn-ghost">&larr; Back to Flow Library</a>
 </div>
 
 <form method="POST">
@@ -101,12 +101,12 @@
 </form>
 
 <div class="danger-zone">
-  <h2>{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this recipe</h2>
+  <h2>{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this flow</h2>
   <p class="subdued">
     {% if recipe.is_active %}
-      Removes it from the book so it can't be copied into new campaigns. Agencies who already copied it keep using their copy unaffected.
+      Removes it from the library so it can't be copied into new campaigns. Agencies who already copied it keep using their copy unaffected.
     {% else %}
-      Makes it available in the book again.
+      Makes it available in the library again.
     {% endif %}
   </p>
   <form method="post" action="{{ url_for('app_admin.recipe_toggle_active', recipe_id=recipe.id) }}">
