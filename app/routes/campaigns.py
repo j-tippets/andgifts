@@ -282,16 +282,31 @@ def toggle_active(campaign_id):
 @campaigns_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def campaign_new():
-    """Build a personal flow from scratch, just for your own contacts.
-    Want something for the whole team instead? Add it to your agency's
-    Flow Library (as a local flow) so every agent -- including you --
-    can add their own copy from there."""
+    """Build a flow from scratch. Admins get a choice: just for
+    themselves (a live personal Campaign, same as anyone else), or add
+    it to the agency's Flow Library instead (a CampaignRecipe -- every
+    agent, including the admin, then adds their own copy from there).
+    Non-admins only ever get the personal option, since only an admin
+    can author a local library flow."""
     if request.method == "GET":
         return render_template("campaigns/new.html", **_campaign_form_kwargs())
+
+    scope = request.form.get("scope", "personal")
+    if scope == "library" and not current_user.is_admin:
+        flash("Only an agency admin can add a flow to the library.", "error")
+        return redirect(url_for("campaigns.list_campaigns"))
 
     if not request.form.get("name", "").strip():
         flash("Name is required.", "error")
         return render_template("campaigns/new.html", **_campaign_form_kwargs())
+
+    if scope == "library":
+        recipe = CampaignRecipe(is_active=True, org_id=current_user.org_id)
+        _save_recipe_from_form(recipe)
+        db.session.add(recipe)
+        db.session.commit()
+        flash(f"Added \u201c{recipe.name}\u201d to your agency's Flow Library.", "success")
+        return redirect(url_for("campaigns.recipe_book"))
 
     campaign = Campaign(
         org_id=current_user.org_id,
