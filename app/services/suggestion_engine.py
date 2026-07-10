@@ -158,11 +158,11 @@ def generate_campaign_suggestions_for_org(org, today=None):
     window_end = today + timedelta(days=LOOKAHEAD_DAYS)
     available_item_ids = {i.id for i in org.available_catalog_items()}
 
-    # Team-wide flows (owner_user_id IS NULL) are shared templates managed
-    # by agency admins -- they never fire on their own. An agent has to
-    # explicitly "add" one to their profile first, which forks it into
-    # their own personal Campaign row (owner_user_id set); only those
-    # personal copies are evaluated here.
+    # Every live Campaign belongs to one agent (owner_user_id is always
+    # set) -- agency-wide automation is now authored as a local flow in
+    # the Flow Library instead (see CampaignRecipe.org_id), which each
+    # agent copies into their own personal Campaign. The isnot(None)
+    # filter here is just a defensive guard against any legacy rows.
     campaigns = Campaign.query.filter(
         Campaign.org_id == org.id,
         Campaign.is_active.is_(True),

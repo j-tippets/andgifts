@@ -5,43 +5,83 @@
   <div>
     <div class="eyebrow">Campaign templates</div>
     <h1>Flow Library</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Global flows from the &amp;Gifts team, plus your agency's own local flows. Add one to make it yours &mdash; editing or deleting the original here never touches a copy you've already added.</small></p>
   </div>
-  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Campaigns</a>
+  <div style="display:flex; gap:8px; flex-shrink:0;">
+    <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Campaigns</a>
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('campaigns.library_new') }}" class="btn btn-primary">+ Create local flow</a>
+    {% endif %}
+  </div>
 </div>
 
 {% if recipes %}
-  {% for recipe in recipes %}
-    <div class="contact-row" style="cursor:default; align-items:flex-start;">
-      <div>
-        <strong>{{ recipe.name }}</strong>
-        {% if recipe.description %}<p class="subdued" style="margin:4px 0;">{{ recipe.description }}</p>{% endif %}
-        <div class="subdued">
-          <small>
-            {{ recipe.event_type.replace('_', ' ')|title }}, {{ recipe.timing_label() }}
-            &rarr; {{ recipe.action_type.replace('_', ' ')|title }}
-            {% if recipe.use_llm_gift_selection %} (LLM picks the gift){% endif %}
-            {% if recipe.use_llm_copy %} (LLM writes the message){% endif %}
-          </small>
+  <div class="field" style="max-width:360px; margin-bottom:20px;">
+    <input type="text" id="flow-search" placeholder="Search flows by name or description&hellip;" autocomplete="off">
+  </div>
+
+  <div id="flow-rows">
+    {% for recipe in recipes %}
+      <div class="contact-row flow-row" data-search="{{ (recipe.name ~ ' ' ~ (recipe.description or ''))|lower }}" style="cursor:default; align-items:flex-start; {{ 'opacity:0.6;' if not recipe.is_active else '' }}">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong>{{ recipe.name }}</strong>
+            {% if recipe.is_global %}
+              <span class="status-pill status-new">Global</span>
+            {% else %}
+              <span class="status-pill status-active">Agency</span>
+            {% endif %}
+            {% if not recipe.is_active %}<span class="status-pill pill-do-not-contact">Inactive</span>{% endif %}
+          </div>
+          {% if recipe.description %}<p class="subdued" style="margin:4px 0;">{{ recipe.description }}</p>{% endif %}
+          <div class="subdued">
+            <small>
+              {{ recipe.event_type.replace('_', ' ')|title }}, {{ recipe.timing_label() }}
+              &rarr; {{ recipe.action_type.replace('_', ' ')|title }}
+              {% if recipe.use_llm_gift_selection %} (LLM picks the gift){% endif %}
+              {% if recipe.use_llm_copy %} (LLM writes the message){% endif %}
+            </small>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0; align-items:center;">
+          {% if recipe.is_active %}
+            <form method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
+              <button type="submit" class="btn btn-primary btn-small">Add to my campaigns</button>
+            </form>
+          {% endif %}
+          {% if current_user.is_admin and not recipe.is_global and recipe.org_id == current_user.org_id %}
+            <a href="{{ url_for('campaigns.library_edit', recipe_id=recipe.id) }}" class="btn btn-ghost btn-small">Edit</a>
+          {% endif %}
         </div>
       </div>
-      <div style="display:flex; gap:8px; flex-shrink:0;">
-        {% if current_user.is_admin %}
-          <form method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
-            <input type="hidden" name="scope" value="agency">
-            <button type="submit" class="btn btn-primary btn-small">Add for agency</button>
-          </form>
-        {% endif %}
-        <form method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
-          <input type="hidden" name="scope" value="personal">
-          <button type="submit" class="btn btn-ghost btn-small">Add just for me</button>
-        </form>
-      </div>
-    </div>
-  {% endfor %}
+    {% endfor %}
+  </div>
+
+  <p id="flow-no-results" class="subdued" style="display:none;">No flows match your search.</p>
 {% else %}
   <div class="empty-state">
     <h3>No flows available yet</h3>
-    <p>Check back once the &amp;Gifts team has added some to the library.</p>
+    <p>Check back once the &amp;Gifts team has added some to the library, or create a local one for your agency.</p>
   </div>
 {% endif %}
+
+<script>
+  (function () {
+    var input = document.getElementById('flow-search');
+    if (!input) return;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.flow-row'));
+    var noResults = document.getElementById('flow-no-results');
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim().toLowerCase();
+      var visibleCount = 0;
+      rows.forEach(function (row) {
+        var matches = !q || row.getAttribute('data-search').indexOf(q) !== -1;
+        row.style.display = matches ? '' : 'none';
+        if (matches) visibleCount++;
+      });
+      noResults.style.display = visibleCount === 0 ? '' : 'none';
+    });
+  })();
+</script>
 {% endblock %}

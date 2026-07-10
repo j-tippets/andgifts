@@ -12,10 +12,10 @@
   </div>
 </div>
 <p class="subdued" style="margin-top:-16px; margin-bottom:20px;">
-  <small>Every campaign only ever creates a pending suggestion on the dashboard for you to approve or skip &mdash; nothing sends automatically.</small>
+  <small>Every campaign only ever creates a pending suggestion on the dashboard for you to approve or skip &mdash; nothing sends automatically. Want something the whole team can use? Add it to your agency's <a href="{{ url_for('campaigns.recipe_book') }}">Flow Library</a> instead &mdash; each agent (including you) adds their own copy from there.</small>
 </p>
 
-{% macro campaign_row(c, can_manage, show_add_to_mine=false, already_forked=false) %}
+{% macro campaign_row(c, can_manage) %}
   <div class="contact-row" style="cursor:default; {{ 'opacity:0.6;' if not c.is_active else '' }}">
     <div>
       <strong>{{ c.name }}</strong>
@@ -30,15 +30,6 @@
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
       {% if not c.is_active %}<span class="status-pill pill-do-not-contact">Paused</span>{% endif %}
-      {% if show_add_to_mine %}
-        {% if already_forked %}
-          <span class="subdued"><small>Already added</small></span>
-        {% else %}
-          <form method="post" action="{{ url_for('campaigns.add_from_campaign', campaign_id=c.id) }}" style="margin:0;">
-            <button type="submit" class="btn btn-primary btn-small">Add to my profile</button>
-          </form>
-        {% endif %}
-      {% endif %}
       {% if can_manage %}
         <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="btn btn-ghost btn-small">Edit</a>
       {% endif %}
@@ -46,30 +37,18 @@
   </div>
 {% endmacro %}
 
-{% set my_forked_master_ids = my_campaigns | selectattr('forked_from_campaign_id') | map(attribute='forked_from_campaign_id') | list %}
-
-<h2>Team-wide flows</h2>
-<p class="subdued" style="margin-top:-8px;"><small>Templates for the team. Each agent (including admins) has to add one to their own profile before it applies to their contacts.</small></p>
-{% if agency_wide %}
-  {% for c in agency_wide %}
-    {{ campaign_row(c, current_user.is_admin, show_add_to_mine=true, already_forked=(c.id in my_forked_master_ids)) }}
-  {% endfor %}
-{% else %}
-  <p class="subdued">No team-wide flows yet.</p>
-{% endif %}
-
-<h2 style="margin-top:32px;">My flows</h2>
+<h2>My flows</h2>
 <p class="subdued" style="margin-top:-8px;"><small>Only applies to your own contacts.</small></p>
 {% if my_campaigns %}
   {% for c in my_campaigns %}
     {{ campaign_row(c, true) }}
   {% endfor %}
 {% else %}
-  <p class="subdued">You haven't added any personal flows yet.</p>
+  <p class="subdued">You haven't added any flows yet.</p>
 {% endif %}
 
 {% if current_user.is_admin and other_personal_by_agent %}
-  <h2 style="margin-top:32px;">Other agents' personal flows</h2>
+  <h2 style="margin-top:32px;">Other agents' flows</h2>
   <p class="subdued" style="margin-top:-8px;"><small>You can view, edit, pause, or delete these, but they belong to each agent's own book.</small></p>
   {% for owner, campaigns in other_personal_by_agent %}
     <p class="subdued" style="margin:16px 0 4px;"><strong>{{ owner.full_name if owner else 'Unknown agent' }}</strong></p>

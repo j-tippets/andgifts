@@ -16,7 +16,7 @@ def dashboard():
         "app_admin/dashboard.html",
         global_catalog_count=GiftCatalogItem.query.filter_by(org_id=None).count(),
         org_count=Org.query.count(),
-        recipe_count=CampaignRecipe.query.filter_by(is_active=True).count(),
+        recipe_count=CampaignRecipe.query.filter_by(is_active=True, org_id=None).count(),
     )
 
 
@@ -179,7 +179,9 @@ def _save_recipe_from_form(recipe):
 @app_admin_bp.route("/recipes")
 @platform_admin_required
 def recipe_list():
-    recipes = CampaignRecipe.query.order_by(CampaignRecipe.name).all()
+    """Only global (platform-authored) flows -- each agency manages its
+    own local flows from within its own Flow Library instead."""
+    recipes = CampaignRecipe.query.filter_by(org_id=None).order_by(CampaignRecipe.name).all()
     return render_template("app_admin/recipe_list.html", recipes=recipes)
 
 
@@ -193,7 +195,7 @@ def recipe_new():
         flash("Name and a trigger event are required.", "error")
         return render_template("app_admin/recipe_new.html", **_recipe_form_kwargs())
 
-    recipe = CampaignRecipe(is_active=True)
+    recipe = CampaignRecipe(is_active=True, org_id=None)
     _save_recipe_from_form(recipe)
     db.session.add(recipe)
     db.session.commit()
@@ -204,7 +206,7 @@ def recipe_new():
 @app_admin_bp.route("/recipes/<recipe_id>/edit", methods=["GET", "POST"])
 @platform_admin_required
 def recipe_edit(recipe_id):
-    recipe = CampaignRecipe.query.get_or_404(recipe_id)
+    recipe = CampaignRecipe.query.filter_by(id=recipe_id, org_id=None).first_or_404()
 
     if request.method == "GET":
         return render_template(
@@ -227,7 +229,7 @@ def recipe_edit(recipe_id):
 @app_admin_bp.route("/recipes/<recipe_id>/toggle-active", methods=["POST"])
 @platform_admin_required
 def recipe_toggle_active(recipe_id):
-    recipe = CampaignRecipe.query.get_or_404(recipe_id)
+    recipe = CampaignRecipe.query.filter_by(id=recipe_id, org_id=None).first_or_404()
     recipe.is_active = not recipe.is_active
     db.session.commit()
     flash(f"\u201c{recipe.name}\u201d is now {'active' if recipe.is_active else 'inactive'}.", "success")

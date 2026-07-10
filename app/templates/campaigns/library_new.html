@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Add flow — App Admin{% endblock %}
+{% block title %}Add a local flow — Flow Library{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">App Admin · Global Flow Library</div>
-    <h1>Add a flow</h1>
+    <div class="eyebrow">Flow Library · Your agency</div>
+    <h1>Add a local flow</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Shown only in your agency's Flow Library. Each agent (including you) still has to add it to their own campaigns.</small></p>
   </div>
-  <a href="{{ url_for('app_admin.recipe_list') }}" class="btn btn-ghost">&larr; Back to Global Flow Library</a>
+  <a href="{{ url_for('campaigns.recipe_book') }}" class="btn btn-ghost">&larr; Back to Flow Library</a>
 </div>
 
 <form method="POST">
@@ -96,8 +97,8 @@
     </div>
   </fieldset>
 
-  <button type="submit" class="btn btn-primary">Add to Global Flow Library</button>
-  <a href="{{ url_for('app_admin.recipe_list') }}" class="btn btn-ghost">Cancel</a>
+  <button type="submit" class="btn btn-primary">Add to Flow Library</button>
+  <a href="{{ url_for('campaigns.recipe_book') }}" class="btn btn-ghost">Cancel</a>
 </form>
 
 <script>
