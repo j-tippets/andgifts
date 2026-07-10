@@ -96,9 +96,15 @@
     </div>
   </fieldset>
 
-  <button type="submit" class="btn btn-primary">Save changes</button>
+  <button type="submit" name="action" value="save" class="btn btn-primary">Save changes</button>
+  <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
   <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">Cancel</a>
 </form>
+
+{% if previewed_spec %}
+  <p class="subdued" style="margin-top:12px;"><small>Note: the preview above reflects the values you just submitted, even if the form above still shows your last-saved version &mdash; click Save changes to keep them.</small></p>
+{% endif %}
+{% include "campaigns/_preview_results.html" %}
 
 <div class="danger-zone">
   <h2>{{ 'Pause' if campaign.is_active else 'Resume' }} this flow</h2>

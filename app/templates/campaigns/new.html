@@ -19,11 +19,11 @@
     <fieldset>
       <legend>Who is this for?</legend>
       <label class="checkbox-chip">
-        <input type="radio" name="scope" value="personal" checked>
+        <input type="radio" name="scope" value="personal" {{ 'checked' if not spec or preview_scope_label == 'your own contacts' else '' }}>
         Just for me
       </label>
       <label class="checkbox-chip">
-        <input type="radio" name="scope" value="library">
+        <input type="radio" name="scope" value="library" {{ 'checked' if spec and preview_scope_label != 'your own contacts' else '' }}>
         Add to my agency's Flow Library &mdash; each agent (including me) still has to add their own copy before it applies to their contacts
       </label>
     </fieldset>
@@ -33,11 +33,11 @@
     <legend>Basics</legend>
     <div class="field">
       <label>Name</label>
-      <input type="text" name="name" placeholder="e.g. Post-showing feedback ask" required>
+      <input type="text" name="name" value="{{ spec.name if spec else '' }}" placeholder="e.g. Post-showing feedback ask" required>
     </div>
     <div class="field">
       <label>Description</label>
-      <textarea name="description" rows="2" placeholder="What this flow is for"></textarea>
+      <textarea name="description" rows="2" placeholder="What this flow is for">{{ request.form.get('description', '') if spec else '' }}</textarea>
     </div>
   </fieldset>
 
@@ -48,13 +48,13 @@
         <label>Event</label>
         <select name="event_type" required>
           {% for et in event_types %}
-            <option value="{{ et }}">{{ et.replace('_', ' ')|title }}</option>
+            <option value="{{ et }}" {{ 'selected' if spec and spec.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="field">
         <label>Timing (days)</label>
-        <input type="text" name="offset_days" value="0" placeholder="0">
+        <input type="text" name="offset_days" value="{{ spec.offset_days if spec else 0 }}" placeholder="0">
         <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
       </div>
     </div>
@@ -64,14 +64,14 @@
     <legend>Conditions (optional)</legend>
     <div class="field">
       <label>Only if contact has this interest tag</label>
-      <input type="text" name="interest_tag" placeholder="e.g. golf">
+      <input type="text" name="interest_tag" value="{{ spec.interest_tag if spec else '' }}" placeholder="e.g. golf">
     </div>
     <div class="field">
       <label>Max gift price (USD)</label>
-      <input type="text" name="price_max" placeholder="e.g. 150.00">
+      <input type="text" name="price_max" value="{{ request.form.get('price_max', '') if spec else '' }}" placeholder="e.g. 150.00">
     </div>
     <label class="checkbox-chip">
-      <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection">
+      <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if spec and spec.use_llm_gift_selection else '' }}>
       Let the LLM pick the best gift (within the price cap above) instead of a fixed item
     </label>
   </fieldset>
@@ -81,10 +81,10 @@
     <div class="field">
       <label>Type</label>
       <select name="action_type" id="action_type" required>
-        <option value="gift">Gift</option>
-        <option value="email">Email</option>
-        <option value="text">Text</option>
-        <option value="handwritten_note">Handwritten note</option>
+        <option value="gift" {{ 'selected' if spec and spec.action_type == 'gift' else '' }}>Gift</option>
+        <option value="email" {{ 'selected' if spec and spec.action_type == 'email' else '' }}>Email</option>
+        <option value="text" {{ 'selected' if spec and spec.action_type == 'text' else '' }}>Text</option>
+        <option value="handwritten_note" {{ 'selected' if spec and spec.action_type == 'handwritten_note' else '' }}>Handwritten note</option>
       </select>
     </div>
 
@@ -93,31 +93,34 @@
       <select name="suggested_gift_id">
         <option value="">— none —</option>
         {% for g in gift_items %}
-          <option value="{{ g.id }}">{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
+          <option value="{{ g.id }}" {{ 'selected' if spec and spec.suggested_gift_id == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
         {% endfor %}
       </select>
     </div>
 
     <div class="field" id="message-fields">
       <label class="checkbox-chip">
-        <input type="checkbox" name="use_llm_copy" id="use_llm_copy">
+        <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if spec and spec.use_llm_copy else '' }}>
         Let the LLM write the message instead of a fixed template
       </label>
       <div id="template-field" style="margin-top:10px;">
         <label>Message template</label>
-        <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?"></textarea>
+        <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ spec.message_template if spec and spec.message_template else '' }}</textarea>
         <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
       </div>
       <div id="llm-hint-field" style="margin-top:10px; display:none;">
         <label>What should the LLM say?</label>
-        <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral."></textarea>
+        <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ spec.llm_prompt_hint if spec and spec.llm_prompt_hint else '' }}</textarea>
       </div>
     </div>
   </fieldset>
 
-  <button type="submit" class="btn btn-primary">Create flow</button>
+  <button type="submit" name="action" value="save" class="btn btn-primary">Create flow</button>
+  <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
   <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">Cancel</a>
 </form>
+
+{% include "campaigns/_preview_results.html" %}
 
 <script>
   (function () {

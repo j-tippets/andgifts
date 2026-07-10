@@ -1,10 +1,13 @@
+from types import SimpleNamespace
+
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Campaign, CampaignRecipe, User, SuggestedAction
+from app.models import Campaign, CampaignRecipe, User, SuggestedAction, Contact
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
+from app.services import suggestion_engine
 
 campaigns_bp = Blueprint("campaigns", __name__, url_prefix="/campaigns")
 
@@ -67,6 +70,48 @@ def _save_recipe_from_form(recipe):
     recipe.use_llm_copy = bool(request.form.get("use_llm_copy"))
     recipe.message_template = request.form.get("message_template", "").strip() or None
     recipe.llm_prompt_hint = request.form.get("llm_prompt_hint", "").strip() or None
+
+
+def _build_flow_spec_from_form(default_name="Untitled preview"):
+    """A plain in-memory stand-in for a Campaign/CampaignRecipe, built
+    straight from submitted (not-yet-saved) form data -- lets 'Preview'
+    dry-run a flow's matching logic before anything is written to the
+    database."""
+    try:
+        offset_days = int(request.form.get("offset_days", "0"))
+    except ValueError:
+        offset_days = 0
+
+    return SimpleNamespace(
+        name=request.form.get("name", "").strip() or default_name,
+        event_type=request.form.get("event_type"),
+        offset_days=offset_days,
+        interest_tag=request.form.get("interest_tag", "").strip() or None,
+        price_max_cents=dollars_to_cents(request.form.get("price_max")),
+        use_llm_gift_selection=bool(request.form.get("use_llm_gift_selection")),
+        action_type=request.form.get("action_type"),
+        suggested_gift_id=request.form.get("suggested_gift_id", "").strip() or None,
+        use_llm_copy=bool(request.form.get("use_llm_copy")),
+        message_template=request.form.get("message_template", "").strip() or None,
+        llm_prompt_hint=request.form.get("llm_prompt_hint", "").strip() or None,
+    )
+
+
+def _run_preview(spec, contacts_query):
+    contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
+    return suggestion_engine.preview_flow_matches(spec, contacts, current_user.org, limit=15)
+
+
+def _my_contacts_query():
+    """Contacts visible to the current user -- used to preview a
+    personal flow against their own book."""
+    return Contact.visible_to(Contact.query.filter_by(org_id=current_user.org_id), current_user)
+
+
+def _org_contacts_query():
+    """Every contact in the org -- used to preview a library flow,
+    which isn't tied to one agent yet."""
+    return Contact.query.filter_by(org_id=current_user.org_id)
 
 
 def _campaign_form_kwargs():
@@ -199,6 +244,17 @@ def library_new():
         flash("Name and a trigger event are required.", "error")
         return render_template("campaigns/library_new.html", **_recipe_form_kwargs())
 
+    if request.form.get("action") == "preview":
+        spec = _build_flow_spec_from_form()
+        preview_results = _run_preview(spec, _org_contacts_query())
+        return render_template(
+            "campaigns/library_new.html",
+            spec=spec,
+            preview_results=preview_results,
+            preview_scope_label="every contact in your agency",
+            **_recipe_form_kwargs(),
+        )
+
     recipe = CampaignRecipe(is_active=True, org_id=current_user.org_id)
     _save_recipe_from_form(recipe)
     db.session.add(recipe)
@@ -226,6 +282,19 @@ def library_edit(recipe_id):
     if not request.form.get("name", "").strip() or not request.form.get("event_type"):
         flash("Name and a trigger event are required.", "error")
         return redirect(url_for("campaigns.library_edit", recipe_id=recipe.id))
+
+    if request.form.get("action") == "preview":
+        spec = _build_flow_spec_from_form(default_name=recipe.name)
+        preview_results = _run_preview(spec, _org_contacts_query())
+        return render_template(
+            "campaigns/library_edit.html",
+            recipe=recipe,
+            price_max_display=cents_to_dollars_str(recipe.price_max_cents),
+            preview_results=preview_results,
+            preview_scope_label="every contact in your agency",
+            previewed_spec=spec,
+            **_recipe_form_kwargs(),
+        )
 
     _save_recipe_from_form(recipe)
     db.session.commit()
@@ -300,6 +369,23 @@ def campaign_new():
         flash("Name is required.", "error")
         return render_template("campaigns/new.html", **_campaign_form_kwargs())
 
+    if request.form.get("action") == "preview":
+        spec = _build_flow_spec_from_form()
+        if scope == "library":
+            contacts_query = _org_contacts_query()
+            scope_label = "every contact in your agency"
+        else:
+            contacts_query = _my_contacts_query()
+            scope_label = "your own contacts"
+        preview_results = _run_preview(spec, contacts_query)
+        return render_template(
+            "campaigns/new.html",
+            spec=spec,
+            preview_results=preview_results,
+            preview_scope_label=scope_label,
+            **_campaign_form_kwargs(),
+        )
+
     if scope == "library":
         recipe = CampaignRecipe(is_active=True, org_id=current_user.org_id)
         _save_recipe_from_form(recipe)
@@ -342,6 +428,23 @@ def campaign_edit(campaign_id):
     if not request.form.get("name", "").strip():
         flash("Name is required.", "error")
         return redirect(url_for("campaigns.campaign_edit", campaign_id=campaign.id))
+
+    if request.form.get("action") == "preview":
+        spec = _build_flow_spec_from_form(default_name=campaign.name)
+        owner = campaign.owner or current_user
+        contacts_query = Contact.visible_to(Contact.query.filter_by(org_id=current_user.org_id), owner)
+        scope_label = "your own contacts" if owner.id == current_user.id else f"{owner.full_name}'s contacts"
+        preview_results = _run_preview(spec, contacts_query)
+        return render_template(
+            "campaigns/edit.html",
+            campaign=campaign,
+            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
+            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
+            preview_results=preview_results,
+            preview_scope_label=scope_label,
+            previewed_spec=spec,
+            **_campaign_form_kwargs(),
+        )
 
     _save_campaign_from_form(campaign)
     db.session.commit()
