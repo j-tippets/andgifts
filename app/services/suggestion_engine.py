@@ -297,3 +297,71 @@ def _build_campaign_reason_text(campaign, contact, event, gift_item, gift_reason
         if gift_reasoning:
             base += f" {gift_reasoning}"
     return base
+
+
+# --- Flow preview (dry run, no side effects) -----------------------------
+
+def preview_flow_matches(spec, contacts, org, today=None, limit=20):
+    """Dry-run a flow's trigger/condition/action logic against a list of
+    contacts, WITHOUT creating or persisting any SuggestedAction rows.
+    Powers the 'Preview' button on the flow builder so agents and agency
+    admins can see what a flow would actually produce before it goes
+    live -- same matching and gift/message resolution the real engine
+    uses, just never written to the database.
+
+    `spec` only needs to duck-type the same fields Campaign and
+    CampaignRecipe both already have: name, event_type, offset_days,
+    interest_tag, price_max_cents, use_llm_gift_selection, action_type,
+    suggested_gift_id, use_llm_copy, message_template, llm_prompt_hint.
+
+    This makes REAL LLM calls when use_llm_gift_selection/use_llm_copy
+    are set -- it's a genuine dry run of what would be generated, not a
+    mock, so it costs the same as a real suggestion would.
+
+    Does not check for already-existing suggestions (there's nothing to
+    dedupe against for a flow that isn't live yet) -- it shows every
+    match in the lookahead window, capped at `limit` results.
+    """
+    today = today or date.today()
+    window_end = today + timedelta(days=LOOKAHEAD_DAYS)
+    available_item_ids = {i.id for i in org.available_catalog_items()}
+
+    results = []
+    for contact in contacts:
+        if len(results) >= limit:
+            break
+        if contact.do_not_contact:
+            continue
+        if spec.interest_tag:
+            contact_interest_names = {i.name for i in contact.interests}
+            if spec.interest_tag not in contact_interest_names:
+                continue
+
+        matching_events = [e for e in contact.timeline_events if e.event_type == spec.event_type]
+        for event in matching_events:
+            if len(results) >= limit:
+                break
+            trigger_date = _campaign_trigger_date(event, spec.offset_days, today, window_end)
+            if trigger_date is None:
+                continue
+
+            gift_item, gift_reasoning = None, None
+            if spec.action_type == "gift":
+                gift_item, gift_reasoning = _resolve_campaign_gift(spec, contact, available_item_ids)
+
+            message = None
+            if spec.action_type in ("email", "text", "handwritten_note"):
+                message = _resolve_campaign_message(spec, contact, event)
+
+            results.append({
+                "contact_name": contact.household_name,
+                "event_label": event.display_label(),
+                "event_date": event.event_date,
+                "trigger_date": trigger_date,
+                "gift_name": gift_item.name if gift_item else None,
+                "gift_price_cents": gift_item.price_cents if gift_item else None,
+                "gift_reasoning": gift_reasoning,
+                "message": message,
+            })
+
+    return results
