@@ -69,17 +69,25 @@ class CampaignRecipe(db.Model):
 
 class Campaign(db.Model):
     """
-    A live, running rule for one org. Created by copying a CampaignRecipe
-    in (fields are copied at that moment -- editing the source recipe
-    later never touches campaigns already created from it) or, in a
-    future stage, built from scratch.
+    A live, running rule for one org. Two ways it comes to exist:
+    - Copied from a CampaignRecipe (see from_recipe) -- either as a
+      team-wide flow or directly as one agent's personal flow.
+    - Forked from a team-wide flow when an agent clicks "Add to my
+      profile" (see from_campaign) -- becomes an independent personal
+      copy at that moment; later edits or deletion of the team-wide
+      source never touch it.
+    - Built from scratch (agency admins can create team-wide flows;
+      anyone can create their own personal flow from scratch).
 
-    owner_user_id is NULL for an agency-wide campaign (applies to every
-    contact in the org, managed by org admins) or set to a specific
-    agent's id for a personal one-off (applies only to that agent's own
-    contacts). Org admins can view and pause ANY campaign in their org,
-    agency-wide or personal; an agent can only manage their own personal
-    campaigns.
+    owner_user_id is NULL for a team-wide flow: a shared template that
+    agency admins manage (create/edit/delete) for the whole org, but
+    which never generates suggestions on its own -- each agent must
+    explicitly add it to their profile first, which forks their own
+    independent copy. owner_user_id set to an agent's id is a personal
+    flow: it DOES generate suggestions, scoped to that agent's own
+    contacts. Org admins can view, pause, edit, or delete ANY campaign
+    in their org (team-wide or any agent's personal flow); an agent can
+    only manage their own personal flows.
     """
     __tablename__ = "campaigns"
 
@@ -87,6 +95,16 @@ class Campaign(db.Model):
     org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
     owner_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
     source_recipe_id = db.Column(db.String(36), db.ForeignKey("campaign_recipes.id"), nullable=True)
+    # Set when this personal copy was forked from a team-wide (agency) flow --
+    # i.e. an agent clicked "Add to my profile" on a Campaign with
+    # owner_user_id IS NULL. NULL for team-wide flows themselves, for
+    # personal flows built from scratch, and for personal flows added
+    # directly from the CampaignRecipe library. ON DELETE SET NULL: deleting
+    # the team-wide source later never touches (or deletes) this copy --
+    # it just loses the "forked from" breadcrumb.
+    forked_from_campaign_id = db.Column(
+        db.String(36), db.ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_by_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
 
     name = db.Column(db.String(255), nullable=False)
@@ -117,6 +135,7 @@ class Campaign(db.Model):
     owner = db.relationship("User", foreign_keys=[owner_user_id])
     created_by = db.relationship("User", foreign_keys=[created_by_user_id])
     source_recipe = db.relationship("CampaignRecipe")
+    forked_from = db.relationship("Campaign", remote_side=[id], foreign_keys=[forked_from_campaign_id])
     suggested_gift = db.relationship("GiftCatalogItem")
 
     @classmethod
@@ -139,6 +158,33 @@ class Campaign(db.Model):
             use_llm_copy=recipe.use_llm_copy,
             message_template=recipe.message_template,
             llm_prompt_hint=recipe.llm_prompt_hint,
+            is_active=True,
+        )
+
+    @classmethod
+    def from_campaign(cls, master, owner_user_id, created_by_user_id):
+        """Fork a team-wide flow into a brand new, independent personal
+        Campaign row for one agent ('Add to my profile'). Fields are
+        copied at this moment -- editing or deleting the team-wide
+        source afterward never touches this copy."""
+        return cls(
+            org_id=master.org_id,
+            owner_user_id=owner_user_id,
+            source_recipe_id=master.source_recipe_id,
+            forked_from_campaign_id=master.id,
+            created_by_user_id=created_by_user_id,
+            name=master.name,
+            description=master.description,
+            event_type=master.event_type,
+            offset_days=master.offset_days,
+            interest_tag=master.interest_tag,
+            price_max_cents=master.price_max_cents,
+            use_llm_gift_selection=master.use_llm_gift_selection,
+            action_type=master.action_type,
+            suggested_gift_id=master.suggested_gift_id,
+            use_llm_copy=master.use_llm_copy,
+            message_template=master.message_template,
+            llm_prompt_hint=master.llm_prompt_hint,
             is_active=True,
         )
 

@@ -158,18 +158,25 @@ def generate_campaign_suggestions_for_org(org, today=None):
     window_end = today + timedelta(days=LOOKAHEAD_DAYS)
     available_item_ids = {i.id for i in org.available_catalog_items()}
 
-    campaigns = Campaign.query.filter_by(org_id=org.id, is_active=True).all()
+    # Team-wide flows (owner_user_id IS NULL) are shared templates managed
+    # by agency admins -- they never fire on their own. An agent has to
+    # explicitly "add" one to their profile first, which forks it into
+    # their own personal Campaign row (owner_user_id set); only those
+    # personal copies are evaluated here.
+    campaigns = Campaign.query.filter(
+        Campaign.org_id == org.id,
+        Campaign.is_active.is_(True),
+        Campaign.owner_user_id.isnot(None),
+    ).all()
 
     created = []
     for campaign in campaigns:
-        contacts_query = Contact.query.filter_by(org_id=org.id)
-        if campaign.owner_user_id is not None:
-            owner = User.query.get(campaign.owner_user_id)
-            if owner is None or owner.status != "active":
-                continue
-            # Personal campaign: applies to any contact visible to that
-            # agent -- their own private ones, plus shared org contacts.
-            contacts_query = Contact.visible_to(contacts_query, owner)
+        owner = User.query.get(campaign.owner_user_id)
+        if owner is None or owner.status != "active":
+            continue
+        # Personal campaign: applies to any contact visible to that
+        # agent -- their own private ones, plus shared org contacts.
+        contacts_query = Contact.visible_to(Contact.query.filter_by(org_id=org.id), owner)
         contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
 
         for contact in contacts:
