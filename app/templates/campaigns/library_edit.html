@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Edit {{ recipe.name }} — Flow Library{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+<div class="page-head with-action">
   <div>
     <div class="eyebrow">Flow Library · Your agency</div>
     <h1>Edit {{ recipe.name }}</h1>
@@ -10,8 +10,8 @@
 </div>
 
 <form method="POST">
-  <fieldset>
-    <legend>Basics</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Basics</h3>
     <div class="field">
       <label>Name</label>
       <input type="text" name="name" value="{{ recipe.name }}" required>
@@ -20,10 +20,10 @@
       <label>Description</label>
       <textarea name="description" rows="2">{{ recipe.description or '' }}</textarea>
     </div>
-  </fieldset>
+  </div>
 
-  <fieldset>
-    <legend>Trigger</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Trigger</h3>
     <div class="field-row">
       <div class="field">
         <label>Event</label>
@@ -39,10 +39,10 @@
         <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
       </div>
     </div>
-  </fieldset>
+  </div>
 
-  <fieldset>
-    <legend>Conditions (optional)</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Conditions (optional)</h3>
     <div class="field">
       <label>Only if contact has this interest tag</label>
       <input type="text" name="interest_tag" value="{{ recipe.interest_tag or '' }}" placeholder="e.g. golf">
@@ -55,10 +55,10 @@
       <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if recipe.use_llm_gift_selection else '' }}>
       Let the LLM pick the best gift (within the price cap above) instead of a fixed item
     </label>
-  </fieldset>
+  </div>
 
-  <fieldset>
-    <legend>Action</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Action</h3>
     <div class="field">
       <label>Type</label>
       <select name="action_type" id="action_type" required>
@@ -94,21 +94,20 @@
         <textarea name="llm_prompt_hint" rows="2">{{ recipe.llm_prompt_hint or '' }}</textarea>
       </div>
     </div>
-  </fieldset>
+  </div>
 
-  <button type="submit" name="action" value="save" class="btn btn-primary">Save changes</button>
-  <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
-  <a href="{{ url_for('campaigns.recipe_book') }}" class="btn btn-ghost">Cancel</a>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button type="submit" name="action" value="save" class="btn btn-primary">Save changes</button>
+    <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
+    <a href="{{ url_for('campaigns.recipe_book') }}" class="btn btn-ghost">Cancel</a>
+  </div>
 </form>
 
-{% if previewed_spec %}
-  <p class="subdued" style="margin-top:12px;"><small>Note: the preview above reflects the values you just submitted, even if the form above still shows your last-saved version &mdash; click Save changes to keep them.</small></p>
-{% endif %}
 {% include "campaigns/_preview_results.html" %}
 
-<div class="danger-zone">
-  <h2>{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this flow</h2>
-  <p class="subdued">
+<div class="form-section" style="margin-top:28px;">
+  <h3 class="form-section-title">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this flow</h3>
+  <p class="subdued" style="margin-bottom:12px;">
     {% if recipe.is_active %}
       Removes it from the library so it can't be added by any more agents. Anyone who already added it keeps their own copy, unaffected.
     {% else %}
@@ -120,9 +119,9 @@
   </form>
 </div>
 
-<div class="danger-zone">
-  <h2>Delete this flow</h2>
-  <p class="subdued">Permanently removes it from your agency's Flow Library. Anyone who already added their own copy keeps it, unaffected.</p>
+<div class="form-section" style="border-color: var(--danger);">
+  <h3 class="form-section-title" style="color: var(--danger);">Delete this flow</h3>
+  <p class="subdued" style="margin-bottom:12px;">Permanently removes it from your agency's Flow Library. Anyone who already added their own copy keeps it, unaffected.</p>
   <form method="post" action="{{ url_for('campaigns.library_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete this local flow? Agents who already added it keep their own copy.');">
     <button type="submit" class="btn btn-danger">Delete</button>
   </form>

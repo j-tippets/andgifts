@@ -1,7 +1,7 @@
 {% if preview_results is defined %}
-  <div class="danger-zone" style="border-color: var(--gold); margin-top:24px;">
-    <h2 style="color: var(--ink);">Preview results</h2>
-    <p class="subdued">
+  <div class="preview-panel">
+    <h2>Preview results</h2>
+    <p class="subdued" style="margin-bottom:14px;">
       <small>
         What this flow would generate over the next 14 days against {{ preview_scope_label }}
         &mdash; nothing here was saved or sent. If the flow uses the LLM for gift picks or message writing, this made a real API call to show you the actual result.
@@ -10,20 +10,18 @@
 
     {% if preview_results %}
       {% for r in preview_results %}
-        <div class="contact-row" style="cursor:default; align-items:flex-start;">
-          <div>
-            <strong>{{ r.contact_name }}</strong>
-            <div class="subdued">
-              <small>{{ r.event_label }} ({{ r.event_date.strftime('%b %-d, %Y') }}) &rarr; would trigger on {{ r.trigger_date.strftime('%b %-d, %Y') }}</small>
-            </div>
-            {% if r.gift_name %}
-              <div style="margin-top:6px;"><small>Gift: <strong>{{ r.gift_name }}</strong> (${{ '%.2f'|format(r.gift_price_cents / 100) }}){% if r.gift_reasoning %} &mdash; {{ r.gift_reasoning }}{% endif %}</small></div>
-            {% elif r.message %}
-              <div style="margin-top:6px;"><small>Message: &ldquo;{{ r.message }}&rdquo;</small></div>
-            {% else %}
-              <div style="margin-top:6px;"><small class="subdued">No gift or message resolved for this match (check the fixed gift/template settings above).</small></div>
-            {% endif %}
+        <div class="preview-item">
+          <div class="preview-name">{{ r.contact_name }}</div>
+          <div class="subdued">
+            <small>{{ r.event_label }} ({{ r.event_date.strftime('%b %-d, %Y') }}) &rarr; would trigger on {{ r.trigger_date.strftime('%b %-d, %Y') }}</small>
           </div>
+          {% if r.gift_name %}
+            <div class="preview-detail"><small>Gift: <strong>{{ r.gift_name }}</strong> (${{ '%.2f'|format(r.gift_price_cents / 100) }}){% if r.gift_reasoning %} &mdash; {{ r.gift_reasoning }}{% endif %}</small></div>
+          {% elif r.message %}
+            <div class="preview-detail"><small>Message: &ldquo;{{ r.message }}&rdquo;</small></div>
+          {% else %}
+            <div class="preview-detail"><small class="subdued">No gift or message resolved for this match (check the fixed gift/template settings above).</small></div>
+          {% endif %}
         </div>
       {% endfor %}
     {% else %}
