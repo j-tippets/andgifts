@@ -39,7 +39,7 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-height: 116px;
+  min-height: 80px;
   padding: 8px 18px;
   position: sticky;
   top: 0;

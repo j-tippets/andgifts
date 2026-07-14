@@ -36,15 +36,15 @@
       <div class="avatar avatar-placeholder" style="width:42px; height:42px; font-size:14px;">{{ initials|upper }}</div>
       <div class="info">
         <h4>{{ contact.household_name }}{% if head %} <span class="subdued" style="font-weight:400;">— {{ head.full_name }}</span>{% endif %}</h4>
-        <div class="sub">{% if current_user.is_admin %}{{ contact.owner.full_name if contact.owner else 'Shared' }}{% else %}&nbsp;{% endif %}</div>
+        <!-- <div class="sub">{% if current_user.is_admin %}{{ contact.owner.full_name if contact.owner else 'Shared' }}{% else %}&nbsp;{% endif %}</div> -->
       </div>
       <div class="tags">
         {% if contact.do_not_contact %}
-          <span class="status-pill pill-do-not-contact">Do Not Contact</span>
+          <!-- <span class="status-pill pill-do-not-contact">Do Not Contact</span> -->
         {% elif contact.marketing_opt_out %}
-          <span class="status-pill pill-marketing-opt-out">Opted out</span>
+          <!-- <span class="status-pill pill-marketing-opt-out">Opted out</span> -->
         {% endif %}
-        <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span>
+        <!-- <span class="status-pill status-{{ contact.status }}">{{ contact.status }}</span> -->
       </div>
       <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </a>
