@@ -1,1 +1,11 @@
 venv/
+
+# Windows/WSL metadata artifacts -- these get created automatically when
+# a file is downloaded on Windows and viewed from WSL. They contain a
+# literal colon in the filename (e.g. "main.css:Zone.Identifier"), which
+# NTFS/native Windows checkouts (e.g. GitHub Desktop) cannot check out at
+# all -- "invalid path" / "unable to checkout working tree" errors.
+*:Zone.Identifier
+__pycache__/
+*.pyc
+
