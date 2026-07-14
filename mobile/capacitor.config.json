@@ -1,0 +1,25 @@
+{
+  "appId": "com.andgifts.app",
+  "appName": "&Gifts",
+  "webDir": "www",
+  "server": {
+    "url": "https://REPLACE-WITH-PRODUCTION-DOMAIN.com",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#2A1A45",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#2A1A45"
+    }
+  }
+}

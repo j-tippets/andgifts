@@ -40,4 +40,16 @@ def create_app(config_name=None):
     app.register_blueprint(app_admin_bp)
     app.register_blueprint(campaigns_bp)
 
+    @app.route("/sw.js")
+    def service_worker():
+        # Served from root (not /static/sw.js) so the browser's default
+        # service worker scope is "/" instead of "/static/" -- without
+        # this, the SW would never control /dashboard (the manifest's
+        # start_url) and the app would fail PWA installability checks.
+        from flask import send_from_directory
+        response = send_from_directory(app.static_folder, "sw.js")
+        response.headers["Content-Type"] = "application/javascript"
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
     return app

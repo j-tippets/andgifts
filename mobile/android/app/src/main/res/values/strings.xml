@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">&amp;Gifts</string>
+    <string name="title_activity_main">&amp;Gifts</string>
+    <string name="package_name">com.andgifts.app</string>
+    <string name="custom_url_scheme">com.andgifts.app</string>
+</resources>
