@@ -44,7 +44,7 @@ button { font-family: inherit; }
   position: sticky;
   top: 0;
   z-index: 60;
-  background: rgba(252,248,245,.9);
+  background: #fcf8f5;
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
