@@ -39,11 +39,12 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 14px 18px;
+  min-height: 116px;
+  padding: 8px 18px;
   position: sticky;
   top: 0;
   z-index: 60;
-  background: rgba(251,245,241,.9);
+  background: rgba(252,248,245,.9);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -52,7 +53,7 @@ button { font-family: inherit; }
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  height: 26px;
+  height: 100px;
 }
 
 .hamburger-btn {
