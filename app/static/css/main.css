@@ -526,7 +526,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 @keyframes s-pop { from { transform: scale(0); } 60% { transform: scale(1.15); } to { transform: scale(1); } }
 .confetti-dot { position: absolute; border-radius: 3px; opacity: 0; }
 
-.empty-state { text-align: center; padding: 60px 20px; color: rgba(42,26,69,.5); }
+.empty-state { text-align: center; padding: 60px 20px; color: rgba(42,26,69,.5); border:1px solid black; border-radius:10px;}
 .empty-state h3 { color: var(--ink); margin-bottom: 8px; }
 
 /* ---- Contacts: search, filter chips, cards ---- */
