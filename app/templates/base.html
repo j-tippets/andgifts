@@ -32,14 +32,9 @@
 
   <!-- Mobile top bar -->
   <header class="mobile-topbar">
-    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts">
-    <button class="account-chip" id="accountToggleMobile" aria-haspopup="true" aria-expanded="false">
-      <span class="plan-label">{{ current_user.org.tier|capitalize }}</span>
-      {% if current_user.photo_url %}
-        <img src="{{ current_user.photo_url }}" alt="{{ current_user.full_name }}" class="avatar">
-      {% else %}
-        <div class="avatar avatar-placeholder">{{ (current_user.first_name or '')[:1] }}{{ (current_user.last_name or '')[:1] }}</div>
-      {% endif %}
+    <img class="mobile-topbar-logo" src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_white.svg" alt="&amp;Gifts">
+    <button class="hamburger-btn" id="accountToggleMobile" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
   </header>
 
@@ -65,7 +60,10 @@
 
   <!-- Shared account dropdown (positioned under whichever chip opened it) -->
   <div class="account-menu" id="accountMenu" hidden>
-    <div class="account-menu-name">{{ current_user.full_name }}</div>
+    <div class="account-menu-name">
+      {{ current_user.full_name }}
+      <span class="account-menu-plan">{{ current_user.org.tier|capitalize }} plan</span>
+    </div>
     <a href="{{ url_for('profile.edit_profile') }}">Profile</a>
     {% if current_user.is_admin %}
       <a href="{{ url_for('team.list_members') }}">Team</a>
