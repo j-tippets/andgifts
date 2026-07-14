@@ -21,12 +21,12 @@
   <input type="text" name="q" value="{{ search_term }}" placeholder="Search name, email, phone, or custom fields…">
 </form>
 
-<div class="chips">
+<!-- <div class="chips">
   <a href="{{ url_for('contacts.list_contacts', q=search_term) }}" class="chip {{ 'active' if not status_filter }}">All</a>
   <a href="{{ url_for('contacts.list_contacts', status='new', q=search_term) }}" class="chip {{ 'active' if status_filter == 'new' }}">New</a>
   <a href="{{ url_for('contacts.list_contacts', status='active', q=search_term) }}" class="chip {{ 'active' if status_filter == 'active' }}">Active</a>
   <a href="{{ url_for('contacts.list_contacts', status='past', q=search_term) }}" class="chip {{ 'active' if status_filter == 'past' }}">Past</a>
-</div>
+</div> -->
 
 {% if contacts %}
   {% for contact in contacts %}
