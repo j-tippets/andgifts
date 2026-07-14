@@ -126,6 +126,13 @@ wsgi.py
 .do/app.yaml
 ```
 
+## Mobile app (iOS / Android)
+
+`mobile/` contains a [Capacitor](https://capacitorjs.com) native shell that
+loads this same Flask site remotely (no separate API layer, no duplicated
+UI). See `mobile/README.md` for setup, the decisions that still need to be
+made (bundle ID, production domain), and developer account requirements.
+
 ## Suggested next build order
 
 1. Wire Stripe (checkout for the 3 paid tiers + webhook to flip `Org.tier`).

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--
+  This file is never actually shown to users. Capacitor requires a
+  webDir with at least an index.html to be present at build time, but
+  because capacitor.config.ts sets server.url, the native shell
+  navigates straight to the live &Gifts site on launch instead of
+  loading this file. It only briefly flashes if the remote load is
+  slow before the splash screen covers it.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>&amp;Gifts</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #2A1A45;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, sans-serif;
+      color: #F7C948;
+    }
+  </style>
+</head>
+<body>
+  <div>&amp;Gifts</div>
+</body>
+</html>
