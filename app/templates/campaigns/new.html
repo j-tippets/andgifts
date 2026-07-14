@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}New flow — Campaigns{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+<div class="page-head with-action">
   <div>
     <div class="eyebrow">Campaigns</div>
     <h1>Build a new flow</h1>
@@ -16,21 +16,29 @@
 
 <form method="POST">
   {% if current_user.is_admin %}
-    <fieldset>
-      <legend>Who is this for?</legend>
-      <label class="checkbox-chip">
-        <input type="radio" name="scope" value="personal" {{ 'checked' if not spec or preview_scope_label == 'your own contacts' else '' }}>
-        Just for me
-      </label>
-      <label class="checkbox-chip">
-        <input type="radio" name="scope" value="library" {{ 'checked' if spec and preview_scope_label != 'your own contacts' else '' }}>
-        Add to my agency's Flow Library &mdash; each agent (including me) still has to add their own copy before it applies to their contacts
-      </label>
-    </fieldset>
+    <div class="form-section">
+      <h3 class="form-section-title">Who is this for?</h3>
+      <div class="access-method">
+        <label class="access-option">
+          <input type="radio" name="scope" value="personal" {{ 'checked' if not spec or preview_scope_label == 'your own contacts' else '' }}>
+          <div>
+            <div class="option-title">Just for me</div>
+            <div class="subdued"><small>Applies only to your own contacts.</small></div>
+          </div>
+        </label>
+        <label class="access-option">
+          <input type="radio" name="scope" value="library" {{ 'checked' if spec and preview_scope_label != 'your own contacts' else '' }}>
+          <div>
+            <div class="option-title">Add to my agency's Flow Library</div>
+            <div class="subdued"><small>Each agent (including you) still has to add their own copy before it applies to their contacts.</small></div>
+          </div>
+        </label>
+      </div>
+    </div>
   {% endif %}
 
-  <fieldset>
-    <legend>Basics</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Basics</h3>
     <div class="field">
       <label>Name</label>
       <input type="text" name="name" value="{{ spec.name if spec else '' }}" placeholder="e.g. Post-showing feedback ask" required>
@@ -39,10 +47,10 @@
       <label>Description</label>
       <textarea name="description" rows="2" placeholder="What this flow is for">{{ request.form.get('description', '') if spec else '' }}</textarea>
     </div>
-  </fieldset>
+  </div>
 
-  <fieldset>
-    <legend>Trigger</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Trigger</h3>
     <div class="field-row">
       <div class="field">
         <label>Event</label>
@@ -58,10 +66,10 @@
         <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
       </div>
     </div>
-  </fieldset>
+  </div>
 
-  <fieldset>
-    <legend>Conditions (optional)</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Conditions (optional)</h3>
     <div class="field">
       <label>Only if contact has this interest tag</label>
       <input type="text" name="interest_tag" value="{{ spec.interest_tag if spec else '' }}" placeholder="e.g. golf">
@@ -74,10 +82,10 @@
       <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if spec and spec.use_llm_gift_selection else '' }}>
       Let the LLM pick the best gift (within the price cap above) instead of a fixed item
     </label>
-  </fieldset>
+  </div>
 
-  <fieldset>
-    <legend>Action</legend>
+  <div class="form-section">
+    <h3 class="form-section-title">Action</h3>
     <div class="field">
       <label>Type</label>
       <select name="action_type" id="action_type" required>
@@ -113,11 +121,13 @@
         <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ spec.llm_prompt_hint if spec and spec.llm_prompt_hint else '' }}</textarea>
       </div>
     </div>
-  </fieldset>
+  </div>
 
-  <button type="submit" name="action" value="save" class="btn btn-primary">Create flow</button>
-  <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
-  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">Cancel</a>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button type="submit" name="action" value="save" class="btn btn-primary">Create flow</button>
+    <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
+    <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">Cancel</a>
+  </div>
 </form>
 
 {% include "campaigns/_preview_results.html" %}

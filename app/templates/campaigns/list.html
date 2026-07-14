@@ -1,44 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Campaigns — Ag{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+<div class="page-head with-action">
   <div>
     <div class="eyebrow">Automated touchpoints</div>
     <h1>Campaigns</h1>
   </div>
-  <div style="display:flex; gap:8px;">
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <a href="{{ url_for('campaigns.recipe_book') }}" class="btn btn-ghost">+ Add from Flow Library</a>
     <a href="{{ url_for('campaigns.campaign_new') }}" class="btn btn-primary">+ Build from scratch</a>
   </div>
 </div>
-<p class="subdued" style="margin-top:-16px; margin-bottom:20px;">
+<p class="subdued" style="margin-top:-12px; margin-bottom:22px;">
   <small>Every campaign only ever creates a pending suggestion on the dashboard for you to approve or skip &mdash; nothing sends automatically. Want something the whole team can use? Add it to your agency's <a href="{{ url_for('campaigns.recipe_book') }}">Flow Library</a> instead &mdash; each agent (including you) adds their own copy from there.</small>
 </p>
 
 {% macro campaign_row(c, can_manage) %}
-  <div class="contact-row" style="cursor:default; {{ 'opacity:0.6;' if not c.is_active else '' }}">
-    <div>
-      <strong>{{ c.name }}</strong>
-      <div class="subdued">
-        <small>
-          {{ c.event_type.replace('_', ' ')|title }}, {{ c.timing_label() }}
-          &rarr; {{ c.action_type.replace('_', ' ')|title }}
-          {% if c.use_llm_gift_selection %} (LLM picks the gift){% endif %}
-          {% if c.use_llm_copy %} (LLM writes the message){% endif %}
-        </small>
+  <div class="flow-card {{ 'is-inactive' if not c.is_active else '' }}">
+    <div class="flow-info">
+      <h4>
+        {{ c.name }}
+        {% if not c.is_active %}<span class="status-pill pill-do-not-contact">Paused</span>{% endif %}
+      </h4>
+      <div class="flow-meta">
+        {{ c.event_type.replace('_', ' ')|title }}, {{ c.timing_label() }}
+        &rarr; {{ c.action_type.replace('_', ' ')|title }}
+        {% if c.use_llm_gift_selection %} (LLM picks the gift){% endif %}
+        {% if c.use_llm_copy %} (LLM writes the message){% endif %}
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      {% if not c.is_active %}<span class="status-pill pill-do-not-contact">Paused</span>{% endif %}
-      {% if can_manage %}
+    {% if can_manage %}
+      <div class="flow-actions">
         <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="btn btn-ghost btn-small">Edit</a>
-      {% endif %}
-    </div>
+      </div>
+    {% endif %}
   </div>
 {% endmacro %}
 
 <h2>My flows</h2>
-<p class="subdued" style="margin-top:-8px;"><small>Only applies to your own contacts.</small></p>
+<p class="subdued" style="margin-top:-8px; margin-bottom:14px;"><small>Only applies to your own contacts.</small></p>
 {% if my_campaigns %}
   {% for c in my_campaigns %}
     {{ campaign_row(c, true) }}
@@ -49,9 +49,9 @@
 
 {% if current_user.is_admin and other_personal_by_agent %}
   <h2 style="margin-top:32px;">Other agents' flows</h2>
-  <p class="subdued" style="margin-top:-8px;"><small>You can view, edit, pause, or delete these, but they belong to each agent's own book.</small></p>
+  <p class="subdued" style="margin-top:-8px; margin-bottom:14px;"><small>You can view, edit, pause, or delete these, but they belong to each agent's own book.</small></p>
   {% for owner, campaigns in other_personal_by_agent %}
-    <p class="subdued" style="margin:16px 0 4px;"><strong>{{ owner.full_name if owner else 'Unknown agent' }}</strong></p>
+    <p class="flow-owner-group">{{ owner.full_name if owner else 'Unknown agent' }}</p>
     {% for c in campaigns %}
       {{ campaign_row(c, true) }}
     {% endfor %}

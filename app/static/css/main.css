@@ -529,3 +529,81 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .contact-card-row .tags { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
 .contact-card-row .chevron { opacity: .3; flex-shrink: 0; }
 .empty-state h3 { color: var(--evergreen); margin-bottom: 8px; }
+
+/* ---- Flow cards (Campaigns list + Flow Library) ---- */
+.flow-card {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
+  background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 18px;
+  padding: 16px 18px; margin-bottom: 10px; transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.flow-card:hover { border-color: var(--coral); box-shadow: 0 10px 22px -16px rgba(42,26,69,.3); }
+.flow-card.is-inactive { opacity: .6; }
+.flow-card .flow-info { flex: 1; min-width: 0; }
+.flow-card h4 {
+  font-family: var(--font-rounded); font-weight: 700; font-size: 15px; margin: 0 0 5px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.flow-card .flow-desc { margin: 0 0 6px; font-size: 13.5px; color: rgba(42,26,69,.75); }
+.flow-card .flow-meta { font-size: 12.5px; color: rgba(42,26,69,.55); }
+.flow-card .flow-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+.flow-owner-group { margin: 16px 0 4px; font-family: var(--font-rounded); font-weight: 700; font-size: 12.5px; color: rgba(42,26,69,.55); }
+
+/* ---- Gift catalog: product card grid ---- */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.catalog-card {
+  background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 18px;
+  overflow: hidden; transition: transform .18s var(--ease), box-shadow .18s var(--ease), border-color .18s var(--ease);
+}
+.catalog-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -16px rgba(42,26,69,.3); border-color: var(--coral); }
+.catalog-card.is-excluded { opacity: .55; }
+.catalog-card-media {
+  aspect-ratio: 1 / 1; background: var(--paper); display: flex; align-items: center;
+  justify-content: center; overflow: hidden;
+}
+.catalog-card-media img { width: 100%; height: 100%; object-fit: cover; }
+.catalog-card-media .avatar-placeholder { width: 100%; height: 100%; border-radius: 0; font-size: 34px; }
+.catalog-card-body { padding: 12px 14px 14px; }
+.catalog-card h4 { font-family: var(--font-rounded); font-weight: 700; font-size: 14.5px; margin: 0 0 2px; }
+.catalog-card .price { font-size: 13px; color: rgba(42,26,69,.6); margin: 0 0 8px; }
+.catalog-card details summary {
+  cursor: pointer; list-style: none; font-family: var(--font-rounded); font-weight: 700;
+  font-size: 12px; color: var(--coral-deep); display: flex; align-items: center; gap: 4px;
+}
+.catalog-card details summary::-webkit-details-marker { display: none; }
+.catalog-card details summary::marker { content: ""; }
+.catalog-card details[open] summary { margin-bottom: 8px; }
+.catalog-card .catalog-card-desc { font-size: 12.5px; line-height: 1.5; color: rgba(42,26,69,.7); margin: 0 0 8px; padding-left: 2px; }
+.catalog-card .catalog-card-desc li { margin-bottom: 2px; }
+.catalog-card .catalog-card-actions { margin-top: 10px; }
+
+/* ---- Form sections (replaces bare <fieldset>/<legend> look in flow builders) ---- */
+.form-section {
+  background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 18px;
+  padding: 18px 20px; margin-bottom: 16px;
+}
+.form-section-title {
+  font-family: var(--font-display); font-weight: 600; font-size: 16px; color: var(--evergreen);
+  margin: 0 0 14px;
+}
+.form-section .field:last-child { margin-bottom: 0; }
+
+/* ---- Preview panel (dry-run results on flow builders) ---- */
+.preview-panel {
+  position: relative; background: var(--paper-raised); border: 1.5px solid var(--line);
+  border-radius: 18px; padding: 20px 20px 20px 24px; margin-top: 24px;
+}
+.preview-panel::before {
+  content: ""; position: absolute; left: 0; top: 22px; bottom: 22px; width: 5px;
+  border-radius: 4px; background: var(--gold);
+}
+.preview-panel h2 { font-size: 17px; margin-bottom: 4px; }
+.preview-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.preview-item:last-child { border-bottom: none; padding-bottom: 0; }
+.preview-item .preview-name { font-family: var(--font-rounded); font-weight: 700; font-size: 14.5px; }
+.preview-item .preview-detail { margin-top: 6px; font-size: 13px; }

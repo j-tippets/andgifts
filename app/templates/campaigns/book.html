@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Flow Library — Ag{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+<div class="page-head with-action">
   <div>
     <div class="eyebrow">Campaign templates</div>
     <h1>Flow Library</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Global flows from the &amp;Gifts team, plus your agency's own local flows. Add one to make it yours &mdash; editing or deleting the original here never touches a copy you've already added.</small></p>
+    <p class="subdued" style="margin-top:6px; max-width:520px;"><small>Global flows from the &amp;Gifts team, plus your agency's own local flows. Add one to make it yours &mdash; editing or deleting the original here never touches a copy you've already added.</small></p>
   </div>
   <div style="display:flex; gap:8px; flex-shrink:0;">
     <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Campaigns</a>
@@ -16,34 +16,33 @@
 </div>
 
 {% if recipes %}
-  <div class="field" style="max-width:360px; margin-bottom:20px;">
+  <form method="get" class="search-wrap" onsubmit="return false;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="text" id="flow-search" placeholder="Search flows by name or description&hellip;" autocomplete="off">
-  </div>
+  </form>
 
   <div id="flow-rows">
     {% for recipe in recipes %}
-      <div class="contact-row flow-row" data-search="{{ (recipe.name ~ ' ' ~ (recipe.description or ''))|lower }}" style="cursor:default; align-items:flex-start; {{ 'opacity:0.6;' if not recipe.is_active else '' }}">
-        <div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <strong>{{ recipe.name }}</strong>
+      <div class="flow-card {{ 'is-inactive' if not recipe.is_active else '' }}" data-search="{{ (recipe.name ~ ' ' ~ (recipe.description or ''))|lower }}">
+        <div class="flow-info">
+          <h4>
+            {{ recipe.name }}
             {% if recipe.is_global %}
               <span class="status-pill status-new">Global</span>
             {% else %}
               <span class="status-pill status-active">Agency</span>
             {% endif %}
             {% if not recipe.is_active %}<span class="status-pill pill-do-not-contact">Inactive</span>{% endif %}
-          </div>
-          {% if recipe.description %}<p class="subdued" style="margin:4px 0;">{{ recipe.description }}</p>{% endif %}
-          <div class="subdued">
-            <small>
-              {{ recipe.event_type.replace('_', ' ')|title }}, {{ recipe.timing_label() }}
-              &rarr; {{ recipe.action_type.replace('_', ' ')|title }}
-              {% if recipe.use_llm_gift_selection %} (LLM picks the gift){% endif %}
-              {% if recipe.use_llm_copy %} (LLM writes the message){% endif %}
-            </small>
+          </h4>
+          {% if recipe.description %}<p class="flow-desc">{{ recipe.description }}</p>{% endif %}
+          <div class="flow-meta">
+            {{ recipe.event_type.replace('_', ' ')|title }}, {{ recipe.timing_label() }}
+            &rarr; {{ recipe.action_type.replace('_', ' ')|title }}
+            {% if recipe.use_llm_gift_selection %} (LLM picks the gift){% endif %}
+            {% if recipe.use_llm_copy %} (LLM writes the message){% endif %}
           </div>
         </div>
-        <div style="display:flex; gap:8px; flex-shrink:0; align-items:center;">
+        <div class="flow-actions">
           {% if recipe.is_active %}
             <form method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
               <button type="submit" class="btn btn-primary btn-small">Add to my campaigns</button>
@@ -69,7 +68,7 @@
   (function () {
     var input = document.getElementById('flow-search');
     if (!input) return;
-    var rows = Array.prototype.slice.call(document.querySelectorAll('.flow-row'));
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#flow-rows .flow-card'));
     var noResults = document.getElementById('flow-no-results');
 
     input.addEventListener('input', function () {

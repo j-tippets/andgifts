@@ -1,20 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Gift Catalog — Ag{% endblock %}
 {% block content %}
-<div style="margin-bottom:20px;">
+<div class="page-head">
   <div class="eyebrow">{{ 'What your agency can send' if current_user.is_admin else 'Browse what your agency can send' }}</div>
   <h1>Gift Catalog</h1>
 </div>
 
-<input
-  type="text"
-  id="catalog-search"
-  placeholder="Search by name or tag&hellip;"
-  style="width:100%; max-width:420px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; font-family:var(--font-body); font-size:14px; background:var(--paper-raised); margin-bottom:20px;"
->
-
 {% if catalog_curated %}
-  <div class="flash" style="background:#EDEAE3; color:#6B6459; display:flex; justify-content:space-between; align-items:center;">
+  <div class="flash" style="background:#EDEAE3; color:#6B6459; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <span>Custom selection — {{ selected_ids|length }} of {{ items|length }} items available.</span>
     {% if current_user.is_admin %}
       <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;">
@@ -28,36 +21,42 @@
   </p>
 {% endif %}
 
-{% set included_items = items|selectattr('id', 'in', selected_ids)|list %}
+<form method="get" class="search-wrap" onsubmit="return false;">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+  <input type="text" id="catalog-search" placeholder="Search by name or tag&hellip;">
+</form>
+
 {% set excluded_items = items|rejectattr('id', 'in', selected_ids)|list %}
+{% if current_user.is_admin and excluded_items %}
+  <div class="chips">
+    <a href="#" class="chip active" data-filter="all">All</a>
+    <a href="#" class="chip" data-filter="included">Available</a>
+    <a href="#" class="chip" data-filter="excluded">Excluded</a>
+  </div>
+{% endif %}
 
 {% macro catalog_card(item, included) %}
-  <div class="contact-row catalog-item-row" style="cursor:default; align-items:flex-start; {{ 'opacity:0.6;' if not included else '' }}" data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}">
-    <details style="flex:1;">
-      <summary class="timeline-summary" style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <span class="catalog-caret">▸</span>
-          {% if item.image_url %}
-            <img src="{{ item.image_url }}" alt="" style="width:40px; height:40px; border-radius:6px; object-fit:cover;">
-          {% else %}
-            <div class="avatar avatar-sm avatar-placeholder">🎁</div>
-          {% endif %}
-          <div>
-            <strong>{{ item.name }}</strong>
-            <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
-          </div>
-        </div>
-      </summary>
-      <div style="padding:14px 4px 4px 52px; display:flex; gap:20px; align-items:flex-start;">
-        {% if item.image_url %}
-          <img src="{{ item.image_url }}" alt="" style="width:120px; height:120px; border-radius:8px; object-fit:cover; flex-shrink:0;">
-        {% else %}
-          <div class="avatar avatar-placeholder" style="width:120px; height:120px; font-size:36px; flex-shrink:0;">🎁</div>
-        {% endif %}
-        <div>
+  <div
+    class="catalog-card {{ 'is-excluded' if not included else '' }}"
+    data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}"
+    data-status="{{ 'included' if included else 'excluded' }}"
+  >
+    <div class="catalog-card-media">
+      {% if item.image_url %}
+        <img src="{{ item.image_url }}" alt="">
+      {% else %}
+        <div class="avatar avatar-placeholder">🎁</div>
+      {% endif %}
+    </div>
+    <div class="catalog-card-body">
+      <h4>{{ item.name }}</h4>
+      <p class="price">${{ '%.2f'|format(item.price_cents / 100) }}</p>
+
+      {% if item.description or item.tag_list() %}
+        <details>
+          <summary><span class="catalog-caret">▸</span> What's inside</summary>
           {% if item.description %}
-            <p style="margin:0 0 10px;"><strong>What's inside</strong></p>
-            <ul style="margin:0 0 14px; padding-left:18px;">
+            <ul class="catalog-card-desc">
               {% for line in item.description.split(';') %}
                 <li>{{ line.strip() }}</li>
               {% endfor %}
@@ -70,46 +69,75 @@
               {% endfor %}
             </div>
           {% endif %}
+        </details>
+      {% endif %}
+
+      {% if current_user.is_admin %}
+        <div class="catalog-card-actions">
+          <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:0;">
+            <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add back' }}</button>
+          </form>
         </div>
-      </div>
-    </details>
-    {% if current_user.is_admin %}
-      <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:2px 0 0;" onclick="event.stopPropagation()">
-        <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add back' }}</button>
-      </form>
-    {% endif %}
+      {% endif %}
+    </div>
   </div>
 {% endmacro %}
 
+{% set included_items = items|selectattr('id', 'in', selected_ids)|list %}
+
 <div id="catalog-items">
-  {% if included_items %}
-    {% for item in included_items %}
-      {{ catalog_card(item, true) }}
-    {% endfor %}
+  {% if included_items or (current_user.is_admin and excluded_items) %}
+    <div class="catalog-grid">
+      {% for item in included_items %}
+        {{ catalog_card(item, true) }}
+      {% endfor %}
+      {% if current_user.is_admin %}
+        {% for item in excluded_items %}
+          {{ catalog_card(item, false) }}
+        {% endfor %}
+      {% endif %}
+    </div>
   {% else %}
     <p class="subdued">No items available right now{{ ' — reset to all items above, or check back once the catalog has items.' if current_user.is_admin else '.' }}</p>
   {% endif %}
 
-  {% if current_user.is_admin and excluded_items %}
-    <h2 style="margin-top:32px;">Excluded</h2>
-    <p class="subdued" style="margin-top:-8px;"><small>Not available for your agency to send.</small></p>
-    {% for item in excluded_items %}
-      {{ catalog_card(item, false) }}
-    {% endfor %}
-  {% endif %}
+  <p id="catalog-no-results" class="subdued" style="display:none;">No items match your search.</p>
 </div>
 
 <script>
   (function () {
     var input = document.getElementById('catalog-search');
-    if (!input) return;
-    input.addEventListener('input', function () {
-      var q = input.value.trim().toLowerCase();
-      document.querySelectorAll('.catalog-item-row').forEach(function (row) {
-        var haystack = row.dataset.search || '';
-        row.style.display = (!q || haystack.indexOf(q) !== -1) ? '' : 'none';
+    var chips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-filter]'));
+    var cards = Array.prototype.slice.call(document.querySelectorAll('#catalog-items .catalog-card'));
+    var noResults = document.getElementById('catalog-no-results');
+    var activeFilter = 'all';
+
+    function apply() {
+      var q = (input && input.value.trim().toLowerCase()) || '';
+      var visibleCount = 0;
+      cards.forEach(function (card) {
+        var matchesSearch = !q || card.dataset.search.indexOf(q) !== -1;
+        var matchesFilter = activeFilter === 'all' || card.dataset.status === activeFilter;
+        var visible = matchesSearch && matchesFilter;
+        card.style.display = visible ? '' : 'none';
+        if (visible) visibleCount++;
+      });
+      if (noResults) noResults.style.display = visibleCount === 0 ? '' : 'none';
+    }
+
+    if (input) input.addEventListener('input', apply);
+
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function (e) {
+        e.preventDefault();
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        activeFilter = chip.dataset.filter;
+        apply();
       });
     });
+
+    apply();
   })();
 </script>
 {% endblock %}
