@@ -3,10 +3,10 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">{{ contact.status|capitalize }} client</div>
+    <!-- <div class="eyebrow">{{ contact.status|capitalize }} client</div> -->
     <h1>Edit {{ contact.household_name }}</h1>
   </div>
-  <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="btn btn-ghost">&larr; Back to {{ contact.household_name }}</a>
+  <!-- <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="btn btn-ghost">&larr; Back to {{ contact.household_name }}</a> -->
 </div>
 
 <form method="POST">
@@ -59,21 +59,6 @@
     </div>
   </fieldset>
 
-  <fieldset>
-    <legend>Contact preferences</legend>
-    <label class="checkbox-chip">
-      <input type="checkbox" name="marketing_opt_out" {{ 'checked' if contact.marketing_opt_out else '' }}>
-      Opted out of marketing &mdash; don't include in bulk/marketing sends. Milestone gifts still apply.
-    </label>
-    <label class="checkbox-chip" style="margin-top:6px;">
-      <input type="checkbox" name="do_not_contact" {{ 'checked' if contact.do_not_contact else '' }}>
-      Do Not Contact &mdash; hard stop, no gifts, emails, texts, or suggestions of any kind
-    </label>
-    {% if contact.do_not_contact %}
-      <p class="subdued" style="margin-top:6px;"><small>Unchecking this will resume future suggestions, but won't restore any that were already cancelled.</small></p>
-    {% endif %}
-  </fieldset>
-
   {% if custom_fields %}
   <fieldset>
     <legend>Custom fields</legend>
@@ -98,6 +83,22 @@
     </div>
   </fieldset>
   {% else %}
+
+  <fieldset>
+    <legend>Contact preferences</legend>
+    <label class="checkbox-chip">
+      <input type="checkbox" name="marketing_opt_out" {{ 'checked' if contact.marketing_opt_out else '' }}>
+      Opted out of marketing &mdash; don't include in bulk/marketing sends. Milestone gifts still apply.
+    </label>
+    <label class="checkbox-chip" style="margin-top:6px;">
+      <input type="checkbox" name="do_not_contact" {{ 'checked' if contact.do_not_contact else '' }}>
+      Do Not Contact &mdash; hard stop, no gifts, emails, texts, or suggestions of any kind
+    </label>
+    {% if contact.do_not_contact %}
+      <p class="subdued" style="margin-top:6px;"><small>Unchecking this will resume future suggestions, but won't restore any that were already cancelled.</small></p>
+    {% endif %}
+  </fieldset>
+
   <label>
     <input type="checkbox" name="keep_private" {{ 'checked' if contact.owner_user_id else '' }}>
     Keep this contact private to me (hide from other agents in the agency)

@@ -11,18 +11,20 @@
       <p class="subdued">Assigned to: {{ contact.owner.full_name if contact.owner else 'Shared' }}</p>
     {% endif %}
   </div>
-  <div>
+
+  <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn btn-ghost">Edit</a>
+    <!-- <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a> -->
+  </div>
+</div>
+
+<div>
     <span class="status-pill status-{{ contact.status }}">{{ contact.status|capitalize }}</span>
       {% if contact.do_not_contact %}
         <span class="status-pill pill-do-not-contact">Do Not Contact</span>
       {% elif contact.marketing_opt_out %}
         <span class="status-pill pill-marketing-opt-out">Marketing opt-out</span>
       {% endif %}
-  </div>
-  <div style="display:flex; gap:8px;">
-    <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn btn-ghost">Edit</a>
-    <!-- <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">&larr; All contacts</a> -->
-  </div>
 </div>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px; margin-top:28px;">

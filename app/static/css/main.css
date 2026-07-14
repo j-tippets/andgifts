@@ -345,7 +345,8 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--coral), var(--gold));
+  /*background: linear-gradient(135deg, var(--coral), var(--gold));*/
+  background: #fdd36a;
   color: var(--ink-2);
   font-family: var(--font-display);
   font-weight: 600;
