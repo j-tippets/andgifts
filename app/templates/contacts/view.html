@@ -117,6 +117,41 @@
   </details>
 </div>
 
+<div class="contact-card">
+  <h2>Contact preferences</h2>
+  <form method="post" action="{{ url_for('contacts.update_contact_preferences', contact_id=contact.id) }}" id="preferences-form">
+    <div class="toggle-row">
+      <div>
+        <strong>Opted out of marketing</strong>
+        <div class="subdued">Don't include in bulk/marketing sends. Milestone gifts still apply.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" name="marketing_opt_out" value="1"
+               {{ 'checked' if contact.marketing_opt_out else '' }}
+               onchange="document.getElementById('preferences-form').submit();">
+        <span class="switch-track"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row" style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);">
+      <div>
+        <strong>Do Not Contact</strong>
+        <div class="subdued">Hard stop &mdash; no gifts, emails, texts, or suggestions of any kind.</div>
+      </div>
+      <label class="switch switch-danger">
+        <input type="checkbox" name="do_not_contact" value="1"
+               {{ 'checked' if contact.do_not_contact else '' }}
+               onchange="document.getElementById('preferences-form').submit();">
+        <span class="switch-track"></span>
+      </label>
+    </div>
+
+    {% if contact.do_not_contact %}
+      <p class="subdued" style="margin-top:12px;"><small>Turning this off will resume future suggestions, but won't restore any that were already cancelled.</small></p>
+    {% endif %}
+  </form>
+</div>
+
 <div style="text-align:center; margin-top:8px;">
   <a href="#" onclick="document.getElementById('delete-contact-dialog').showModal(); return false;"
      class="subdued" style="color:var(--danger); text-decoration:underline; font-size:13px;">

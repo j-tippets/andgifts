@@ -244,6 +244,50 @@ def view_contact(contact_id):
     )
 
 
+@contacts_bp.route("/<contact_id>/preferences", methods=["POST"])
+@login_required
+def update_contact_preferences(contact_id):
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+
+    old_do_not_contact = contact.do_not_contact
+    old_marketing_opt_out = contact.marketing_opt_out
+
+    contact.marketing_opt_out = bool(request.form.get("marketing_opt_out"))
+    contact.do_not_contact = bool(request.form.get("do_not_contact"))
+
+    changes = []
+    if old_marketing_opt_out != contact.marketing_opt_out:
+        changes.append(
+            "Opted out of marketing." if contact.marketing_opt_out else "Opted back into marketing."
+        )
+    if old_do_not_contact != contact.do_not_contact:
+        if contact.do_not_contact:
+            cancelled = (
+                SuggestedAction.query
+                .filter_by(contact_id=contact.id, status="pending")
+                .all()
+            )
+            for suggestion in cancelled:
+                suggestion.status = "skipped"
+                suggestion.resolved_at = datetime.utcnow()
+            changes.append(
+                f"Marked Do Not Contact. Cancelled {len(cancelled)} pending suggestion{'s' if len(cancelled) != 1 else ''}."
+                if cancelled else "Marked Do Not Contact."
+            )
+        else:
+            changes.append("Removed Do Not Contact.")
+
+    if changes:
+        _log_contact_activity(contact, "updated", " ".join(changes))
+        db.session.commit()
+        flash(" ".join(changes), "success")
+    else:
+        db.session.rollback()
+
+    return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
 @contacts_bp.route("/<contact_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_contact(contact_id):
