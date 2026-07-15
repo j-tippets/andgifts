@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Send a gift — {{ contact.household_name }} — Ag{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">For {{ contact.household_name }}</div>
+    <h1>Send a gift</h1>
+  </div>
+</div>
+
+<p class="subdued" style="margin-top:-8px; margin-bottom:20px;">
+  <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}">&larr; Back to {{ contact.household_name }}</a>
+</p>
+
+{% if items %}
+  <div class="catalog-grid">
+    {% for item in items %}
+      <div class="catalog-card">
+        <div class="catalog-card-media">
+          {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="">
+          {% else %}
+            <div class="avatar avatar-placeholder">🎁</div>
+          {% endif %}
+        </div>
+        <div class="catalog-card-body">
+          <h4>{{ item.name }}</h4>
+          <p class="price">${{ '%.2f'|format(item.price_cents / 100) }}</p>
+
+          {% if item.description or item.tag_list() %}
+            <details>
+              <summary><span class="catalog-caret">▸</span> What's inside</summary>
+              {% if item.description %}
+                <ul class="catalog-card-desc">
+                  {% for line in item.description.split(';') %}
+                    <li>{{ line.strip() }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {% if item.tag_list() %}
+                <div>
+                  {% for tag in item.tag_list() %}
+                    <span class="tag-chip">{{ tag }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </details>
+          {% endif %}
+
+          <div class="catalog-card-actions">
+            <a href="{{ url_for('contacts.new_order', contact_id=contact.id, item_id=item.id) }}" class="btn btn-primary btn-small">
+              Order this gift
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <h3>No gifts available</h3>
+    <p>Your agency's catalog is empty right now — check Fields/Catalog settings.</p>
+  </div>
+{% endif %}
+{% endblock %}

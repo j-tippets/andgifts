@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Order {{ item.name }} — Ag{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">For {{ contact.household_name }}</div>
+    <h1>{{ item.name }}</h1>
+  </div>
+</div>
+
+<p class="subdued" style="margin-top:-8px; margin-bottom:20px;">
+  <a href="{{ url_for('contacts.browse_gifts', contact_id=contact.id) }}">&larr; Back to gifts</a>
+</p>
+
+<div class="contact-card" style="max-width:480px;">
+  <div style="display:flex; gap:14px; align-items:center; margin-bottom:20px;">
+    <div class="catalog-card-media" style="width:70px; height:70px; border-radius:14px; flex-shrink:0;">
+      {% if item.image_url %}
+        <img src="{{ item.image_url }}" alt="">
+      {% else %}
+        <div class="avatar avatar-placeholder">🎁</div>
+      {% endif %}
+    </div>
+    <div>
+      <strong>{{ item.name }}</strong>
+      <div class="subdued">${{ '%.2f'|format(item.price_cents / 100) }}</div>
+    </div>
+  </div>
+
+  <form method="post" id="order-form">
+    <fieldset>
+      <legend>How should this get to them?</legend>
+
+      <label class="checkbox-chip" style="margin-bottom:10px;">
+        <input type="radio" name="fulfillment_method" value="shipping" checked
+               onchange="document.getElementById('pickup-field').style.display='none';">
+        Ship it &mdash; ${{ '%.2f'|format(flat_rate_cents / 100) }} flat-rate shipping, address collected at checkout
+      </label>
+      <label class="checkbox-chip">
+        <input type="radio" name="fulfillment_method" value="pickup"
+               onchange="document.getElementById('pickup-field').style.display='block';">
+        Pickup &mdash; no shipping charge
+      </label>
+    </fieldset>
+
+    <div class="field" id="pickup-field" style="display:none;">
+      <label for="pickup_location">Pickup location</label>
+      <input type="text" name="pickup_location" id="pickup_location" placeholder="e.g. Deer Haven Flowers, American Fork">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Continue to payment</button>
+    <a href="{{ url_for('contacts.browse_gifts', contact_id=contact.id) }}" class="btn btn-ghost">Cancel</a>
+  </form>
+</div>
+{% endblock %}

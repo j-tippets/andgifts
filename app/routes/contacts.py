@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import (
@@ -7,8 +7,10 @@ from app.models import (
     TimelineEvent, STANDARD_EVENT_TYPES,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
+    GiftCatalogItem, Order,
 )
 from app.decorators import admin_required
+from app.services.stripe_client import get_stripe
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -286,6 +288,101 @@ def update_contact_preferences(contact_id):
         db.session.rollback()
 
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
+@contacts_bp.route("/<contact_id>/gifts")
+@login_required
+def browse_gifts(contact_id):
+    """Catalog browse scoped to a single contact, for placing a one-off
+    gift order right now instead of waiting on the automated suggestion
+    engine."""
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+    items = current_user.org.available_catalog_items()
+    return render_template("orders/browse.html", contact=contact, items=items)
+
+
+@contacts_bp.route("/<contact_id>/order/<item_id>", methods=["GET", "POST"])
+@login_required
+def new_order(contact_id, item_id):
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+    item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
+    flat_rate = current_app.config.get("FLAT_RATE_SHIPPING_CENTS", 595)
+
+    if request.method == "POST":
+        fulfillment_method = request.form.get("fulfillment_method")
+        if fulfillment_method not in ("shipping", "pickup"):
+            flash("Choose shipping or pickup.", "error")
+            return redirect(url_for("contacts.new_order", contact_id=contact.id, item_id=item.id))
+
+        pickup_location = request.form.get("pickup_location", "").strip() or None
+        if fulfillment_method == "pickup" and not pickup_location:
+            flash("Enter a pickup location.", "error")
+            return redirect(url_for("contacts.new_order", contact_id=contact.id, item_id=item.id))
+
+        shipping_cost_cents = flat_rate if fulfillment_method == "shipping" else 0
+
+        order = Order(
+            org_id=current_user.org_id,
+            contact_id=contact.id,
+            ordered_by_user_id=current_user.id,
+            gift_catalog_item_id=item.id,
+            gift_name_snapshot=item.name,
+            gift_price_cents=item.price_cents,
+            fulfillment_method=fulfillment_method,
+            pickup_location=pickup_location,
+            shipping_cost_cents=shipping_cost_cents,
+        )
+        db.session.add(order)
+        db.session.commit()
+
+        stripe = get_stripe()
+        if not stripe:
+            flash("Stripe isn't configured yet — add STRIPE_SECRET_KEY to enable checkout.", "error")
+            return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+        session_kwargs = dict(
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": item.name},
+                    "unit_amount": item.price_cents,
+                },
+                "quantity": 1,
+            }],
+            success_url=(
+                url_for("orders.order_success", order_id=order.id, _external=True)
+                + "?session_id={CHECKOUT_SESSION_ID}"
+            ),
+            cancel_url=url_for("orders.order_cancelled", order_id=order.id, _external=True),
+            metadata={"order_id": order.id},
+        )
+
+        if fulfillment_method == "shipping":
+            session_kwargs["shipping_address_collection"] = {"allowed_countries": ["US"]}
+            session_kwargs["shipping_options"] = [{
+                "shipping_rate_data": {
+                    "type": "fixed_amount",
+                    "fixed_amount": {"amount": flat_rate, "currency": "usd"},
+                    "display_name": "Standard shipping",
+                }
+            }]
+
+        try:
+            checkout_session = stripe.checkout.Session.create(**session_kwargs)
+        except Exception as e:
+            current_app.logger.error("Stripe checkout session creation failed: %s", e)
+            flash("Couldn't start checkout — please try again.", "error")
+            return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+        order.stripe_checkout_session_id = checkout_session.id
+        db.session.commit()
+
+        return redirect(checkout_session.url, code=303)
+
+    return render_template("orders/new.html", contact=contact, item=item, flat_rate_cents=flat_rate)
 
 
 @contacts_bp.route("/<contact_id>/edit", methods=["GET", "POST"])

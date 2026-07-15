@@ -52,9 +52,15 @@ class Config:
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
     STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
+    SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "orders@andgifts.app")
     TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
     ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    # --- One-off gift orders ---
+    # Flat-rate shipping charged on top of the gift price when the agent
+    # picks "ship it" instead of "pickup" at checkout. Pickup is free.
+    FLAT_RATE_SHIPPING_CENTS = int(os.environ.get("FLAT_RATE_SHIPPING_CENTS", "595"))
 
     # --- Tier limits (single source of truth for enforcement) ---
     TIER_LIMITS = {
