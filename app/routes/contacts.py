@@ -312,13 +312,9 @@ def new_order(contact_id, item_id):
 
     if request.method == "POST":
         fulfillment_method = request.form.get("fulfillment_method")
+        pickup_location = current_app.config.get("PICKUP_LOCATION_ADDRESS")
         if fulfillment_method not in ("shipping", "pickup"):
             flash("Choose shipping or pickup.", "error")
-            return redirect(url_for("contacts.new_order", contact_id=contact.id, item_id=item.id))
-
-        pickup_location = request.form.get("pickup_location", "").strip() or None
-        if fulfillment_method == "pickup" and not pickup_location:
-            flash("Enter a pickup location.", "error")
             return redirect(url_for("contacts.new_order", contact_id=contact.id, item_id=item.id))
 
         shipping_cost_cents = flat_rate if fulfillment_method == "shipping" else 0
@@ -331,7 +327,7 @@ def new_order(contact_id, item_id):
             gift_name_snapshot=item.name,
             gift_price_cents=item.price_cents,
             fulfillment_method=fulfillment_method,
-            pickup_location=pickup_location,
+            pickup_location=pickup_location if fulfillment_method == "pickup" else None,
             shipping_cost_cents=shipping_cost_cents,
         )
         db.session.add(order)

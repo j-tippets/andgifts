@@ -61,6 +61,11 @@ class Config:
     # Flat-rate shipping charged on top of the gift price when the agent
     # picks "ship it" instead of "pickup" at checkout. Pickup is free.
     FLAT_RATE_SHIPPING_CENTS = int(os.environ.get("FLAT_RATE_SHIPPING_CENTS", "595"))
+    # Single hardcoded pickup location for now -- revisit if a second
+    # location (or a per-org pickup address) is ever needed.
+    PICKUP_LOCATION_ADDRESS = os.environ.get(
+        "PICKUP_LOCATION_ADDRESS", "1096 E 50 S, American Fork, UT"
+    )
 
     # --- Tier limits (single source of truth for enforcement) ---
     TIER_LIMITS = {

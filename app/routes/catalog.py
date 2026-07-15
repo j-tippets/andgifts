@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import GiftCatalogItem, OrgCatalogSelection
+from app.models import GiftCatalogItem, OrgCatalogSelection, Contact
 from app.decorators import admin_required
 
 catalog_bp = Blueprint("catalog", __name__, url_prefix="/catalog")
@@ -24,6 +24,19 @@ def list_catalog():
         selected_ids=selected_ids,
         catalog_curated=org.catalog_curated,
     )
+
+
+@catalog_bp.route("/<item_id>/order")
+@login_required
+def pick_contact_for_order(item_id):
+    """Entry point from the org-wide Gift Catalog page: 'Order this gift'
+    there doesn't already know which contact it's for, so pick one first,
+    then hand off to the same per-contact order form used from a
+    contact's own page."""
+    item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
+    query = Contact.query.filter_by(org_id=current_user.org_id)
+    contacts = Contact.visible_to(query, current_user).order_by(Contact.household_name).all()
+    return render_template("orders/pick_contact.html", item=item, contacts=contacts)
 
 
 @catalog_bp.route("/toggle/<item_id>", methods=["POST"])
