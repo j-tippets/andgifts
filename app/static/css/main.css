@@ -665,6 +665,16 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .catalog-card .catalog-card-desc li { margin-bottom: 2px; }
 .catalog-card .catalog-card-actions { margin-top: 10px; }
 
+@media (max-width: 879px) {
+  .catalog-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .catalog-card-body { padding: 8px 9px 10px; }
+  .catalog-card h4 { font-size: 12.5px; }
+  .catalog-card .price { font-size: 11.5px; margin-bottom: 5px; }
+  .catalog-card details summary { font-size: 11px; }
+  .catalog-card .catalog-card-desc { font-size: 11px; padding-left: 14px; }
+  .catalog-card .catalog-card-actions .btn { padding: 7px 12px; font-size: 12px; }
+}
+
 /* ---- Form sections (replaces bare <fieldset>/<legend> look in flow builders) ---- */
 .form-section {
   background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 18px;

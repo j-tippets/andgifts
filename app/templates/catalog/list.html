@@ -2,7 +2,6 @@
 {% block title %}Gift Catalog — Ag{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div class="eyebrow">{{ 'What your agency can send' if current_user.is_admin else 'Browse what your agency can send' }}</div>
   <h1>Gift Catalog</h1>
 </div>
 
@@ -17,7 +16,7 @@
   </div>
 {% elif current_user.is_admin %}
   <p class="subdued" style="margin-top:-4px; margin-bottom:20px;">
-    <small>Your agency can currently send any item below. Remove an item to start a custom selection.</small>
+    <small>Your agency can currently send any item below.</small>
   </p>
 {% endif %}
 
@@ -72,13 +71,11 @@
         </details>
       {% endif %}
 
-      {% if current_user.is_admin %}
-        <div class="catalog-card-actions">
-          <form method="post" action="{{ url_for('catalog.toggle_selection', item_id=item.id) }}" style="margin:0;">
-            <button type="submit" class="btn btn-ghost btn-small">{{ 'Remove' if included else 'Add back' }}</button>
-          </form>
-        </div>
-      {% endif %}
+      <div class="catalog-card-actions">
+        <a href="{{ url_for('catalog.pick_contact_for_order', item_id=item.id) }}" class="btn btn-primary btn-small">
+          Order this gift
+        </a>
+      </div>
     </div>
   </div>
 {% endmacro %}

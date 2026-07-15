@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Order {{ item.name }} — Ag{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Who's this for?</h1>
+</div>
+
+<p class="subdued" style="margin-top:-8px; margin-bottom:20px;">
+  <a href="{{ url_for('catalog.list_catalog') }}">&larr; Back to catalog</a>
+</p>
+
+<div class="search-wrap" style="max-width:420px;">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+  <input type="text" id="pick-contact-search" placeholder="Search contacts…">
+</div>
+
+<div id="pick-contact-list" style="max-width:420px; margin-top:12px;">
+  {% for contact in contacts %}
+    <a href="{{ url_for('contacts.new_order', contact_id=contact.id, item_id=item.id) }}"
+       class="contact-card-row" data-search="{{ contact.household_name|lower }}">
+      <div class="info">
+        <h4>{{ contact.household_name }}</h4>
+      </div>
+      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+  {% else %}
+    <p class="subdued">No contacts yet.</p>
+  {% endfor %}
+</div>
+
+<script>
+  (function () {
+    var input = document.getElementById('pick-contact-search');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#pick-contact-list [data-search]'));
+    input.addEventListener('input', function () {
+      var term = input.value.trim().toLowerCase();
+      rows.forEach(function (row) {
+        row.style.display = row.dataset.search.indexOf(term) !== -1 ? '' : 'none';
+      });
+    });
+  })();
+</script>
+{% endblock %}
