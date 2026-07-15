@@ -232,6 +232,7 @@ def view_contact(contact_id):
         .limit(15)
         .all()
     )
+    action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
     return render_template(
         "contacts/view.html",
         contact=contact,
@@ -239,6 +240,7 @@ def view_contact(contact_id):
         custom_fields=_visible_custom_fields(),
         custom_values=custom_values,
         recent_activity=recent_activity,
+        action_log_count=action_log_count,
     )
 
 
