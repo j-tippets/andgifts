@@ -27,8 +27,8 @@
       {% endif %}
 </div>
 
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px; margin-top:28px;">
-  <div>
+<div class="contact-card" style="margin-top:28px;">
+  <div class="contact-card-section">
     <h2>People</h2>
     {% for person in contact.people %}
       <div style="margin-bottom:14px;">
@@ -38,14 +38,18 @@
         {% endfor %}
       </div>
     {% endfor %}
+  </div>
 
-    {% if contact.notes %}
-      <h2 style="margin-top:24px;">Notes</h2>
+  {% if contact.notes %}
+    <div class="contact-card-section">
+      <h2>Notes</h2>
       <p class="subdued" style="white-space:pre-wrap;">{{ contact.notes }}</p>
-    {% endif %}
+    </div>
+  {% endif %}
 
-    {% if custom_fields %}
-      <h2 style="margin-top:24px;">Custom fields</h2>
+  {% if custom_fields %}
+    <div class="contact-card-section">
+      <h2>Custom fields</h2>
       {% for field in custom_fields %}
         {% set val = custom_values.get(field.id) %}
         {% if val %}
@@ -59,9 +63,11 @@
           </div>
         {% endif %}
       {% endfor %}
-    {% endif %}
+    </div>
+  {% endif %}
 
-    <details style="margin-top:24px;">
+  <div class="contact-card-section">
+    <details>
       <summary style="cursor:pointer; font-weight:600; color:var(--evergreen); font-family:var(--font-display); font-size:17px;">Recent activity</summary>
       <div style="margin-top:14px;">
         {% if recent_activity %}
@@ -77,38 +83,38 @@
       </div>
     </details>
   </div>
+</div>
 
-  <div>
-    <h2>Timeline</h2>
-    {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
-    <div class="timeline" id="contact-timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
-      {% for event in contact.timeline_events %}
-        <div class="timeline-item">
-          <details>
-            <summary class="timeline-summary">
-              <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
-              <strong>{{ event.display_label() }}</strong>
-              {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
-            </summary>
-            {{ timeline_event_form(
-              url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
-              event_types, event=event, submit_label='Save changes', button_class='btn-primary btn-small'
-            ) }}
-          </details>
-        </div>
-      {% else %}
-        <p class="subdued">No timeline events yet.</p>
-      {% endfor %}
-    </div>
-
-    <details style="margin-top:16px;">
-      <summary class="timeline-summary" style="font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
-      {{ timeline_event_form(
-        url_for('contacts.add_timeline_event', contact_id=contact.id),
-        event_types, submit_label='Add event'
-      ) }}
-    </details>
+<div class="contact-card">
+  <h2>Timeline</h2>
+  {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
+  <div class="timeline" id="contact-timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
+    {% for event in contact.timeline_events %}
+      <div class="timeline-item">
+        <details>
+          <summary class="timeline-summary">
+            <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
+            <strong>{{ event.display_label() }}</strong>
+            {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
+          </summary>
+          {{ timeline_event_form(
+            url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
+            event_types, event=event, submit_label='Save changes', button_class='btn-primary btn-small'
+          ) }}
+        </details>
+      </div>
+    {% else %}
+      <p class="subdued">No timeline events yet.</p>
+    {% endfor %}
   </div>
+
+  <details style="margin-top:16px;">
+    <summary class="timeline-summary" style="font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
+    {{ timeline_event_form(
+      url_for('contacts.add_timeline_event', contact_id=contact.id),
+      event_types, submit_label='Add event'
+    ) }}
+  </details>
 </div>
 
 <script>

@@ -564,6 +564,14 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .empty-state h3 { color: var(--evergreen); margin-bottom: 8px; }
 
 /* ---- Flow cards (Campaigns list + Flow Library) ---- */
+.contact-card {
+  background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 20px;
+  padding: 24px 26px; margin-bottom: 20px;
+}
+.contact-card-section { padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--line); }
+.contact-card-section:first-child { padding-top: 0; margin-top: 0; border-top: none; }
+.contact-card-section h2 { font-size: 18px; margin-bottom: 12px; }
+
 .flow-card {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
   background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 18px;
