@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Order placed — Ag{% endblock %}
+{% block content %}
+<div class="empty-state" style="border:1px solid var(--line); border-radius:20px; background:var(--paper-raised);">
+  <h3>🎁 Order placed</h3>
+  <p>
+    {{ order.gift_name_snapshot }} for {{ order.contact.household_name }} is on its way through checkout.
+    {% if order.status == 'paid' %}
+      A confirmation email is on its way to you.
+    {% else %}
+      We'll email you a confirmation as soon as the payment finishes processing (usually just a few seconds).
+    {% endif %}
+  </p>
+  <a href="{{ url_for('contacts.view_contact', contact_id=order.contact_id) }}" class="btn btn-primary">
+    Back to {{ order.contact.household_name }}
+  </a>
+</div>
+{% endblock %}

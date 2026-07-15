@@ -24,7 +24,7 @@ class ContactAuditLog(db.Model):
     action = db.Column(
         db.Enum(
             "created", "updated", "status_changed", "reassigned",
-            "timeline_added", "timeline_updated", "deleted",
+            "timeline_added", "timeline_updated", "deleted", "gift_ordered",
             name="contact_audit_action",
         ),
         nullable=False,

@@ -8,6 +8,7 @@ from app.models.gifting import GiftCatalogItem, GiftTrigger, OrgCatalogSelection
 from app.models.actions import SuggestedAction, ActionLog
 from app.models.audit import ContactAuditLog
 from app.models.campaigns import CampaignRecipe, Campaign
+from app.models.orders import Order
 
 __all__ = [
     "Org", "User",
@@ -18,4 +19,5 @@ __all__ = [
     "SuggestedAction", "ActionLog",
     "ContactAuditLog",
     "CampaignRecipe", "Campaign",
+    "Order",
 ]
