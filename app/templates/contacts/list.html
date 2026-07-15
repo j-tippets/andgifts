@@ -8,18 +8,47 @@
   </div>
   <div style="display:flex; gap:8px;">
     {% if current_user.is_admin %}
-      <a href="{{ url_for('contacts.activity_feed') }}" class="btn btn-ghost">Activity</a>
+      <a href="{{ url_for('contacts.activity_feed') }}" class="btn btn-ghost">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Activity
+      </a>
     {% endif %}
-    <a href="{{ url_for('contacts.manage_fields') }}" class="btn btn-ghost">Manage fields</a>
-    <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+    <a href="{{ url_for('contacts.manage_fields') }}" class="btn btn-ghost">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+      Fields
+    </a>
+    <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Contact
+    </a>
   </div>
 </div>
 
-<form method="get" class="search-wrap">
+<form method="get" class="search-wrap" id="contact-search-form">
   {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-  <input type="text" name="q" value="{{ search_term }}" placeholder="Search name, email, phone, or custom fields…">
+  <input type="text" name="q" value="{{ search_term }}" placeholder="Search name, email, phone, or custom fields…" id="contact-search-input">
+  <button type="button" class="search-clear" id="contact-search-clear" aria-label="Clear search"
+          style="display:{{ 'flex' if search_term else 'none' }};">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
 </form>
+
+<script>
+  (function () {
+    var input = document.getElementById('contact-search-input');
+    var clearBtn = document.getElementById('contact-search-clear');
+    var form = document.getElementById('contact-search-form');
+    if (!input || !clearBtn || !form) return;
+    input.addEventListener('input', function () {
+      clearBtn.style.display = input.value ? 'flex' : 'none';
+    });
+    clearBtn.addEventListener('click', function () {
+      input.value = '';
+      form.submit();
+    });
+  })();
+</script>
 
 <!-- <div class="chips">
   <a href="{{ url_for('contacts.list_contacts', q=search_term) }}" class="chip {{ 'active' if not status_filter }}">All</a>
