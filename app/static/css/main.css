@@ -205,6 +205,11 @@ button { font-family: inherit; }
 @media (min-width: 880px) {
   .content { padding: 40px 48px 60px; }
 }
+@media (max-width: 879px) {
+  .content { padding: 16px 14px 100px; }
+  .contact-card { padding: 18px 16px; border-radius: 16px; }
+  .contact-card-section { padding-top: 16px; margin-top: 16px; }
+}
 
 /* ---- Typography ---- */
 h1, h2, h3 { font-family: var(--font-display); font-weight: 600; margin: 0 0 6px; }
@@ -564,6 +569,14 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .empty-state h3 { color: var(--evergreen); margin-bottom: 8px; }
 
 /* ---- Flow cards (Campaigns list + Flow Library) ---- */
+.confirm-dialog {
+  border: none; border-radius: 20px; padding: 24px 26px;
+  background: var(--paper-raised); box-shadow: 0 20px 50px -20px rgba(42,26,69,.5);
+  max-width: 420px; width: calc(100% - 40px);
+}
+.confirm-dialog::backdrop { background: rgba(42,26,69,.35); }
+.confirm-dialog h2 { font-size: 20px; }
+
 .contact-card {
   background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 20px;
   padding: 24px 26px; margin-bottom: 20px;
