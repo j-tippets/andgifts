@@ -48,9 +48,26 @@ def create_app(config_name=None):
         # service worker scope is "/" instead of "/static/" -- without
         # this, the SW would never control /dashboard (the manifest's
         # start_url) and the app would fail PWA installability checks.
-        from flask import send_from_directory
-        response = send_from_directory(app.static_folder, "sw.js")
-        response.headers["Content-Type"] = "application/javascript"
+        import hashlib
+        import os
+        from flask import render_template
+
+        hasher = hashlib.sha1()
+        for subdir in ("css", "js", "icons"):
+            dir_path = os.path.join(app.static_folder, subdir)
+            if not os.path.isdir(dir_path):
+                continue
+            for name in sorted(os.listdir(dir_path)):
+                file_path = os.path.join(dir_path, name)
+                if os.path.isfile(file_path):
+                    hasher.update(name.encode())
+                    hasher.update(str(os.path.getmtime(file_path)).encode())
+        cache_version = hasher.hexdigest()[:12]
+
+        response = app.response_class(
+            render_template("sw.js.jinja", cache_version=cache_version),
+            mimetype="application/javascript",
+        )
         response.headers["Cache-Control"] = "no-cache"
         return response
 
