@@ -6,9 +6,12 @@
 // Android/Capacitor, and (b) speed up repeat loads of static assets
 // (css/js/icons/fonts) that don't change per-request.
 //
-// Bump CACHE_VERSION any time main.css / today.js change in a way that
-// should bust old cached copies for already-installed users.
-const CACHE_VERSION = "ag-static-v1";
+// CACHE_VERSION is computed server-side (see app/__init__.py:service_worker)
+// from the mtimes of everything under static/css, static/js, and
+// static/icons -- it changes automatically whenever any of those files
+// change, so a deploy can never leave old cached assets stranded just
+// because nobody remembered to bump a version string by hand.
+const CACHE_VERSION = "{{ cache_version }}";
 const STATIC_ASSET_PATTERN = /\/static\/(css|js|icons)\//;
 
 self.addEventListener("install", (event) => {
