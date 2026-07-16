@@ -74,6 +74,17 @@ def _eval_cooldown_days(contact, event, campaign, org, today, config):
     ).scalar()
 
 
+def _eval_interest_tag(contact, event, campaign, org, today, config):
+    """True if the contact has the interest tag this rule specifies.
+    Same check the legacy Campaign.interest_tag column used to gate
+    directly -- now expressed as a rule row instead of a hardcoded
+    column, so it composes with other rules instead of being special-cased."""
+    tag = config.get("tag")
+    if not tag:
+        return True
+    return tag in {i.name for i in contact.interests}
+
+
 RULE_TYPES = {
     "once_per_contact": {
         "label": "Only trigger once per contact, ever",
@@ -87,7 +98,62 @@ RULE_TYPES = {
         "config_schema": {"days": int},
         "evaluate": _eval_cooldown_days,
     },
+    "interest_tag": {
+        "label": "Contact has this interest tag",
+        "description": "Only matches contacts tagged with a specific interest.",
+        "config_schema": {"tag": str},
+        "evaluate": _eval_interest_tag,
+    },
+    # price_cap and llm_gift_selection are NOT predicates -- they don't
+    # gate whether a contact matches, they're parameters consumed
+    # directly by gift resolution (see get_price_cap_cents /
+    # uses_llm_gift_selection below). They're still stored as rule rows
+    # so they're DB-driven and show up in the Rules step alongside the
+    # real predicates, but evaluate_rules() below skips them.
+    "price_cap": {
+        "label": "Gift budget cap",
+        "description": "Upper bound in cents for gift selection.",
+        "config_schema": {"max_cents": int},
+        "evaluate": None,
+    },
+    "llm_gift_selection": {
+        "label": "Let the LLM pick the gift",
+        "description": "Instead of a fixed catalog item, the LLM picks within the budget cap.",
+        "config_schema": {},
+        "evaluate": None,
+    },
 }
+
+
+def get_rule_config(campaign, rule_type):
+    """First matching rule's config dict for this campaign, or None if
+    it doesn't have one attached. Used by parameter-style rule types
+    (price_cap, llm_gift_selection) that gift resolution reads
+    directly, rather than predicates evaluate_rules() checks."""
+    for rule in campaign.rules:
+        if rule.rule_type == rule_type:
+            return rule.config or {}
+    return None
+
+
+def get_price_cap_cents(campaign):
+    """Rule row wins if present; falls back to the legacy
+    price_max_cents column during the transition so campaigns that
+    haven't been touched since the data migration still behave
+    identically. Drop the fallback once the legacy column itself is
+    dropped."""
+    config = get_rule_config(campaign, "price_cap")
+    if config is not None:
+        return config.get("max_cents")
+    return campaign.price_max_cents
+
+
+def uses_llm_gift_selection(campaign):
+    """Same rule-row-wins-else-legacy-column fallback as
+    get_price_cap_cents above."""
+    if get_rule_config(campaign, "llm_gift_selection") is not None:
+        return True
+    return bool(campaign.use_llm_gift_selection)
 
 
 def evaluate_rules(campaign, contact, event, org, today):
@@ -110,6 +176,8 @@ def evaluate_rules(campaign, contact, event, org, today):
                 rule.rule_type, campaign.id,
             )
             continue
+        if spec["evaluate"] is None:
+            continue  # parameter-style rule (price_cap, llm_gift_selection) -- not a predicate
         if not spec["evaluate"](contact, event, campaign, org, today, rule.config or {}):
             return False
     return True
