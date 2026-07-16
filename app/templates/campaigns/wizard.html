@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }} — Campaigns{% endblock %}
+{% block content %}
+<div class="page-head with-action">
+  <div>
+    <h1>{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }}</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Applies only to your own contacts.</small></p>
+  </div>
+  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Campaigns</a>
+</div>
+
+<div class="wizard-steps">
+  <div class="wizard-step active" data-step-dot="1">1</div>
+  <span class="wizard-step-label" data-step-label="1">Trigger</span>
+  <div class="wizard-step-line"></div>
+  <div class="wizard-step" data-step-dot="2">2</div>
+  <span class="wizard-step-label" data-step-label="2">Rules</span>
+  <div class="wizard-step-line"></div>
+  <div class="wizard-step" data-step-dot="3">3</div>
+  <span class="wizard-step-label" data-step-label="3">Action</span>
+</div>
+
+<form method="POST" id="wizard-form">
+  <div class="wizard-pane active" data-pane="1">
+    <div class="form-section">
+      <h3 class="form-section-title">Name this flow</h3>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" name="name" value="{{ campaign.name if campaign else '' }}" placeholder="e.g. Post-showing feedback ask" required>
+      </div>
+      <div class="field">
+        <label>Description (optional)</label>
+        <textarea name="description" rows="2" placeholder="What this flow is for">{{ campaign.description if campaign and campaign.description else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3 class="form-section-title">When should this fire?</h3>
+      <div class="field">
+        <label>Event</label>
+        <select name="event_type" required>
+          {% for et in event_types %}
+            <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Timing (days)</label>
+        <input type="text" name="offset_days" value="{{ campaign.offset_days if campaign else 0 }}" placeholder="0">
+        <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end;">
+      <button type="button" class="btn btn-primary" onclick="wizardGo(2)">Next &rarr;</button>
+    </div>
+  </div>
+
+  <div class="wizard-pane" data-pane="2">
+    <div class="form-section">
+      <h3 class="form-section-title">Who should this apply to?</h3>
+      <p class="subdued" style="margin-top:-6px; margin-bottom:14px;"><small>Two rules always apply, free, to every flow: contacts who've opted out are always skipped, and the same milestone never fires twice for the same contact. Everything below is optional, on top of those.</small></p>
+
+      <label class="checkbox-chip" style="margin-bottom:10px;">
+        <input type="checkbox" name="once_per_contact" {{ 'checked' if rule_values.once_per_contact else '' }}>
+        Only trigger once per contact, ever &mdash; even if they have more than one matching event later
+      </label>
+
+      <div class="field">
+        <label class="checkbox-chip">
+          <input type="checkbox" name="cooldown_enabled" id="cooldown_enabled" {{ 'checked' if rule_values.cooldown_enabled else '' }}>
+          Skip if they've gotten anything from any flow recently
+        </label>
+        <div id="cooldown-field" style="margin-top:8px; max-width:160px;">
+          <input type="text" name="cooldown_days" value="{{ rule_values.cooldown_days }}" placeholder="90">
+          <p class="subdued" style="margin-top:4px;"><small>Days since their last suggestion, from any flow.</small></p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Only if contact has this interest tag (optional)</label>
+        <input type="text" name="interest_tag" value="{{ rule_values.interest_tag }}" placeholder="e.g. golf">
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between;">
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(1)">&larr; Back</button>
+      <button type="button" class="btn btn-primary" onclick="wizardGo(3)">Next &rarr;</button>
+    </div>
+  </div>
+
+  <div class="wizard-pane" data-pane="3">
+    <div class="form-section">
+      <h3 class="form-section-title">What should happen?</h3>
+      <div class="access-method">
+        <label class="access-option">
+          <input type="radio" name="action_type" value="gift" id="action_type_gift" {{ 'checked' if not campaign or campaign.action_type == 'gift' else '' }}>
+          <div>
+            <div class="option-title">Send a gift</div>
+            <div class="subdued"><small>Picked automatically within budget, or a fixed item</small></div>
+          </div>
+        </label>
+        <label class="access-option">
+          <input type="radio" name="action_type" value="email" id="action_type_email" {{ 'checked' if campaign and campaign.action_type == 'email' else '' }}>
+          <div>
+            <div class="option-title">Send an email</div>
+            <div class="subdued"><small>Templated or written by the LLM</small></div>
+          </div>
+        </label>
+        <label class="access-option">
+          <input type="radio" name="action_type" value="text" id="action_type_text" {{ 'checked' if campaign and campaign.action_type == 'text' else '' }}>
+          <div>
+            <div class="option-title">Send a text</div>
+            <div class="subdued"><small>Templated or written by the LLM</small></div>
+          </div>
+        </label>
+        <label class="access-option">
+          <input type="radio" name="action_type" value="handwritten_note" id="action_type_handwritten_note" {{ 'checked' if campaign and campaign.action_type == 'handwritten_note' else '' }}>
+          <div>
+            <div class="option-title">Handwritten note</div>
+            <div class="subdued"><small>Templated or written by the LLM</small></div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-section" id="gift-fields">
+      <label class="checkbox-chip" style="margin-bottom:10px;">
+        <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if rule_values.use_llm_gift_selection else '' }}>
+        Let the LLM pick the best gift instead of a fixed item
+      </label>
+      <div class="field">
+        <label>Gift budget cap (USD)</label>
+        <input type="text" name="price_max" value="{{ rule_values.price_max }}" placeholder="e.g. 150.00">
+        <p class="subdued" style="margin-top:4px;"><small>Used as the LLM's budget above, or ignored if you pick a fixed gift below.</small></p>
+      </div>
+      <div class="field" id="fixed-gift-field">
+        <label>Fixed gift (used unless LLM selection is checked above)</label>
+        <select name="suggested_gift_id">
+          <option value="">— none —</option>
+          {% for g in gift_items %}
+            <option value="{{ g.id }}" {{ 'selected' if campaign and campaign.suggested_gift_id == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section" id="message-fields">
+      <label class="checkbox-chip">
+        <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if campaign and campaign.use_llm_copy else '' }}>
+        Let the LLM write the message instead of a fixed template
+      </label>
+      <div id="template-field" style="margin-top:10px;">
+        <label>Message template</label>
+        <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ campaign.message_template if campaign and campaign.message_template else '' }}</textarea>
+        <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+      </div>
+      <div id="llm-hint-field" style="margin-top:10px;">
+        <label>What should the LLM say?</label>
+        <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '' }}</textarea>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(2)">&larr; Back</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
+        <button type="submit" name="action" value="save" class="btn btn-primary">{{ 'Save changes' if campaign else 'Turn on automation' }}</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% include "campaigns/_preview_results.html" %}
+{% if previewed_spec %}
+  <p class="subdued" style="margin-top:12px;"><small>Note: the preview above reflects the values you just submitted, even if the form above still shows your last-saved version &mdash; click Save changes to keep them.</small></p>
+{% endif %}
+
+{% if campaign %}
+<div class="form-section" style="margin-top:28px;">
+  <h3 class="form-section-title">{{ 'Pause' if campaign.is_active else 'Resume' }} this flow</h3>
+  <p class="subdued" style="margin-bottom:12px;">
+    {% if campaign.is_active %}
+      Stops new suggestions from this flow without losing its history or settings.
+    {% else %}
+      Makes this flow active again.
+    {% endif %}
+  </p>
+  <form method="post" action="{{ url_for('campaigns.toggle_active', campaign_id=campaign.id) }}">
+    <button type="submit" class="btn btn-ghost">{{ 'Pause' if campaign.is_active else 'Resume' }}</button>
+  </form>
+</div>
+
+<div class="form-section" style="border-color: var(--danger);">
+  <h3 class="form-section-title" style="color: var(--danger);">Delete this flow</h3>
+  {% if can_delete %}
+    <p class="subdued" style="margin-bottom:12px;">Permanently removes this flow. Its past suggestions and sends stay in history.</p>
+    <form method="post" action="{{ url_for('campaigns.campaign_delete', campaign_id=campaign.id) }}" onsubmit="return confirm('Delete this flow?');">
+      <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
+  {% else %}
+    <p class="subdued">This flow still has pending suggestions waiting for approval. Resolve (approve or skip) those first, then it can be deleted.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+  (function () {
+    function wizardGoImpl(n) {
+      for (var i = 1; i <= 3; i++) {
+        var pane = document.querySelector('[data-pane="' + i + '"]');
+        var dot = document.querySelector('[data-step-dot="' + i + '"]');
+        var label = document.querySelector('[data-step-label="' + i + '"]');
+        pane.classList.toggle('active', i === n);
+        dot.classList.toggle('active', i === n);
+        dot.classList.toggle('done', i < n);
+        label.classList.toggle('active', i === n);
+      }
+    }
+    window.wizardGo = wizardGoImpl;
+
+    var actionTypeInputs = document.querySelectorAll('input[name="action_type"]');
+    var fixedGiftField = document.getElementById('fixed-gift-field');
+    var giftFields = document.getElementById('gift-fields');
+    var messageFields = document.getElementById('message-fields');
+    var useLlmGift = document.getElementById('use_llm_gift_selection');
+    var useLlmCopy = document.getElementById('use_llm_copy');
+    var templateField = document.getElementById('template-field');
+    var llmHintField = document.getElementById('llm-hint-field');
+    var cooldownEnabled = document.getElementById('cooldown_enabled');
+    var cooldownField = document.getElementById('cooldown-field');
+
+    function refresh() {
+      var checked = document.querySelector('input[name="action_type"]:checked');
+      var isGift = checked && checked.value === 'gift';
+      giftFields.style.display = isGift ? '' : 'none';
+      messageFields.style.display = isGift ? 'none' : '';
+      fixedGiftField.style.display = useLlmGift.checked ? 'none' : '';
+      templateField.style.display = useLlmCopy.checked ? 'none' : '';
+      llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
+      cooldownField.style.display = cooldownEnabled.checked ? '' : 'none';
+    }
+    actionTypeInputs.forEach(function (el) { el.addEventListener('change', refresh); });
+    useLlmGift.addEventListener('change', refresh);
+    useLlmCopy.addEventListener('change', refresh);
+    cooldownEnabled.addEventListener('change', refresh);
+    refresh();
+
+    {% if preview_results is defined %}
+    // A preview submission came from step 3 -- land back there instead
+    // of resetting to step 1, so the results sit next to the form that
+    // produced them.
+    wizardGoImpl(3);
+    {% endif %}
+  })();
+</script>
+{% endblock %}

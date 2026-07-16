@@ -4,10 +4,11 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Campaign, CampaignRecipe, SuggestedAction, Contact
+from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, Contact
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
+from app.services import campaign_rules
 
 campaigns_bp = Blueprint("campaigns", __name__, url_prefix="/campaigns")
 
@@ -115,10 +116,32 @@ def _org_contacts_query():
 
 
 def _campaign_form_kwargs():
-    """Shared dropdown data for the campaign new/edit forms."""
+    """Shared dropdown data for the campaign wizard."""
     return dict(
         event_types=STANDARD_EVENT_TYPES,
         gift_items=current_user.org.available_catalog_items(),
+    )
+
+
+def _rule_form_values(campaign):
+    """Flatten a campaign's current rule rows into plain values for
+    prefilling the wizard on GET. campaign=None (the 'new flow' case)
+    returns all-empty defaults."""
+    if campaign is None:
+        return dict(
+            interest_tag="", price_max="", use_llm_gift_selection=False,
+            once_per_contact=False, cooldown_enabled=False, cooldown_days="",
+        )
+    price_cfg = campaign_rules.get_rule_config(campaign, "price_cap")
+    cooldown_cfg = campaign_rules.get_rule_config(campaign, "cooldown_days")
+    tag_cfg = campaign_rules.get_rule_config(campaign, "interest_tag")
+    return dict(
+        interest_tag=(tag_cfg or {}).get("tag", ""),
+        price_max=cents_to_dollars_str(price_cfg.get("max_cents")) if price_cfg else "",
+        use_llm_gift_selection=campaign_rules.get_rule_config(campaign, "llm_gift_selection") is not None,
+        once_per_contact=campaign_rules.get_rule_config(campaign, "once_per_contact") is not None,
+        cooldown_enabled=cooldown_cfg is not None,
+        cooldown_days=str(cooldown_cfg.get("days", "")) if cooldown_cfg else "",
     )
 
 
@@ -132,10 +155,6 @@ def _save_campaign_from_form(campaign):
     except ValueError:
         campaign.offset_days = 0
 
-    campaign.interest_tag = request.form.get("interest_tag", "").strip() or None
-    campaign.price_max_cents = dollars_to_cents(request.form.get("price_max"))
-    campaign.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
-
     campaign.action_type = request.form["action_type"]
     gift_id = request.form.get("suggested_gift_id", "").strip()
     campaign.suggested_gift_id = gift_id or None
@@ -143,6 +162,42 @@ def _save_campaign_from_form(campaign):
     campaign.use_llm_copy = bool(request.form.get("use_llm_copy"))
     campaign.message_template = request.form.get("message_template", "").strip() or None
     campaign.llm_prompt_hint = request.form.get("llm_prompt_hint", "").strip() or None
+
+    # Rules step -- rebuild the whole rule set from what was submitted
+    # rather than patching individual rows. Simpler and safer than
+    # trying to diff old vs. new: cascade="all, delete-orphan" on the
+    # relationship cleans up whatever isn't in the new list.
+    #
+    # Note: this does NOT touch the legacy interest_tag/price_max_cents/
+    # use_llm_gift_selection columns anymore -- they're left frozen at
+    # whatever value they last had (from the one-time backfill or
+    # earlier direct edits). campaign_rules.py's helpers already prefer
+    # the rule row over the column, so this is harmless; a future
+    # migration can drop those columns once nothing reads them.
+    new_rules = []
+    tag = request.form.get("interest_tag", "").strip()
+    if tag:
+        new_rules.append(CampaignRule(rule_type="interest_tag", config={"tag": tag}, position=0))
+
+    price_cap_cents = dollars_to_cents(request.form.get("price_max"))
+    if price_cap_cents:
+        new_rules.append(CampaignRule(rule_type="price_cap", config={"max_cents": price_cap_cents}, position=1))
+
+    if request.form.get("use_llm_gift_selection"):
+        new_rules.append(CampaignRule(rule_type="llm_gift_selection", config={}, position=2))
+
+    if request.form.get("once_per_contact"):
+        new_rules.append(CampaignRule(rule_type="once_per_contact", config={}, position=3))
+
+    if request.form.get("cooldown_enabled"):
+        try:
+            cooldown_days = int(request.form.get("cooldown_days", "0"))
+        except ValueError:
+            cooldown_days = 0
+        if cooldown_days > 0:
+            new_rules.append(CampaignRule(rule_type="cooldown_days", config={"days": cooldown_days}, position=4))
+
+    campaign.rules = new_rules
 
 
 @campaigns_bp.route("/")
@@ -325,48 +380,41 @@ def toggle_active(campaign_id):
 @campaigns_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def campaign_new():
-    """Build a flow from scratch. Admins get a choice: just for
-    themselves (a live personal Campaign, same as anyone else), or add
-    it to the agency's Flow Library instead (a CampaignRecipe -- every
-    agent, including the admin, then adds their own copy from there).
-    Non-admins only ever get the personal option, since only an admin
-    can author a local library flow."""
+    """Build a flow from scratch. Always a personal Campaign, scoped to
+    the builder's own contacts -- there's no 'add to the agency Flow
+    Library instead' choice here anymore. Publishing a reusable
+    template for the whole team is a separate, deliberate action
+    (library_new, admin-only), not a fork-in-the-road inside this
+    wizard."""
     if request.method == "GET":
-        return render_template("campaigns/new.html", **_campaign_form_kwargs())
-
-    scope = request.form.get("scope", "personal")
-    if scope == "library" and not current_user.is_admin:
-        flash("Only an agency admin can add a flow to the library.", "error")
-        return redirect(url_for("campaigns.list_campaigns"))
-
-    if not request.form.get("name", "").strip():
-        flash("Name is required.", "error")
-        return render_template("campaigns/new.html", **_campaign_form_kwargs())
-
-    if request.form.get("action") == "preview":
-        spec = _build_flow_spec_from_form()
-        if scope == "library":
-            contacts_query = _org_contacts_query()
-            scope_label = "every contact in your agency"
-        else:
-            contacts_query = _my_contacts_query()
-            scope_label = "your own contacts"
-        preview_results = _run_preview(spec, contacts_query)
         return render_template(
-            "campaigns/new.html",
-            spec=spec,
-            preview_results=preview_results,
-            preview_scope_label=scope_label,
+            "campaigns/wizard.html",
+            campaign=None,
+            rule_values=_rule_form_values(None),
             **_campaign_form_kwargs(),
         )
 
-    if scope == "library":
-        recipe = CampaignRecipe(is_active=True, org_id=current_user.org_id)
-        _save_recipe_from_form(recipe)
-        db.session.add(recipe)
-        db.session.commit()
-        flash(f"Added \u201c{recipe.name}\u201d to your agency's Flow Library.", "success")
-        return redirect(url_for("campaigns.recipe_book"))
+    if not request.form.get("name", "").strip():
+        flash("Name is required.", "error")
+        return render_template(
+            "campaigns/wizard.html",
+            campaign=None,
+            rule_values=_rule_form_values(None),
+            **_campaign_form_kwargs(),
+        )
+
+    if request.form.get("action") == "preview":
+        spec = _build_flow_spec_from_form()
+        preview_results = _run_preview(spec, _my_contacts_query())
+        return render_template(
+            "campaigns/wizard.html",
+            campaign=None,
+            rule_values=_rule_form_values(None),
+            spec=spec,
+            preview_results=preview_results,
+            preview_scope_label="your own contacts",
+            **_campaign_form_kwargs(),
+        )
 
     campaign = Campaign(
         org_id=current_user.org_id,
@@ -392,9 +440,9 @@ def campaign_edit(campaign_id):
 
     if request.method == "GET":
         return render_template(
-            "campaigns/edit.html",
+            "campaigns/wizard.html",
             campaign=campaign,
-            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
+            rule_values=_rule_form_values(campaign),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             **_campaign_form_kwargs(),
         )
@@ -410,9 +458,9 @@ def campaign_edit(campaign_id):
         scope_label = "your own contacts" if owner.id == current_user.id else f"{owner.full_name}'s contacts"
         preview_results = _run_preview(spec, contacts_query)
         return render_template(
-            "campaigns/edit.html",
+            "campaigns/wizard.html",
             campaign=campaign,
-            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
+            rule_values=_rule_form_values(campaign),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             preview_results=preview_results,
             preview_scope_label=scope_label,
