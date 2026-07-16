@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Campaign, CampaignRecipe, User, SuggestedAction, Contact
+from app.models import Campaign, CampaignRecipe, SuggestedAction, Contact
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
@@ -148,38 +148,12 @@ def _save_campaign_from_form(campaign):
 @campaigns_bp.route("/")
 @login_required
 def list_campaigns():
-    org_id = current_user.org_id
-
     my_campaigns = (
-        Campaign.query.filter_by(org_id=org_id, owner_user_id=current_user.id)
+        Campaign.query.filter_by(org_id=current_user.org_id, owner_user_id=current_user.id)
         .order_by(Campaign.name)
         .all()
     )
-
-    other_personal_by_agent = []
-    if current_user.is_admin:
-        others = (
-            Campaign.query.filter(
-                Campaign.org_id == org_id,
-                Campaign.owner_user_id.isnot(None),
-                Campaign.owner_user_id != current_user.id,
-            )
-            .order_by(Campaign.name)
-            .all()
-        )
-        by_owner = {}
-        for c in others:
-            by_owner.setdefault(c.owner_user_id, []).append(c)
-        for owner_id, campaigns in by_owner.items():
-            owner = User.query.get(owner_id)
-            other_personal_by_agent.append((owner, campaigns))
-        other_personal_by_agent.sort(key=lambda pair: pair[0].full_name if pair[0] else "")
-
-    return render_template(
-        "campaigns/list.html",
-        my_campaigns=my_campaigns,
-        other_personal_by_agent=other_personal_by_agent,
-    )
+    return render_template("campaigns/list.html", my_campaigns=my_campaigns)
 
 
 @campaigns_bp.route("/book")
