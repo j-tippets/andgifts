@@ -3,6 +3,65 @@ from app.extensions import db
 from app.models.org import gen_uuid
 
 
+class CampaignRecipeRule(db.Model):
+    """
+    One rule attached to a CampaignRecipe (Flow Library template).
+    Mirrors CampaignRule below -- kept as a separate table (rather than
+    one polymorphic table with two nullable owner FKs) for the same
+    reason CampaignRecipe and Campaign are two separate tables instead
+    of one shared base: simple non-nullable FKs, no CHECK-constraint
+    reliance, and copying rows at from_recipe()/from_campaign() time is
+    a plain loop instead of a re-parenting operation.
+
+    rule_type is a key into the registry in
+    app/services/campaign_rules.py (RULE_TYPES), NOT a DB enum -- new
+    rule types are added there in code; new rule INSTANCES (which
+    types are attached to which campaign, with what config) are pure
+    data and need no deploy. See that module's docstring for the full
+    reasoning, including why some rule types (batch-level constraints
+    like a monthly budget cap) don't fit this per-contact-predicate
+    shape and are intentionally not modeled yet.
+    """
+    __tablename__ = "campaign_recipe_rules"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    recipe_id = db.Column(
+        db.String(36), db.ForeignKey("campaign_recipes.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    rule_type = db.Column(db.String(50), nullable=False)
+    config = db.Column(db.JSON, nullable=False, default=dict)
+    # Display/evaluation order when a campaign has several rules -- purely
+    # cosmetic today (order doesn't change whether all-must-pass logic
+    # matches), but kept so the builder UI can show rules in the order
+    # the agent added them rather than an arbitrary DB order.
+    position = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    recipe = db.relationship("CampaignRecipe", back_populates="rules")
+
+
+class CampaignRule(db.Model):
+    """One rule attached to a live Campaign. See CampaignRecipeRule above
+    for the full design notes -- this is the same shape, just owned by
+    a Campaign instead of a CampaignRecipe."""
+    __tablename__ = "campaign_rules"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    campaign_id = db.Column(
+        db.String(36), db.ForeignKey("campaigns.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    rule_type = db.Column(db.String(50), nullable=False)
+    config = db.Column(db.JSON, nullable=False, default=dict)
+    position = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    campaign = db.relationship("Campaign", back_populates="rules")
+
+
 class CampaignRecipe(db.Model):
     """
     A campaign template in the Flow Library -- e.g. "5 days after a
@@ -63,6 +122,10 @@ class CampaignRecipe(db.Model):
 
     suggested_gift = db.relationship("GiftCatalogItem")
     org = db.relationship("Org")
+    rules = db.relationship(
+        "CampaignRecipeRule", back_populates="recipe", cascade="all, delete-orphan",
+        order_by="CampaignRecipeRule.position",
+    )
 
     @property
     def is_global(self):
@@ -146,11 +209,15 @@ class Campaign(db.Model):
     source_recipe = db.relationship("CampaignRecipe")
     forked_from = db.relationship("Campaign", remote_side=[id], foreign_keys=[forked_from_campaign_id])
     suggested_gift = db.relationship("GiftCatalogItem")
+    rules = db.relationship(
+        "CampaignRule", back_populates="campaign", cascade="all, delete-orphan",
+        order_by="CampaignRule.position",
+    )
 
     @classmethod
     def from_recipe(cls, recipe, org_id, owner_user_id, created_by_user_id):
         """Copy a recipe's fields into a brand new, independent Campaign row."""
-        return cls(
+        campaign = cls(
             org_id=org_id,
             owner_user_id=owner_user_id,
             source_recipe_id=recipe.id,
@@ -169,6 +236,11 @@ class Campaign(db.Model):
             llm_prompt_hint=recipe.llm_prompt_hint,
             is_active=True,
         )
+        campaign.rules = [
+            CampaignRule(rule_type=r.rule_type, config=r.config, position=r.position)
+            for r in recipe.rules
+        ]
+        return campaign
 
     @classmethod
     def from_campaign(cls, master, owner_user_id, created_by_user_id):
@@ -176,7 +248,7 @@ class Campaign(db.Model):
         Campaign row for one agent ('Add to my profile'). Fields are
         copied at this moment -- editing or deleting the team-wide
         source afterward never touches this copy."""
-        return cls(
+        campaign = cls(
             org_id=master.org_id,
             owner_user_id=owner_user_id,
             source_recipe_id=master.source_recipe_id,
@@ -196,6 +268,11 @@ class Campaign(db.Model):
             llm_prompt_hint=master.llm_prompt_hint,
             is_active=True,
         )
+        campaign.rules = [
+            CampaignRule(rule_type=r.rule_type, config=r.config, position=r.position)
+            for r in master.rules
+        ]
+        return campaign
 
     def timing_label(self):
         if self.offset_days == 0:

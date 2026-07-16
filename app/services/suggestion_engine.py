@@ -30,6 +30,7 @@ from app.models import (
     Campaign, User,
 )
 from app.services import llm
+from app.services import campaign_rules
 
 LOOKAHEAD_DAYS = 14
 
@@ -192,6 +193,9 @@ def generate_campaign_suggestions_for_org(org, today=None):
                     continue
 
                 if _campaign_suggestion_exists(org.id, campaign.id, contact.id, event.id, trigger_date):
+                    continue
+
+                if not campaign_rules.evaluate_rules(campaign, contact, event, org, today):
                     continue
 
                 gift_item, gift_reasoning = None, None
