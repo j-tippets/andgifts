@@ -7,7 +7,7 @@ from app.models.timeline import TimelineEvent, STANDARD_EVENT_TYPES
 from app.models.gifting import GiftCatalogItem, GiftTrigger, OrgCatalogSelection
 from app.models.actions import SuggestedAction, ActionLog
 from app.models.audit import ContactAuditLog
-from app.models.campaigns import CampaignRecipe, Campaign
+from app.models.campaigns import CampaignRecipe, Campaign, CampaignRecipeRule, CampaignRule
 from app.models.orders import Order
 
 __all__ = [
@@ -18,6 +18,6 @@ __all__ = [
     "GiftCatalogItem", "GiftTrigger", "OrgCatalogSelection",
     "SuggestedAction", "ActionLog",
     "ContactAuditLog",
-    "CampaignRecipe", "Campaign",
+    "CampaignRecipe", "Campaign", "CampaignRecipeRule", "CampaignRule",
     "Order",
 ]
