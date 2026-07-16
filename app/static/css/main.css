@@ -404,6 +404,21 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
 .access-option .option-title { font-weight: 600; }
 .access-option .subdued small { display: block; margin-top: 2px; }
 
+.wizard-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+.wizard-step {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: var(--paper-raised); border: 1.5px solid var(--line); color: rgba(42,26,69,.55);
+  display: flex; align-items: center; justify-content: center; font-family: var(--font-rounded);
+  font-weight: 700; font-size: 12.5px;
+}
+.wizard-step.active { background: var(--coral); border-color: var(--coral); color: #fff; }
+.wizard-step.done { background: var(--evergreen); border-color: var(--evergreen); color: #fff; }
+.wizard-step-label { font-size: 13px; color: rgba(42,26,69,.55); }
+.wizard-step-label.active { color: var(--ink); font-weight: 700; }
+.wizard-step-line { flex: 1; height: 1px; background: var(--line); }
+.wizard-pane { display: none; }
+.wizard-pane.active { display: block; }
+
 /* ---- Timeline ---- */
 .timeline { border-left: 2px solid var(--line); padding-left: 20px; margin-left: 6px; }
 .timeline-item { position: relative; margin-bottom: 18px; }
