@@ -265,12 +265,13 @@ def _campaign_suggestion_exists(org_id, campaign_id, contact_id, event_id, targe
 
 
 def _resolve_campaign_gift(campaign, contact, available_item_ids):
-    if campaign.use_llm_gift_selection:
+    if campaign_rules.uses_llm_gift_selection(campaign):
         candidates = GiftCatalogItem.query.filter(
             GiftCatalogItem.id.in_(available_item_ids), GiftCatalogItem.is_active.is_(True)
         )
-        if campaign.price_max_cents:
-            candidates = candidates.filter(GiftCatalogItem.price_cents <= campaign.price_max_cents)
+        price_cap = campaign_rules.get_price_cap_cents(campaign)
+        if price_cap:
+            candidates = candidates.filter(GiftCatalogItem.price_cents <= price_cap)
         return llm.pick_gift(contact, candidates.all())
 
     if campaign.suggested_gift_id and campaign.suggested_gift_id in available_item_ids:
