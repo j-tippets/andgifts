@@ -121,13 +121,38 @@ def catalog_delete(item_id):
     return redirect(url_for("app_admin.catalog_list"))
 
 
-# --- Orgs (placeholder: read-only overview for now) ---------------------
+# --- Orgs -----------------------------------------------------------------
 
 @app_admin_bp.route("/orgs")
 @platform_admin_required
 def orgs_list():
     orgs = Org.query.order_by(Org.created_at).all()
     return render_template("app_admin/orgs_list.html", orgs=orgs)
+
+
+@app_admin_bp.route("/orgs/<org_id>/edit", methods=["GET", "POST"])
+@platform_admin_required
+def org_edit(org_id):
+    org = Org.query.get_or_404(org_id)
+
+    if request.method == "POST":
+        org.office_address = request.form.get("office_address", "").strip() or None
+        # Checkbox only appears in form data when checked.
+        org.dropoff_enabled = request.form.get("dropoff_enabled") == "on"
+
+        if org.dropoff_enabled and org.tier not in ("pro", "team"):
+            flash(
+                f"Saved, but drop-off won't actually show at checkout until {org.name} is on "
+                "the pro or team plan.",
+                "warning",
+            )
+        else:
+            flash(f"Updated {org.name}.", "success")
+
+        db.session.commit()
+        return redirect(url_for("app_admin.org_edit", org_id=org.id))
+
+    return render_template("app_admin/org_edit.html", org=org)
 
 
 # --- Billing (placeholder) ----------------------------------------------

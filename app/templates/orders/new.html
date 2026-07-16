@@ -36,11 +36,18 @@
                onchange="document.getElementById('pickup-field').style.display='none';">
         Ship it &mdash; ${{ '%.2f'|format(flat_rate_cents / 100) }} flat-rate shipping, address collected at checkout
       </label>
-      <label class="checkbox-chip">
+      <label class="checkbox-chip" {% if can_dropoff %}style="margin-bottom:10px;"{% endif %}>
         <input type="radio" name="fulfillment_method" value="pickup"
                onchange="document.getElementById('pickup-field').style.display='block';">
         Pickup &mdash; no shipping charge
       </label>
+      {% if can_dropoff %}
+      <label class="checkbox-chip">
+        <input type="radio" name="fulfillment_method" value="dropoff"
+               onchange="document.getElementById('pickup-field').style.display='none';">
+        We'll drop it off at your office &mdash; free, no shipping charge
+      </label>
+      {% endif %}
     </fieldset>
 
     <div class="field" id="pickup-field" style="display:none;">

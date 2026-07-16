@@ -26,9 +26,12 @@ class Order(db.Model):
     gift_price_cents = db.Column(db.Integer, nullable=False)
 
     fulfillment_method = db.Column(
-        db.Enum("shipping", "pickup", name="order_fulfillment_method"), nullable=False
+        db.Enum("shipping", "pickup", "dropoff", name="order_fulfillment_method"), nullable=False
     )
     pickup_location = db.Column(db.String(255), nullable=True)
+    # Snapshot of org.office_address at order time, so this stays accurate
+    # even if the office address changes or drop-off is later disabled.
+    dropoff_location = db.Column(db.String(255), nullable=True)
     shipping_cost_cents = db.Column(db.Integer, default=0, nullable=False)
     # Populated from Stripe's own shipping_details once paid -- we don't
     # build a custom address form since Stripe Checkout collects it for us.
