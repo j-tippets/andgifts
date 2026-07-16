@@ -42,6 +42,14 @@ class Org(db.Model):
     # OrgCatalogSelection are available, even if that ends up being zero.
     catalog_curated = db.Column(db.Boolean, default=False, nullable=False)
 
+    # Free hand-delivery to this agency's office, in lieu of shipping/pickup.
+    # Platform-admin-controlled per org -- reserved for pro/team agencies
+    # close enough to drive to. office_address is set by the platform admin
+    # (not the agency) since it's used to decide/display the drop-off
+    # destination, not collected from the agency's own settings yet.
+    dropoff_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    office_address = db.Column(db.String(255), nullable=True)
+
     users = db.relationship("User", back_populates="org", cascade="all, delete-orphan")
     contacts = db.relationship("Contact", back_populates="org", cascade="all, delete-orphan")
 
@@ -58,6 +66,14 @@ class Org(db.Model):
 
     def feature_enabled(self, key):
         return bool(self.limit_for(key))
+
+    # --- Fulfillment: free office drop-off ---
+    def can_offer_dropoff(self):
+        """Pro/team tier is required in addition to the admin toggle -- an
+        org downgrading out of pro should lose the option even if it was
+        previously turned on, without the admin having to remember to flip
+        it off manually."""
+        return self.dropoff_enabled and self.tier in ("pro", "team")
 
     # --- Seats (sub-accounts) ---
     def seat_count(self):

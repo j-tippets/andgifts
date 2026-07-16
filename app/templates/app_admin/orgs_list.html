@@ -5,24 +5,27 @@
   <div>
     <div class="eyebrow">App Admin</div>
     <h1>Orgs</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Read-only for now — plan changes, suspensions, etc. land here later.</small></p>
+    <p class="subdued" style="margin-top:4px;"><small>Plan changes, suspensions, etc. land here later.</small></p>
   </div>
   <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
 </div>
 
 {% if orgs %}
   {% for org in orgs %}
-    <div class="contact-row" style="cursor:default;">
+    <a href="{{ url_for('app_admin.org_edit', org_id=org.id) }}" class="contact-row" style="text-decoration:none; color:inherit;">
       <div>
         <strong>{{ org.name }}</strong>
         <span class="subdued"> — {{ org.tier|capitalize }} plan</span>
+        {% if org.can_offer_dropoff() %}
+          <span class="subdued"> &middot; drop-off on</span>
+        {% endif %}
       </div>
       <div style="display:flex; align-items:center; gap:16px;">
         <span class="subdued">{{ org.seat_count() }} seat{{ 's' if org.seat_count() != 1 else '' }}</span>
         <span class="subdued">{{ org.contact_count() }} contact{{ 's' if org.contact_count() != 1 else '' }}</span>
         <span class="subdued">Since {{ org.created_at.strftime('%b %Y') }}</span>
       </div>
-    </div>
+    </a>
   {% endfor %}
 {% else %}
   <p class="subdued">No agencies yet.</p>

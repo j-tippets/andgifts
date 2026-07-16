@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ org.name }} — App Admin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">App Admin</div>
+    <h1>{{ org.name }}</h1>
+    <p class="subdued" style="margin-top:4px;">
+      <small>{{ org.tier|capitalize }} plan &middot; {{ org.seat_count() }} seat{{ 's' if org.seat_count() != 1 else '' }} &middot; {{ org.contact_count() }} contact{{ 's' if org.contact_count() != 1 else '' }}</small>
+    </p>
+  </div>
+  <a href="{{ url_for('app_admin.orgs_list') }}" class="btn btn-ghost">&larr; Orgs</a>
+</div>
+
+<div class="contact-card" style="max-width:520px;">
+  <form method="post">
+    <div class="field">
+      <label for="office_address">Office address</label>
+      <input type="text" id="office_address" name="office_address"
+             value="{{ org.office_address or '' }}" placeholder="123 Main St, City, UT">
+      <p class="subdued" style="margin:4px 0 0;"><small>Shown to the agency at checkout as the drop-off destination, and snapshotted onto each order placed.</small></p>
+    </div>
+
+    <div class="field" style="margin-top:16px;">
+      <label class="checkbox-chip">
+        <input type="checkbox" name="dropoff_enabled" {% if org.dropoff_enabled %}checked{% endif %}>
+        Offer free office drop-off at checkout
+      </label>
+      <p class="subdued" style="margin:4px 0 0;">
+        <small>
+          {% if org.tier in ('pro', 'team') %}
+            {{ org.name }} is on the {{ org.tier }} plan, so this will take effect immediately.
+          {% else %}
+            {{ org.name }} is on the {{ org.tier }} plan &mdash; this option won't actually appear at
+            checkout until they're upgraded to pro or team, even if you turn it on here.
+          {% endif %}
+        </small>
+      </p>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="margin-top:20px;">Save</button>
+  </form>
+</div>
+{% endblock %}

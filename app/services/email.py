@@ -58,6 +58,8 @@ def send_order_confirmation(order):
 
     if order.fulfillment_method == "pickup":
         fulfillment_line = f"Pickup at: {order.pickup_location or 'your shop'}"
+    elif order.fulfillment_method == "dropoff":
+        fulfillment_line = f"We'll drop this off at: {order.dropoff_location or 'your office'}"
     else:
         fulfillment_line = "Shipping to the address collected at checkout."
 

@@ -285,6 +285,7 @@ legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; col
 .flash { padding: 10px 14px; border-radius: 6px; font-size: 14px; margin-bottom: 8px; }
 .flash-success { background: #E7F0E5; color: var(--evergreen); }
 .flash-error { background: #F7E7E3; color: var(--danger); }
+.flash-warning { background: #FBF0DC; color: #8A5A00; }
 
 /* ---- Contact list ---- */
 .contact-row {

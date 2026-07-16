@@ -313,8 +313,15 @@ def new_order(contact_id, item_id):
     if request.method == "POST":
         fulfillment_method = request.form.get("fulfillment_method")
         pickup_location = current_app.config.get("PICKUP_LOCATION_ADDRESS")
-        if fulfillment_method not in ("shipping", "pickup"):
-            flash("Choose shipping or pickup.", "error")
+        valid_methods = ["shipping", "pickup"]
+        if contact.org.can_offer_dropoff():
+            valid_methods.append("dropoff")
+        # Re-check eligibility server-side rather than trusting the submitted
+        # value -- an org that had dropoff toggled off (or dropped out of
+        # pro tier) between page load and submit shouldn't be able to sneak
+        # a free drop-off through by resubmitting a stale form.
+        if fulfillment_method not in valid_methods:
+            flash("Choose a valid delivery option.", "error")
             return redirect(url_for("contacts.new_order", contact_id=contact.id, item_id=item.id))
 
         shipping_cost_cents = flat_rate if fulfillment_method == "shipping" else 0
@@ -328,6 +335,7 @@ def new_order(contact_id, item_id):
             gift_price_cents=item.price_cents,
             fulfillment_method=fulfillment_method,
             pickup_location=pickup_location if fulfillment_method == "pickup" else None,
+            dropoff_location=contact.org.office_address if fulfillment_method == "dropoff" else None,
             shipping_cost_cents=shipping_cost_cents,
         )
         db.session.add(order)
@@ -378,7 +386,13 @@ def new_order(contact_id, item_id):
 
         return redirect(checkout_session.url, code=303)
 
-    return render_template("orders/new.html", contact=contact, item=item, flat_rate_cents=flat_rate)
+    return render_template(
+        "orders/new.html",
+        contact=contact,
+        item=item,
+        flat_rate_cents=flat_rate,
+        can_dropoff=contact.org.can_offer_dropoff(),
+    )
 
 
 @contacts_bp.route("/<contact_id>/edit", methods=["GET", "POST"])
