@@ -564,6 +564,44 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .empty-state { text-align: center; padding: 60px 20px; color: rgba(42,26,69,.5); border:1px solid black; border-radius:10px;}
 .empty-state h3 { color: var(--ink); margin-bottom: 8px; }
 
+/* ---- Today: view toggle + list view ---- */
+.view-toggle { display: flex; gap: 4px; background: rgba(42,26,69,.06); border-radius: 999px; padding: 4px; flex-shrink: 0; }
+.view-toggle-btn {
+  display: flex; align-items: center; gap: 6px; border: none; background: transparent;
+  font-family: var(--font-rounded); font-weight: 700; font-size: 13px; color: rgba(42,26,69,.55);
+  padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: background .16s var(--ease), color .16s var(--ease);
+}
+.view-toggle-btn svg { width: 15px; height: 15px; }
+.view-toggle-btn:hover { color: var(--ink); }
+.view-toggle-btn.active { background: var(--paper-raised); color: var(--ink); box-shadow: 0 2px 6px -2px rgba(42,26,69,.25); }
+
+.list-rows { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
+.list-row {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: 14px;
+}
+.list-row-info { flex: 1; min-width: 0; }
+.list-row-info h4 { font-family: var(--font-rounded); font-weight: 700; font-size: 14.5px; margin: 2px 0 4px; line-height: 1.35; }
+.list-row-info .sub { font-size: 12.5px; color: rgba(42,26,69,.55); }
+.list-row-quote {
+  background: var(--paper); border-radius: 10px; padding: 10px 12px; margin: 8px 0 0;
+  font-style: italic; font-size: 13px; line-height: 1.5; color: rgba(42,26,69,.8);
+}
+.list-row-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.list-row-actions form { margin: 0; }
+.list-row-actions .btn { width: 100px; justify-content: center; }
+
+.pill-type-gift { background: var(--gold-soft); color: var(--gold-ink); }
+.pill-type-email { background: #E4EEF7; color: #2A5D8A; }
+.pill-type-text { background: var(--mint); color: var(--mint-ink); }
+.pill-type-handwritten_note { background: #F3E4F7; color: #6A2D8A; }
+
+@media (max-width: 640px) {
+  .list-row { flex-wrap: wrap; }
+  .list-row-actions { flex-direction: row; width: 100%; }
+  .list-row-actions .btn { flex: 1; width: auto; }
+}
+
 /* ---- Contacts: search, filter chips, cards ---- */
 .search-wrap { position: relative; margin-bottom: 14px; max-width: 420px; }
 .search-wrap svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; opacity: .4; pointer-events: none; }
