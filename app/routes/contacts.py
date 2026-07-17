@@ -11,6 +11,7 @@ from app.models import (
 )
 from app.decorators import admin_required
 from app.services.stripe_client import get_stripe
+from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -116,6 +117,14 @@ def new_contact():
     )
     db.session.add(contact)
     db.session.flush()
+
+    photo = request.files.get("photo")
+    if photo and photo.filename:
+        try:
+            contact.photo_url = upload_contact_photo(photo, contact.id)
+        except StorageError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("contacts.new_contact"))
 
     # Head of household (required)
     head = ContactPerson(
@@ -436,6 +445,22 @@ def edit_contact(contact_id):
     contact.notes = request.form.get("notes", "").strip() or None
     contact.marketing_opt_out = bool(request.form.get("marketing_opt_out"))
     contact.do_not_contact = bool(request.form.get("do_not_contact"))
+
+    if request.form.get("remove_photo") == "1" and contact.photo_url:
+        delete_contact_photo(contact.photo_url)
+        contact.photo_url = None
+
+    photo = request.files.get("photo")
+    if photo and photo.filename:
+        try:
+            old_photo_url = contact.photo_url
+            contact.photo_url = upload_contact_photo(photo, contact.id)
+            if old_photo_url:
+                delete_contact_photo(old_photo_url)
+        except StorageError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("contacts.edit_contact", contact_id=contact.id))
+
     if current_user.is_admin:
         new_owner_id = request.form.get("owner_user_id", "").strip()
         if not new_owner_id:
@@ -542,6 +567,7 @@ def delete_contact(contact_id):
     SuggestedAction.query.filter_by(contact_id=contact.id).delete()
 
     name = contact.household_name
+    photo_url_to_delete = contact.photo_url
     _log_contact_activity(contact, "deleted", f"Deleted by {current_user.full_name}.")
     db.session.flush()
     # Preserve the audit trail (via the denormalized name/actor snapshots) but
@@ -550,6 +576,8 @@ def delete_contact(contact_id):
 
     db.session.delete(contact)
     db.session.commit()
+    if photo_url_to_delete:
+        delete_contact_photo(photo_url_to_delete)
     flash(f"{name} has been deleted.", "success")
     return redirect(url_for("contacts.list_contacts"))
 

@@ -26,6 +26,7 @@ class Contact(db.Model):
     owner_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
 
     household_name = db.Column(db.String(255), nullable=False)  # "The Smiths"
+    photo_url = db.Column(db.String(500), nullable=True)  # helps an agent recognize the household at a glance
     status = db.Column(
         db.Enum("new", "active", "past", name="contact_status"),
         default="new",
