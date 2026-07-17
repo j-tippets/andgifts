@@ -9,7 +9,55 @@
   <!-- <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="btn btn-ghost">&larr; Back to {{ contact.household_name }}</a> -->
 </div>
 
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
+  <fieldset>
+    <legend>Photo</legend>
+    <div style="display:flex; align-items:center; gap:20px;">
+      {% if contact.photo_url %}
+        <img id="avatar-preview" src="{{ contact.photo_url }}" alt="{{ contact.household_name }}" class="avatar avatar-lg">
+      {% else %}
+        <img id="avatar-preview" src="" alt="" class="avatar avatar-lg" style="display:none;">
+      {% endif %}
+      <div id="avatar-placeholder" class="avatar avatar-lg avatar-placeholder" style="{{ 'display:none;' if contact.photo_url else '' }}">?</div>
+      <div>
+        <label class="btn btn-ghost file-input-label" for="photo-input">Choose photo</label>
+        <input type="file" id="photo-input" name="photo" accept="image/png,image/jpeg,image/webp" class="file-input-hidden">
+        <span class="file-input-name" id="photo-input-name">No file chosen</span>
+        <div class="subdued" style="margin-top:6px;"><small>PNG, JPG, or WEBP. Max 5MB. Helps you recognize the household at a glance.</small></div>
+        {% if contact.photo_url %}
+          <label class="checkbox-chip" style="margin-top:8px;">
+            <input type="checkbox" name="remove_photo" value="1"> Remove current photo
+          </label>
+        {% endif %}
+      </div>
+    </div>
+  </fieldset>
+
+  <script>
+    (function () {
+      var input = document.getElementById('photo-input');
+      var nameLabel = document.getElementById('photo-input-name');
+      var preview = document.getElementById('avatar-preview');
+      var placeholder = document.getElementById('avatar-placeholder');
+
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) {
+          nameLabel.textContent = 'No file chosen';
+          return;
+        }
+        nameLabel.textContent = file.name;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      });
+    })();
+  </script>
+
   <fieldset>
     <legend>Household</legend>
     <div class="field">

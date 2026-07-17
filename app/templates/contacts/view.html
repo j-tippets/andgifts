@@ -2,14 +2,22 @@
 {% block title %}{{ contact.household_name }} — Ag{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-  <div>
-    <!-- <div class="eyebrow">{{ contact.status|capitalize }} client</div> -->
-    <h1 style="display:flex; align-items:center; gap:10px;">
-      {{ contact.household_name }}
-    </h1>
-    {% if current_user.is_admin %}
-      <p class="subdued">Assigned to: {{ contact.owner.full_name if contact.owner else 'Shared' }}</p>
+  <div style="display:flex; align-items:center; gap:16px;">
+    {% if contact.photo_url %}
+      <img src="{{ contact.photo_url }}" alt="{{ contact.household_name }}" class="avatar avatar-lg">
+    {% else %}
+      {% set head = contact.primary_person() %}
+      <div class="avatar avatar-lg avatar-placeholder">{{ ((head.first_name[:1] ~ head.last_name[:1]) if head else contact.household_name[:2])|upper }}</div>
     {% endif %}
+    <div>
+      <!-- <div class="eyebrow">{{ contact.status|capitalize }} client</div> -->
+      <h1 style="display:flex; align-items:center; gap:10px;">
+        {{ contact.household_name }}
+      </h1>
+      {% if current_user.is_admin %}
+        <p class="subdued">Assigned to: {{ contact.owner.full_name if contact.owner else 'Shared' }}</p>
+      {% endif %}
+    </div>
   </div>
 
   <div style="display:flex; gap:8px;">

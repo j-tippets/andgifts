@@ -52,7 +52,11 @@
     {% set head = contact.primary_person() %}
     {% set initials = (head.first_name[:1] ~ head.last_name[:1]) if head else contact.household_name[:2] %}
     <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="contact-card-row">
-      <div class="avatar avatar-placeholder" style="width:42px; height:42px; font-size:14px;">{{ initials|upper }}</div>
+      {% if contact.photo_url %}
+        <img src="{{ contact.photo_url }}" alt="{{ contact.household_name }}" class="avatar" style="width:42px; height:42px;">
+      {% else %}
+        <div class="avatar avatar-placeholder" style="width:42px; height:42px; font-size:14px;">{{ initials|upper }}</div>
+      {% endif %}
       <div class="info">
         <h4>{{ contact.household_name }}{% if head %} <span class="subdued" style="font-weight:400;">— {{ head.full_name }}</span>{% endif %}</h4>
         <!-- <div class="sub">{% if current_user.is_admin %}{{ contact.owner.full_name if contact.owner else 'Shared' }}{% else %}&nbsp;{% endif %}</div> -->

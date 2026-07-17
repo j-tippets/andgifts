@@ -2,8 +2,9 @@
 DigitalOcean Spaces storage helper.
 
 Spaces is S3-compatible, so this uses boto3's "s3" client pointed at the
-region's Spaces endpoint. Used for agent/admin avatar photos so uploads
-survive App Platform deploys (the local disk is ephemeral).
+region's Spaces endpoint. Used for agent/admin avatar photos and household
+contact photos so uploads survive App Platform deploys (the local disk is
+ephemeral).
 
 Required env vars: SPACES_KEY, SPACES_SECRET, SPACES_BUCKET, SPACES_REGION.
 Optional: SPACES_CDN_DOMAIN if the Space has a CDN endpoint enabled.
@@ -46,11 +47,9 @@ def _public_url(key):
     return f"https://{cfg['SPACES_BUCKET']}.{region}.digitaloceanspaces.com/{key}"
 
 
-def upload_avatar(file_storage, user_id):
-    """
-    Upload a Werkzeug FileStorage as a user's avatar. Returns the public URL.
-    Raises StorageError on any validation or upload failure.
-    """
+def _validate_photo(file_storage):
+    """Raises StorageError if the file fails extension/size checks; otherwise
+    returns (ext, content_type)."""
     filename = file_storage.filename or ""
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext not in ALLOWED_PHOTO_EXTENSIONS:
@@ -62,9 +61,11 @@ def upload_avatar(file_storage, user_id):
     if size > MAX_PHOTO_SIZE_BYTES:
         raise StorageError("Photo must be smaller than 5MB.")
 
-    key = f"avatars/{user_id}/{uuid.uuid4().hex}.{ext}"
     content_type = file_storage.content_type or f"image/{'jpeg' if ext == 'jpg' else ext}"
+    return ext, content_type
 
+
+def _upload(file_storage, key, content_type):
     try:
         _client().put_object(
             Bucket=current_app.config["SPACES_BUCKET"],
@@ -75,18 +76,47 @@ def upload_avatar(file_storage, user_id):
         )
     except Exception as exc:
         raise StorageError(f"Upload to Spaces failed: {exc}") from exc
-
     return _public_url(key)
 
 
-def delete_avatar(photo_url):
-    """Best-effort delete of a previously uploaded avatar. Never raises."""
-    if not photo_url or "avatars/" not in photo_url:
+def _delete_by_prefix(photo_url, prefix):
+    """Best-effort delete of a previously uploaded photo. Never raises."""
+    if not photo_url or f"{prefix}/" not in photo_url:
         return
     try:
-        key = "avatars/" + photo_url.split("avatars/", 1)[1]
+        key = f"{prefix}/" + photo_url.split(f"{prefix}/", 1)[1]
         _client().delete_object(Bucket=current_app.config["SPACES_BUCKET"], Key=key)
     except Exception:
         # Deletion is best-effort -- don't block the calling action (e.g. profile
         # update or account deletion) over a stray orphaned file in Spaces.
         pass
+
+
+def upload_avatar(file_storage, user_id):
+    """
+    Upload a Werkzeug FileStorage as a user's avatar. Returns the public URL.
+    Raises StorageError on any validation or upload failure.
+    """
+    ext, content_type = _validate_photo(file_storage)
+    key = f"avatars/{user_id}/{uuid.uuid4().hex}.{ext}"
+    return _upload(file_storage, key, content_type)
+
+
+def delete_avatar(photo_url):
+    """Best-effort delete of a previously uploaded avatar. Never raises."""
+    _delete_by_prefix(photo_url, "avatars")
+
+
+def upload_contact_photo(file_storage, contact_id):
+    """
+    Upload a Werkzeug FileStorage as a contact/household photo. Returns the
+    public URL. Raises StorageError on any validation or upload failure.
+    """
+    ext, content_type = _validate_photo(file_storage)
+    key = f"contact-photos/{contact_id}/{uuid.uuid4().hex}.{ext}"
+    return _upload(file_storage, key, content_type)
+
+
+def delete_contact_photo(photo_url):
+    """Best-effort delete of a previously uploaded contact photo. Never raises."""
+    _delete_by_prefix(photo_url, "contact-photos")

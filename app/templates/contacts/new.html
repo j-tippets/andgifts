@@ -4,7 +4,46 @@
 <!-- <div class="eyebrow">New client</div> -->
 <h1 style="margin-bottom:24px;">Add a contact</h1>
 
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
+  <fieldset>
+    <legend>Photo</legend>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <img id="avatar-preview" src="" alt="" class="avatar avatar-lg" style="display:none;">
+      <div id="avatar-placeholder" class="avatar avatar-lg avatar-placeholder">?</div>
+      <div>
+        <label class="btn btn-ghost file-input-label" for="photo-input">Choose photo</label>
+        <input type="file" id="photo-input" name="photo" accept="image/png,image/jpeg,image/webp" class="file-input-hidden">
+        <span class="file-input-name" id="photo-input-name">No file chosen</span>
+        <div class="subdued" style="margin-top:6px;"><small>PNG, JPG, or WEBP. Max 5MB. Helps you recognize the household at a glance.</small></div>
+      </div>
+    </div>
+  </fieldset>
+
+  <script>
+    (function () {
+      var input = document.getElementById('photo-input');
+      var nameLabel = document.getElementById('photo-input-name');
+      var preview = document.getElementById('avatar-preview');
+      var placeholder = document.getElementById('avatar-placeholder');
+
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (!file) {
+          nameLabel.textContent = 'No file chosen';
+          return;
+        }
+        nameLabel.textContent = file.name;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      });
+    })();
+  </script>
+
   <fieldset>
     <legend>Household</legend>
     <div class="field">
