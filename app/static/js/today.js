@@ -143,7 +143,8 @@
     return fetch(form.getAttribute('action'), {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: new FormData(form)
     }).then(function (res) { return res.ok; }).catch(function () { return false; });
   }
 
