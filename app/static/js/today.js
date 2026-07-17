@@ -2,6 +2,14 @@
 // Progressively enhances the plain approve/skip <form> elements already
 // rendered server-side — if this script fails to load or run, those forms
 // remain visible and fully functional (normal POST + redirect).
+//
+// Approve is the only action that ever hits the server (permanently marks
+// the SuggestedAction "approved"). Skip is purely a client-side "not right
+// now": the card goes to the back of the stack instead of being removed, so
+// nothing is lost. Once every remaining card has been skipped at least once
+// in a row (a full lap with no approvals), a checkpoint card shows before
+// the stack loops back to the top, so it's clear you've seen everything new
+// and are about to start going back over skipped cards.
 (function () {
   var stackWrap = document.getElementById('stackWrap');
   if (!stackWrap) return; // no suggestions today
@@ -11,31 +19,79 @@
   var emptyState = document.getElementById('emptyState');
   var progressWrap = document.getElementById('progress');
   var progressLabel = document.getElementById('progressLabel');
-  var swipeHint = document.getElementById('swipeHint');
   var btnApprove = document.getElementById('btnApprove');
   var btnSkip = document.getElementById('btnSkip');
 
-  var total = cards.length;
-  var index = 0;
-  var busy = false; // true while a fetch is in flight, to avoid double-submits
+  var originalTotal = cards.length;
+  var approvedCount = 0;
+  var skipsSinceLoop = 0;
+  var busy = false; // true while a fetch (or a card/loop-card transition) is in flight
+
+  // Working queue of not-yet-approved cards, front-to-back display order.
+  // Skipping moves the front card to the back of this array; approving
+  // removes it entirely.
+  var queue = cards.slice();
+  var showingLoop = false;
+
+  // Built once, reused: the "you've seen everything new" checkpoint card.
+  var loopCard = document.createElement('div');
+  loopCard.className = 's-card s-card-loop accent-gold';
+  loopCard.innerHTML =
+    '<div class="accent"></div>' +
+    '<div class="s-card-top"><h3>That\u2019s all your new tasks for now</h3></div>' +
+    '<p class="s-loop-copy">Anything you skipped is still here whenever you want another look.</p>' +
+    '<button type="button" class="btn btn-primary s-loop-btn">Review again</button>';
+  stack.appendChild(loopCard);
+  var loopBtn = loopCard.querySelector('.s-loop-btn');
 
   stackWrap.classList.add('js-active');
 
-  for (var i = 0; i < total; i++) {
+  for (var i = 0; i < originalTotal; i++) {
     progressWrap.appendChild(document.createElement('span'));
   }
   var segments = Array.prototype.slice.call(progressWrap.children);
 
   function updateProgress() {
-    segments.forEach(function (s, i) { s.classList.toggle('done', i < index); });
-    progressLabel.textContent = index < total ? (index + 1) + ' of ' + total : total + ' of ' + total;
+    segments.forEach(function (s, i) { s.classList.toggle('done', i < approvedCount); });
+    progressLabel.textContent = approvedCount + ' of ' + originalTotal + ' handled';
+  }
+
+  function currentDisplayList() {
+    return showingLoop ? [loopCard].concat(queue) : queue;
+  }
+
+  function resetVisualState(card) {
+    card.style.transition = 'none';
+    card.style.transform = '';
+    card.style.opacity = '';
+    var approveStamp = card.querySelector('.stamp.approve');
+    var skipStamp = card.querySelector('.stamp.skip');
+    if (approveStamp) { approveStamp.style.transition = ''; approveStamp.style.opacity = ''; approveStamp.style.transform = ''; }
+    if (skipStamp) { skipStamp.style.transition = ''; skipStamp.style.opacity = ''; skipStamp.style.transform = ''; }
   }
 
   function layout() {
-    cards.forEach(function (card, i) {
-      var rel = i - index;
+    cards.forEach(function (card) { card.style.display = 'none'; });
+    loopCard.style.display = 'none';
+
+    var list = currentDisplayList();
+
+    if (list.length === 0) {
+      emptyState.classList.add('show');
+      btnApprove.disabled = true;
+      btnSkip.disabled = true;
+      launchConfetti();
+      updateProgress();
+      return;
+    }
+
+    stackWrap.classList.toggle('js-loop', showingLoop);
+    btnApprove.disabled = showingLoop;
+    btnSkip.disabled = showingLoop;
+
+    list.forEach(function (card, rel) {
       card.style.transition = 'transform .4s var(--ease), opacity .4s var(--ease)';
-      if (rel < 0) { card.style.display = 'none'; return; }
+      if (rel > 3) { card.style.display = 'none'; return; }
       card.style.display = 'flex';
       if (rel === 0) {
         card.style.zIndex = 10;
@@ -56,12 +112,6 @@
         card.style.opacity = 0;
       }
     });
-    if (index >= total) {
-      emptyState.classList.add('show');
-      btnApprove.disabled = true;
-      btnSkip.disabled = true;
-      launchConfetti();
-    }
     updateProgress();
   }
 
@@ -87,8 +137,8 @@
     }
   }
 
-  function submitAction(card, kind) {
-    var form = card.querySelector(kind === 'approve' ? '.s-form-approve' : '.s-form-skip');
+  function submitApprove(card) {
+    var form = card.querySelector('.s-form-approve');
     if (!form) return Promise.resolve(false);
     return fetch(form.getAttribute('action'), {
       method: 'POST',
@@ -97,46 +147,92 @@
     }).then(function (res) { return res.ok; }).catch(function () { return false; });
   }
 
-  function completeTop(direction, viaDrag) {
-    if (index >= total || busy) return;
-    busy = true;
-    var card = cards[index];
-    var kind = direction === 'right' ? 'approve' : 'skip';
+  function flyOut(card, direction, kind) {
     var flyX = direction === 'right' ? window.innerWidth : -window.innerWidth;
     var rot = direction === 'right' ? 18 : -18;
-
     card.style.transition = 'transform .45s var(--ease), opacity .45s var(--ease)';
     card.style.transform = 'translate(' + flyX + 'px, -10px) rotate(' + rot + 'deg)';
     card.style.opacity = 0;
-    var stamp = card.querySelector('.stamp.' + kind);
-    if (stamp) { stamp.style.transition = 'none'; stamp.style.opacity = 1; stamp.style.transform = 'scale(1) rotate(0deg)'; }
+    if (kind) {
+      var stamp = card.querySelector('.stamp.' + kind);
+      if (stamp) { stamp.style.transition = 'none'; stamp.style.opacity = 1; stamp.style.transform = 'scale(1) rotate(0deg)'; }
+    }
+  }
 
-    submitAction(card, kind).then(function (ok) {
-      if (!ok) {
-        // Fall back to a real form submit so the action still lands even if
-        // the fetch failed (offline, server error, etc.)
-        var form = card.querySelector(kind === 'approve' ? '.s-form-approve' : '.s-form-skip');
-        if (form) { form.submit(); return; }
-      }
+  function maybeQueueLoop() {
+    if (!showingLoop && queue.length > 0 && skipsSinceLoop >= queue.length) {
+      showingLoop = true;
+    }
+  }
+
+  function completeTop(direction, viaDrag) {
+    if (busy) return;
+    var card = showingLoop ? loopCard : (queue.length ? queue[0] : null);
+    if (!card) return;
+    busy = true;
+    var delay = viaDrag ? 260 : 380;
+
+    if (showingLoop) {
+      flyOut(card, direction, null);
       setTimeout(function () {
-        index++;
+        showingLoop = false;
+        skipsSinceLoop = 0;
+        resetVisualState(loopCard);
         busy = false;
         layout();
-      }, viaDrag ? 260 : 380);
-    });
+      }, delay);
+      return;
+    }
+
+    var kind = direction === 'right' ? 'approve' : 'skip';
+    flyOut(card, direction, kind);
+
+    if (kind === 'approve') {
+      submitApprove(card).then(function (ok) {
+        if (!ok) {
+          var form = card.querySelector('.s-form-approve');
+          if (form) { form.submit(); return; }
+        }
+        setTimeout(function () {
+          queue.shift();
+          approvedCount++;
+          maybeQueueLoop();
+          busy = false;
+          layout();
+        }, delay);
+      });
+    } else {
+      // Skip: nothing is sent to the server. The card just moves to the
+      // back of the queue so it comes back around later.
+      setTimeout(function () {
+        var skipped = queue.shift();
+        queue.push(skipped);
+        skipsSinceLoop++;
+        resetVisualState(skipped);
+        maybeQueueLoop();
+        busy = false;
+        layout();
+      }, delay);
+    }
   }
 
   btnApprove.addEventListener('click', function () { completeTop('right', false); });
   btnSkip.addEventListener('click', function () { completeTop('left', false); });
+  loopBtn.addEventListener('click', function () { completeTop('right', false); });
 
   // --- drag / swipe on top card ---
   var dragging = false, startX = 0, startY = 0, dx = 0, activeCard = null;
 
+  function topEl() {
+    return showingLoop ? loopCard : (queue.length ? queue[0] : null);
+  }
+
   function pointerDown(e) {
-    if (index >= total || busy) return;
-    var card = cards[index];
+    if (busy) return;
+    var card = topEl();
+    if (!card) return;
     if (e.target.closest('.s-card') !== card) return;
-    if (e.target.closest('.s-form')) return; // let fallback form buttons work untouched
+    if (e.target.closest('.s-form') || e.target.closest('.s-loop-btn')) return; // let real buttons work untouched
     dragging = true;
     activeCard = card;
     startX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -155,12 +251,16 @@
     activeCard.style.transform = 'translate(' + dx + 'px,' + (dyRaw * .15) + 'px) rotate(' + rot + 'deg)';
     var approveStamp = activeCard.querySelector('.stamp.approve');
     var skipStamp = activeCard.querySelector('.stamp.skip');
-    approveStamp.style.transition = 'none';
-    skipStamp.style.transition = 'none';
-    approveStamp.style.opacity = Math.max(0, Math.min(1, dx / 90));
-    approveStamp.style.transform = 'scale(' + (.6 + Math.min(1, dx / 90) * .4) + ') rotate(0deg)';
-    skipStamp.style.opacity = Math.max(0, Math.min(1, -dx / 90));
-    skipStamp.style.transform = 'scale(' + (.6 + Math.min(1, -dx / 90) * .4) + ') rotate(0deg)';
+    if (approveStamp) {
+      approveStamp.style.transition = 'none';
+      approveStamp.style.opacity = Math.max(0, Math.min(1, dx / 90));
+      approveStamp.style.transform = 'scale(' + (.6 + Math.min(1, dx / 90) * .4) + ') rotate(0deg)';
+    }
+    if (skipStamp) {
+      skipStamp.style.transition = 'none';
+      skipStamp.style.opacity = Math.max(0, Math.min(1, -dx / 90));
+      skipStamp.style.transform = 'scale(' + (.6 + Math.min(1, -dx / 90) * .4) + ') rotate(0deg)';
+    }
   }
   function pointerUp() {
     if (!dragging || !activeCard) return;
@@ -176,10 +276,8 @@
       activeCard.style.cursor = 'grab';
       var approveStamp = activeCard.querySelector('.stamp.approve');
       var skipStamp = activeCard.querySelector('.stamp.skip');
-      approveStamp.style.transition = 'opacity .3s var(--ease)';
-      skipStamp.style.transition = 'opacity .3s var(--ease)';
-      approveStamp.style.opacity = 0;
-      skipStamp.style.opacity = 0;
+      if (approveStamp) { approveStamp.style.transition = 'opacity .3s var(--ease)'; approveStamp.style.opacity = 0; }
+      if (skipStamp) { skipStamp.style.transition = 'opacity .3s var(--ease)'; skipStamp.style.opacity = 0; }
     }
     activeCard = null;
     dx = 0;

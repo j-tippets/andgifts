@@ -521,6 +521,16 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 
 .actions { display: none; gap: 12px; margin-top: 22px; }
 .stack-wrap.js-active .actions { display: flex; }
+.stack-wrap.js-loop .actions,
+.stack-wrap.js-loop .swipe-hint { display: none; }
+
+.s-card-loop { align-items: center; justify-content: center; text-align: center; }
+.s-card-loop .s-card-top { justify-content: center; padding-left: 0; }
+.s-card-loop .s-loop-copy {
+  font-family: var(--font-rounded); font-weight: 600; font-size: 13px;
+  color: rgba(42,26,69,.6); margin: 0 0 20px; max-width: 380px;
+}
+.s-loop-btn { padding-left: 28px; padding-right: 28px; }
 .action-btn {
   flex: 1; font-family: var(--font-rounded); font-weight: 700; font-size: 15px;
   padding: 15px 0; border-radius: 999px; border: none; cursor: pointer;
