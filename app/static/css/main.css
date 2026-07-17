@@ -596,6 +596,13 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .pill-type-text { background: var(--mint); color: var(--mint-ink); }
 .pill-type-handwritten_note { background: #F3E4F7; color: #6A2D8A; }
 
+/* ---- Contact detail header ---- */
+.contact-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .contact-header-actions { width: 100%; }
+  .contact-header-actions .btn { flex: 1; justify-content: center; }
+}
+
 @media (max-width: 640px) {
   .list-row { flex-wrap: wrap; }
   .list-row-actions { flex-direction: row; width: 100%; }
