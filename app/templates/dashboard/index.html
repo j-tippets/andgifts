@@ -78,8 +78,7 @@
                     {% endfor %}
                   </select>
                 </label>
-                <button type="submit" class="btn btn-save-gift btn-small" form="s-approve-{{ s.id }}"
-                        formaction="{{ url_for('dashboard.edit_action', action_id=s.id) }}">Save gift choice</button>
+                <button type="submit" class="btn btn-save-gift" form="s-approve-{{ s.id }}">Save &amp; approve</button>
               </div>
             {% endif %}
 
@@ -162,8 +161,7 @@
                     {% endfor %}
                   </select>
                 </label>
-                <button type="submit" class="btn btn-save-gift btn-small" form="list-approve-{{ s.id }}"
-                        formaction="{{ url_for('dashboard.edit_action', action_id=s.id) }}">Save gift choice</button>
+                <button type="submit" class="btn btn-save-gift" form="list-approve-{{ s.id }}">Save &amp; approve</button>
               </div>
             {% endif %}
             {% if s.generated_message %}
