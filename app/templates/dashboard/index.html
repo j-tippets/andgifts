@@ -86,16 +86,14 @@
               <div class="s-quote">&ldquo;{{ s.generated_message }}&rdquo;</div>
             {% endif %}
 
-            {% if s.action_type != 'gift' %}
-              <details class="s-edit-disclosure">
-                <summary class="s-edit-toggle">Edit</summary>
-                <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
-                  <textarea name="generated_message" class="s-edit-textarea" rows="4"
-                            placeholder="Write your own {{ s.action_type.replace('_', ' ') }}&hellip;">{{ s.generated_message or '' }}</textarea>
-                  <button class="btn btn-tertiary btn-small" type="submit">Save text</button>
-                </form>
-              </details>
-            {% endif %}
+            <details class="s-edit-disclosure">
+              <summary class="s-edit-toggle">{{ 'Note' if s.action_type == 'gift' else 'Edit' }}</summary>
+              <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+                <textarea name="generated_message" class="s-edit-textarea" rows="4"
+                          placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
+                <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
+              </form>
+            </details>
 
             <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">
               <button class="btn btn-primary" type="submit">Approve</button>
@@ -168,16 +166,14 @@
               <p class="list-row-quote">&ldquo;{{ s.generated_message }}&rdquo;</p>
             {% endif %}
 
-            {% if s.action_type != 'gift' %}
-              <details class="s-edit-disclosure">
-                <summary class="s-edit-toggle">Edit</summary>
-                <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
-                  <textarea name="generated_message" class="s-edit-textarea" rows="3"
-                            placeholder="Write your own {{ s.action_type.replace('_', ' ') }}&hellip;">{{ s.generated_message or '' }}</textarea>
-                  <button class="btn btn-tertiary btn-small" type="submit">Save text</button>
-                </form>
-              </details>
-            {% endif %}
+            <details class="s-edit-disclosure">
+              <summary class="s-edit-toggle">{{ 'Note' if s.action_type == 'gift' else 'Edit' }}</summary>
+              <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+                <textarea name="generated_message" class="s-edit-textarea" rows="3"
+                          placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
+                <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
+              </form>
+            </details>
           </div>
           <div class="list-row-actions">
             <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" id="list-approve-{{ s.id }}">

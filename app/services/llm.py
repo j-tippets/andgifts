@@ -88,6 +88,37 @@ def _heuristic_pick_gift(contact, candidates):
     return ranked[0] if ranked else None
 
 
+def generate_gift_note(contact, event, gift_item, prompt_hint=None):
+    """Returns a short note to go with a gift suggestion -- something the
+    agent can attach to a physical gift or, later, send along with an
+    e-gift-card delivery -- explaining what it's for. Same fallback
+    contract as generate_message: real API call when a key is configured,
+    a plain template otherwise."""
+    client = _client()
+    if client is not None:
+        try:
+            gift_desc = f" ({gift_item.name})" if gift_item else ""
+            prompt = (
+                "Write a short, warm note (1-2 sentences) from a real estate agent to "
+                f"their client, {contact.household_name}, to go along with a gift{gift_desc} "
+                f"for their {event.display_label()}. {prompt_hint or ''}\n\n"
+                "Respond with ONLY the note text -- no preamble, no quotation marks."
+            )
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=150,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = _extract_text(response)
+            if text:
+                return text
+        except Exception:
+            pass  # fall through to the template below
+
+    base = f"Congratulations on your {event.display_label()}, {contact.household_name}!"
+    return f"{base} {prompt_hint}".strip() if prompt_hint else base
+
+
 def generate_message(prompt_hint, contact, event):
     """Returns a short customer-facing message string for an email/text/
     handwritten_note action."""
