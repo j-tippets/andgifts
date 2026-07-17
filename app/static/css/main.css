@@ -472,28 +472,30 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .s-card {
   position: absolute; inset: 0 0 auto 0; background: var(--paper-raised);
   border-radius: 24px; border: 1.5px solid var(--line);
-  padding: 24px 22px 20px; display: flex; flex-direction: column;
+  padding: 18px 20px 20px; display: flex; flex-direction: column;
   box-shadow: 0 14px 30px -18px rgba(42,26,69,.35);
   transition: transform .4s var(--ease), opacity .4s var(--ease);
   will-change: transform; user-select: none;
 }
-.s-card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.s-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .s-card-icon {
-  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.s-card-icon svg { width: 18px; height: 18px; }
+.s-card-icon svg { width: 15px; height: 15px; }
 .s-card-icon-gift { background: var(--gold-soft); color: var(--gold-ink); }
 .s-card-icon-email { background: #E4EEF7; color: #2A5D8A; }
 .s-card-icon-text { background: var(--mint); color: var(--mint-ink); }
 .s-card-icon-handwritten_note { background: #F3E4F7; color: #6A2D8A; }
+.s-card-household {
+  font-family: var(--font-rounded); font-weight: 700; font-size: 15.5px; margin: 0; line-height: 1.3;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .s-badge {
   font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px; letter-spacing: .03em;
   background: rgba(42,26,69,.06); color: var(--ink); padding: 4px 10px; border-radius: 999px;
   white-space: nowrap; flex-shrink: 0;
 }
-.s-card-who { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.s-card-who h3 { font-family: var(--font-rounded); font-weight: 700; font-size: 16.5px; margin: 0; line-height: 1.35; }
 .s-card-reason { font-size: 14px; line-height: 1.45; color: rgba(42,26,69,.7); margin: 0 0 14px; }
 .s-quote {
   background: var(--paper); border-radius: 14px; padding: 14px 16px;
@@ -565,13 +567,13 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .empty-state h3 { color: var(--ink); margin-bottom: 8px; }
 
 /* ---- Today: view toggle + list view ---- */
-.view-toggle { display: flex; gap: 4px; background: rgba(42,26,69,.06); border-radius: 999px; padding: 4px; flex-shrink: 0; }
+.view-toggle { display: flex; gap: 4px; background: rgba(42,26,69,.06); border-radius: 999px; padding: 3px; flex-shrink: 0; margin-left: auto; }
 .view-toggle-btn {
-  display: flex; align-items: center; gap: 6px; border: none; background: transparent;
-  font-family: var(--font-rounded); font-weight: 700; font-size: 13px; color: rgba(42,26,69,.55);
-  padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: background .16s var(--ease), color .16s var(--ease);
+  display: flex; align-items: center; gap: 5px; border: none; background: transparent;
+  font-family: var(--font-rounded); font-weight: 700; font-size: 12px; color: rgba(42,26,69,.55);
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; transition: background .16s var(--ease), color .16s var(--ease);
 }
-.view-toggle-btn svg { width: 15px; height: 15px; }
+.view-toggle-btn svg { width: 13px; height: 13px; }
 .view-toggle-btn:hover { color: var(--ink); }
 .view-toggle-btn.active { background: var(--paper-raised); color: var(--ink); box-shadow: 0 2px 6px -2px rgba(42,26,69,.25); }
 

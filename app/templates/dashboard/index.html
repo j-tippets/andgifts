@@ -4,14 +4,10 @@
 <div class="page-head with-action">
   <div>
     <!-- <div class="eyebrow">{{ "Today's suggestions" if ai_enabled else "Upcoming" }}</div> -->
-    <h1 style="margin-bottom:8px;">Today's Tasks</h1>
-    <p class="subdued" style="margin-bottom:0;">
-      {% if ai_enabled %}
-        Here's what's coming up in the next two weeks. Swipe right to approve, left to skip — or switch to the list to see everything at once.
-      {% else %}
-        Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.
-      {% endif %}
-    </p>
+    <h1 style="margin-bottom:0;">Today's Tasks</h1>
+    {% if not ai_enabled %}
+      <p class="subdued" style="margin-bottom:0;">Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.</p>
+    {% endif %}
   </div>
   {% if suggestions %}
     <div class="view-toggle" id="viewToggle" role="tablist">
@@ -53,17 +49,14 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
                 {% endif %}
               </div>
-              <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
-            </div>
-
-            <div class="s-card-who">
               {% if s.contact.photo_url %}
                 <img src="{{ s.contact.photo_url }}" alt="{{ s.contact.household_name }}" class="avatar avatar-sm">
               {% else %}
                 {% set head = s.contact.primary_person() %}
                 <div class="avatar avatar-sm avatar-placeholder">{{ ((head.first_name[:1] ~ head.last_name[:1]) if head else s.contact.household_name[:2])|upper }}</div>
               {% endif %}
-              <h3>{{ s.contact.household_name }}</h3>
+              <h3 class="s-card-household">{{ s.contact.household_name }}</h3>
+              <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
             </div>
 
             <p class="s-card-reason">{{ s.reason_text }}</p>
