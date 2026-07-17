@@ -521,6 +521,25 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .s-form { margin-top: 14px; display: inline-block; }
 .s-form + .s-form { margin-left: 8px; }
 .stack-wrap.js-active .s-form { display: none; }
+.stack-wrap.js-active .s-form-delete,
+.stack-wrap.js-active .s-form-edit { display: inline-block; }
+
+.btn-delete { background: transparent; color: var(--coral-deep); opacity: .7; border: 1.5px solid var(--line); }
+.btn-delete:hover { opacity: 1; border-color: var(--coral-deep); background: var(--paper-raised); }
+.btn-tertiary { background: transparent; color: var(--evergreen); border: 1.5px solid var(--line); }
+.btn-tertiary:hover { border-color: var(--evergreen); background: var(--paper-raised); }
+
+.s-edit-disclosure { margin: 4px 0 6px; }
+.s-edit-toggle {
+  cursor: pointer; font-family: var(--font-rounded); font-weight: 700; font-size: 12px;
+  letter-spacing: .03em; text-transform: uppercase; color: var(--evergreen-light);
+}
+.s-edit-hint { font-size: 12.5px; margin: 8px 0; }
+.s-edit-textarea {
+  width: 100%; box-sizing: border-box; font-family: var(--font-body); font-size: 13.5px;
+  padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper-raised);
+  resize: vertical; margin-bottom: 8px;
+}
 
 .stamp {
   position: absolute; top: 20px; width: 60px; height: 60px; border-radius: 50%;

@@ -25,13 +25,21 @@ class ContactAuditLog(db.Model):
         db.Enum(
             "created", "updated", "status_changed", "reassigned",
             "timeline_added", "timeline_updated", "deleted", "gift_ordered",
+            "action_deleted", "action_undeleted",
             name="contact_audit_action",
         ),
         nullable=False,
     )
     summary = db.Column(db.Text, nullable=False)
 
+    # Only set for action_deleted/action_undeleted entries -- lets the
+    # recent-activity list render an "Undelete" button that goes straight
+    # back to the SuggestedAction row. Nullable and not cascaded so the log
+    # entry stays legible even if the suggestion itself is later hard-deleted.
+    suggested_action_id = db.Column(db.String(36), db.ForeignKey("suggested_actions.id"), nullable=True, index=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     contact = db.relationship("Contact")
     actor = db.relationship("User")
+    suggested_action = db.relationship("SuggestedAction")

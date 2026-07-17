@@ -32,7 +32,7 @@ class SuggestedAction(db.Model):
     target_date = db.Column(db.Date, nullable=False)  # the date of the event this relates to
 
     status = db.Column(
-        db.Enum("pending", "approved", "skipped", "sent", name="suggested_action_status"),
+        db.Enum("pending", "approved", "skipped", "sent", "deleted", name="suggested_action_status"),
         default="pending",
         index=True,
     )
