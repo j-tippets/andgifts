@@ -477,31 +477,31 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   transition: transform .4s var(--ease), opacity .4s var(--ease);
   will-change: transform; user-select: none;
 }
-.s-card .accent { position: absolute; left: 0; top: 22px; bottom: 22px; width: 5px; border-radius: 4px; }
-.s-card.accent-gold .accent { background: var(--gold); }
-.s-card.accent-mint .accent { background: var(--mint); }
-.s-card.accent-coral .accent { background: var(--coral); }
-
-.s-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; padding-left: 12px; }
-.s-card-top h3 { font-family: var(--font-rounded); font-weight: 700; font-size: 16.5px; margin: 0; line-height: 1.35; }
+.s-card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.s-card-icon {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.s-card-icon svg { width: 18px; height: 18px; }
+.s-card-icon-gift { background: var(--gold-soft); color: var(--gold-ink); }
+.s-card-icon-email { background: #E4EEF7; color: #2A5D8A; }
+.s-card-icon-text { background: var(--mint); color: var(--mint-ink); }
+.s-card-icon-handwritten_note { background: #F3E4F7; color: #6A2D8A; }
 .s-badge {
   font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px; letter-spacing: .03em;
   background: rgba(42,26,69,.06); color: var(--ink); padding: 4px 10px; border-radius: 999px;
   white-space: nowrap; flex-shrink: 0;
 }
+.s-card-who { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.s-card-who h3 { font-family: var(--font-rounded); font-weight: 700; font-size: 16.5px; margin: 0; line-height: 1.35; }
+.s-card-reason { font-size: 14px; line-height: 1.45; color: rgba(42,26,69,.7); margin: 0 0 14px; }
 .s-quote {
   background: var(--paper); border-radius: 14px; padding: 14px 16px;
   font-style: italic; font-size: 14px; line-height: 1.55; color: rgba(42,26,69,.85);
-  margin: 0 0 14px 12px;
+  margin: 0 0 14px;
 }
-.s-meta {
-  display: flex; gap: 8px; flex-wrap: wrap; padding-left: 12px;
-  font-family: var(--font-rounded); font-weight: 700; font-size: 11px; letter-spacing: .03em;
-  color: rgba(42,26,69,.5); margin-top: auto;
-}
-.s-meta span:not(:last-child)::after { content: "\00b7"; margin-left: 8px; opacity: .6; }
 
-.s-form { padding-left: 12px; margin-top: 14px; display: inline-block; }
+.s-form { margin-top: 14px; display: inline-block; }
 .s-form + .s-form { margin-left: 8px; }
 .stack-wrap.js-active .s-form { display: none; }
 
