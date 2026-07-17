@@ -57,6 +57,9 @@ def generate_suggestions_for_org(org, today=None):
         if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
             continue
 
+        if _permanently_deleted(org.id, event.contact_id, event.id):
+            continue
+
         gift_trigger = _match_gift_trigger(org.id, event, available_item_ids)
         reason = _build_reason_text(event, occurrence_date, gift_trigger)
 
@@ -99,6 +102,22 @@ def _suggestion_exists(org_id, contact_id, event_id, target_date):
             contact_id=contact_id,
             triggering_event_id=event_id,
             target_date=target_date,
+        ).exists()
+    ).scalar()
+
+
+def _permanently_deleted(org_id, contact_id, event_id):
+    """True if the agent has ever deleted a suggestion tied to this exact
+    (contact, event) pair -- deliberately NOT scoped to target_date, so a
+    deleted suggestion for a recurring annual event suppresses next year's
+    occurrence too, not just the one that was deleted. This is what
+    distinguishes 'delete' from 'skip': skip only affects that one date."""
+    return db.session.query(
+        SuggestedAction.query.filter_by(
+            org_id=org_id,
+            contact_id=contact_id,
+            triggering_event_id=event_id,
+            status="deleted",
         ).exists()
     ).scalar()
 
@@ -195,6 +214,9 @@ def generate_campaign_suggestions_for_org(org, today=None):
                 if _campaign_suggestion_exists(org.id, campaign.id, contact.id, event.id, trigger_date):
                     continue
 
+                if _campaign_permanently_deleted(org.id, campaign.id, contact.id, event.id):
+                    continue
+
                 if not campaign_rules.evaluate_rules(campaign, contact, event, org, today):
                     continue
 
@@ -260,6 +282,21 @@ def _campaign_suggestion_exists(org_id, campaign_id, contact_id, event_id, targe
             contact_id=contact_id,
             triggering_event_id=event_id,
             target_date=target_date,
+        ).exists()
+    ).scalar()
+
+
+def _campaign_permanently_deleted(org_id, campaign_id, contact_id, event_id):
+    """Same idea as _permanently_deleted for the GiftTrigger path, but
+    scoped per campaign_id so deleting this campaign's suggestion for an
+    event doesn't suppress a different campaign matching that same event."""
+    return db.session.query(
+        SuggestedAction.query.filter_by(
+            org_id=org_id,
+            source_campaign_id=campaign_id,
+            contact_id=contact_id,
+            triggering_event_id=event_id,
+            status="deleted",
         ).exists()
     ).scalar()
 

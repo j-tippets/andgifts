@@ -85,11 +85,30 @@
               <div class="s-quote">&ldquo;{{ s.generated_message }}&rdquo;</div>
             {% endif %}
 
+            <details class="s-edit-disclosure">
+              <summary class="s-edit-toggle">Edit</summary>
+              {% if s.action_type == 'gift' %}
+                <p class="subdued s-edit-hint">Pick a different gift above, then save it here without approving yet.</p>
+                <button type="submit" class="btn btn-tertiary btn-small" form="s-approve-{{ s.id }}"
+                        formaction="{{ url_for('dashboard.edit_action', action_id=s.id) }}">Save gift choice</button>
+              {% else %}
+                <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+                  <textarea name="generated_message" class="s-edit-textarea" rows="4"
+                            placeholder="Write your own {{ s.action_type.replace('_', ' ') }}&hellip;">{{ s.generated_message or '' }}</textarea>
+                  <button class="btn btn-tertiary btn-small" type="submit">Save text</button>
+                </form>
+              {% endif %}
+            </details>
+
             <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">
               <button class="btn btn-primary" type="submit">Approve</button>
             </form>
             <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
               <button class="btn btn-skip" type="submit">Skip</button>
+            </form>
+            <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
+                  onsubmit="return confirm('Delete this suggestion? It won\'t be suggested again, but you can undelete it later from {{ s.contact.household_name }}\'s recent activity.');">
+              <button class="btn btn-delete btn-small" type="submit">Delete</button>
             </form>
           </div>
         {% endfor %}
@@ -150,6 +169,21 @@
             {% if s.generated_message %}
               <p class="list-row-quote">&ldquo;{{ s.generated_message }}&rdquo;</p>
             {% endif %}
+
+            <details class="s-edit-disclosure">
+              <summary class="s-edit-toggle">Edit</summary>
+              {% if s.action_type == 'gift' %}
+                <p class="subdued s-edit-hint">Pick a different gift above, then save it here without approving yet.</p>
+                <button type="submit" class="btn btn-tertiary btn-small" form="list-approve-{{ s.id }}"
+                        formaction="{{ url_for('dashboard.edit_action', action_id=s.id) }}">Save gift choice</button>
+              {% else %}
+                <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+                  <textarea name="generated_message" class="s-edit-textarea" rows="3"
+                            placeholder="Write your own {{ s.action_type.replace('_', ' ') }}&hellip;">{{ s.generated_message or '' }}</textarea>
+                  <button class="btn btn-tertiary btn-small" type="submit">Save text</button>
+                </form>
+              {% endif %}
+            </details>
           </div>
           <div class="list-row-actions">
             <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" id="list-approve-{{ s.id }}">
@@ -157,6 +191,10 @@
             </form>
             <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}">
               <button class="btn btn-skip btn-small" type="submit">Deny</button>
+            </form>
+            <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}"
+                  onsubmit="return confirm('Delete this suggestion? It won\'t be suggested again, but you can undelete it later from {{ s.contact.household_name }}\'s recent activity.');">
+              <button class="btn btn-delete btn-small" type="submit">Delete</button>
             </form>
           </div>
         </div>

@@ -87,6 +87,11 @@
             <div style="margin-bottom:10px;">
               <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
               <div class="subdued">{{ entry.summary }}</div>
+              {% if entry.action == 'action_deleted' and entry.suggested_action and entry.suggested_action.status == 'deleted' %}
+                <form method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
+                  <button class="btn btn-tertiary btn-small" type="submit">Undelete</button>
+                </form>
+              {% endif %}
             </div>
           {% endfor %}
         {% else %}
