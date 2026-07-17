@@ -528,6 +528,12 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .btn-delete:hover { opacity: 1; border-color: var(--coral-deep); background: var(--paper-raised); }
 .btn-tertiary { background: transparent; color: var(--evergreen); border: 1.5px solid var(--line); }
 .btn-tertiary:hover { border-color: var(--evergreen); background: var(--paper-raised); }
+.btn-save-gift {
+  background: var(--mint-ink); color: #fff; box-shadow: 0 3px 0 #142d1f;
+  align-self: flex-start;
+}
+.btn-save-gift:hover { transform: translateY(-2px); box-shadow: 0 5px 0 #142d1f; }
+.btn-save-gift:active { transform: translateY(1px); box-shadow: 0 1px 0 #142d1f; }
 
 .s-edit-disclosure { margin: 4px 0 6px; }
 .s-edit-toggle {
