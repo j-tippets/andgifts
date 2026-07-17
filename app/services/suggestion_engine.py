@@ -63,13 +63,19 @@ def generate_suggestions_for_org(org, today=None):
         gift_trigger = _match_gift_trigger(org.id, event, available_item_ids)
         reason = _build_reason_text(event, occurrence_date, gift_trigger)
 
+        note = None
+        if gift_trigger and gift_trigger.suggested_gift:
+            note = llm.generate_gift_note(event.contact, event, gift_trigger.suggested_gift)
+
         suggestion = SuggestedAction(
             org_id=org.id,
             contact_id=event.contact_id,
             triggering_event_id=event.id,
+            source_campaign_id=None,
             action_type="gift" if gift_trigger else "email",
             suggested_gift_id=gift_trigger.suggested_gift_id if gift_trigger else None,
             reason_text=reason,
+            generated_message=note,
             target_date=occurrence_date,
             status="pending",
         )
@@ -227,6 +233,8 @@ def generate_campaign_suggestions_for_org(org, today=None):
                 message = None
                 if campaign.action_type in ("email", "text", "handwritten_note"):
                     message = _resolve_campaign_message(campaign, contact, event)
+                elif campaign.action_type == "gift" and gift_item:
+                    message = llm.generate_gift_note(contact, event, gift_item)
 
                 reason = _build_campaign_reason_text(campaign, contact, event, gift_item, gift_reasoning)
 
@@ -394,6 +402,8 @@ def preview_flow_matches(spec, contacts, org, today=None, limit=20):
             message = None
             if spec.action_type in ("email", "text", "handwritten_note"):
                 message = _resolve_campaign_message(spec, contact, event)
+            elif spec.action_type == "gift" and gift_item:
+                message = llm.generate_gift_note(contact, event, gift_item)
 
             results.append({
                 "contact_name": contact.household_name,

@@ -48,6 +48,8 @@ def approve_action(action_id):
 
     if action.action_type == "gift" and action.suggested_gift:
         detail = f"{action.suggested_gift.name} (${action.suggested_gift.price_cents / 100:.2f})"
+        if action.generated_message:
+            detail += f" \u2014 note: {action.generated_message}"
         cost_cents = action.suggested_gift.price_cents
     else:
         detail = action.generated_message or action.reason_text
@@ -149,7 +151,8 @@ def edit_action(action_id):
             available_ids = {g.id for g in current_user.org.available_catalog_items()}
             if chosen_gift_id in available_ids:
                 action.suggested_gift_id = chosen_gift_id
-    else:
+
+    if "generated_message" in request.form:
         new_message = request.form.get("generated_message", "").strip()
         action.generated_message = new_message or None
 
