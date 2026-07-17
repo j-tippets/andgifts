@@ -1,58 +1,101 @@
 {% extends "base.html" %}
 {% block title %}Today — Ag{% endblock %}
 {% block content %}
-<div class="page-head">
-  <!-- <div class="eyebrow">{{ "Today's suggestions" if ai_enabled else "Upcoming" }}</div> -->
-  <h1 style="margin-bottom:8px;">Today's Tasks</h1>
-  <p class="subdued" style="margin-bottom:0;">
-    {% if ai_enabled %}
-      Here's what's coming up in the next two weeks. Swipe right to approve, left to skip.
-    {% else %}
-      Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.
-    {% endif %}
-  </p>
+<div class="page-head with-action">
+  <div>
+    <!-- <div class="eyebrow">{{ "Today's suggestions" if ai_enabled else "Upcoming" }}</div> -->
+    <h1 style="margin-bottom:8px;">Today's Tasks</h1>
+    <p class="subdued" style="margin-bottom:0;">
+      {% if ai_enabled %}
+        Here's what's coming up in the next two weeks. Swipe right to approve, left to skip — or switch to the list to see everything at once.
+      {% else %}
+        Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.
+      {% endif %}
+    </p>
+  </div>
+  {% if suggestions %}
+    <div class="view-toggle" id="viewToggle" role="tablist">
+      <button type="button" class="view-toggle-btn active" data-view="cards" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="13" height="16" rx="2"/><path d="M9 3h11a2 2 0 0 1 2 2v11"/></svg>
+        Cards
+      </button>
+      <button type="button" class="view-toggle-btn" data-view="list" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        List
+      </button>
+    </div>
+  {% endif %}
 </div>
 
 {% if suggestions %}
-  <div class="progress-label" id="progressLabel">1 of {{ suggestions|length }}</div>
-  <div class="progress" id="progress"></div>
+  <div class="view-panel" id="cardsView">
+    <div class="progress-label" id="progressLabel">1 of {{ suggestions|length }}</div>
+    <div class="progress" id="progress"></div>
 
-  <div class="stack-wrap" id="stackWrap">
-    <div class="stack" id="stack">
-      {% for s in suggestions %}
-        <div class="s-card accent-{{ loop.cycle('gold', 'mint', 'coral') }}" data-index="{{ loop.index0 }}">
-          <div class="accent"></div>
-          <div class="stamp approve">&#10003;</div>
-          <div class="stamp skip">&#10005;</div>
-          <div class="s-card-top">
-            <h3>{{ s.reason_text }}</h3>
-            <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
+    <div class="stack-wrap" id="stackWrap">
+      <div class="stack" id="stack">
+        {% for s in suggestions %}
+          <div class="s-card accent-{{ loop.cycle('gold', 'mint', 'coral') }}" data-index="{{ loop.index0 }}">
+            <div class="accent"></div>
+            <div class="stamp approve">&#10003;</div>
+            <div class="stamp skip">&#10005;</div>
+            <div class="s-card-top">
+              <h3>{{ s.reason_text }}</h3>
+              <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
+            </div>
+            {% if s.generated_message %}
+              <div class="s-quote">&ldquo;{{ s.generated_message }}&rdquo;</div>
+            {% endif %}
+            <div class="s-meta"><span>{{ s.action_type.replace('_', ' ')|capitalize }}</span><span>{{ s.contact.household_name }}</span></div>
+            <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve">
+              <button class="btn btn-primary" type="submit">Approve</button>
+            </form>
+            <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
+              <button class="btn btn-skip" type="submit">Skip</button>
+            </form>
           </div>
-          {% if s.generated_message %}
-            <div class="s-quote">&ldquo;{{ s.generated_message }}&rdquo;</div>
-          {% endif %}
-          <div class="s-meta"><span>{{ s.action_type.replace('_', ' ')|capitalize }}</span><span>{{ s.contact.household_name }}</span></div>
-          <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve">
-            <button class="btn btn-primary" type="submit">Approve</button>
-          </form>
-          <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
-            <button class="btn btn-skip" type="submit">Skip</button>
-          </form>
-        </div>
-      {% endfor %}
+        {% endfor %}
 
-      <div class="empty-state-flip" id="emptyState">
-        <div class="empty-badge">&#127881;</div>
-        <h3>You're all caught up</h3>
-        <p>New suggestions will show up here as timeline events approach.</p>
+        <div class="empty-state-flip" id="emptyState">
+          <div class="empty-badge">&#127881;</div>
+          <h3>You're all caught up</h3>
+          <p>New suggestions will show up here as timeline events approach.</p>
+        </div>
+      </div>
+
+      <p class="swipe-hint" id="swipeHint">&larr; skip &middot; approve &rarr;</p>
+
+      <div class="actions" id="actionsRow">
+        <button class="action-btn skip" type="button" id="btnSkip">&#10005; Skip</button>
+        <button class="action-btn approve" type="button" id="btnApprove">&#10003; Approve</button>
       </div>
     </div>
+  </div>
 
-    <p class="swipe-hint" id="swipeHint">&larr; skip &middot; approve &rarr;</p>
-
-    <div class="actions" id="actionsRow">
-      <button class="action-btn skip" type="button" id="btnSkip">&#10005; Skip</button>
-      <button class="action-btn approve" type="button" id="btnApprove">&#10003; Approve</button>
+  <div class="view-panel" id="listView" hidden>
+    <div class="list-rows">
+      {% for s in suggestions %}
+        <div class="list-row">
+          <span class="status-pill pill-type-{{ s.action_type }}">{{ s.action_type.replace('_', ' ')|capitalize }}</span>
+          <div class="list-row-info">
+            <h4>{{ s.reason_text }}</h4>
+            <div class="sub">
+              {{ s.contact.household_name }} &middot; {{ s.target_date.strftime('%b %-d') }}{% if s.suggested_gift %} &middot; {{ s.suggested_gift.name }}{% endif %}
+            </div>
+            {% if s.generated_message %}
+              <p class="list-row-quote">&ldquo;{{ s.generated_message }}&rdquo;</p>
+            {% endif %}
+          </div>
+          <div class="list-row-actions">
+            <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}">
+              <button class="btn btn-primary btn-small" type="submit">Approve</button>
+            </form>
+            <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}">
+              <button class="btn btn-skip btn-small" type="submit">Deny</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
     </div>
   </div>
 {% else %}
@@ -63,4 +106,5 @@
 {% endif %}
 
 <script src="{{ url_for('static', filename='js/today.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dashboard-view-toggle.js') }}" defer></script>
 {% endblock %}
