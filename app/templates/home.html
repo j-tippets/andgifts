@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}&amp;Gifts{% endblock %}
+{% block auth_content %}
+<div style="max-width:380px; margin:100px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; text-align:center;">
+  <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
+  <p class="subdued" style="margin:16px 0 24px;">Milestone-triggered gifting for real estate agents.</p>
+  <a href="{{ url_for('auth.login') }}" class="btn btn-primary" style="width:100%; justify-content:center; margin-bottom:10px;">Log in</a>
+  <a href="{{ url_for('auth.register') }}" class="btn btn-ghost" style="width:100%; justify-content:center;">Create an account</a>
+</div>
+{% endblock %}

@@ -44,6 +44,15 @@ def create_app(config_name=None):
     app.register_blueprint(orders_bp)
     app.register_blueprint(settings_bp)
 
+    @app.route("/")
+    def home():
+        from flask import render_template, redirect, url_for
+        from flask_login import current_user
+
+        if current_user.is_authenticated:
+            return redirect(url_for("dashboard.index"))
+        return render_template("home.html")
+
     @app.route("/sw.js")
     def service_worker():
         # Served from root (not /static/sw.js) so the browser's default
