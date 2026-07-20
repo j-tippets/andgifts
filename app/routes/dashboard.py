@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import SuggestedAction, ActionLog, ContactAuditLog
 from app.services.suggestion_engine import generate_suggestions_for_org, generate_campaign_suggestions_for_org
+from app.services.email import send_flow_action_email
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -55,6 +56,19 @@ def approve_action(action_id):
         detail = action.generated_message or action.reason_text
         cost_cents = None
 
+    # "email" is the first action type wired up to an actual send (the
+    # others -- gift fulfillment, text, handwritten_note -- are still
+    # manual for now). A failed send does NOT block the approval or roll
+    # anything back: the agent's decision to approve stands, we just
+    # record that it didn't go out automatically so it surfaces in the
+    # reports and they know to follow up by hand.
+    delivery_status = None
+    delivery_error = None
+    if action.action_type == "email":
+        delivered, error = send_flow_action_email(action, current_user.full_name)
+        delivery_status = "sent" if delivered else "failed"
+        delivery_error = error
+
     # MVP: log it immediately. Real send (email/SMS/gift fulfillment API call)
     # gets wired in as its own service once channels are built.
     db.session.add(ActionLog(
@@ -64,7 +78,13 @@ def approve_action(action_id):
         action_type=action.action_type,
         detail=detail,
         cost_cents=cost_cents,
+        delivery_status=delivery_status,
+        delivery_error=delivery_error,
     ))
+    audit_summary = _action_summary_for_log(action, "Approved")
+    if delivery_status == "failed":
+        audit_summary += f" Email did not send automatically: {delivery_error}"
+
     db.session.add(ContactAuditLog(
         org_id=action.org_id,
         contact_id=action.contact_id,
@@ -72,11 +92,14 @@ def approve_action(action_id):
         actor_user_id=current_user.id,
         actor_name_snapshot=current_user.full_name,
         action="action_approved",
-        summary=_action_summary_for_log(action, "Approved"),
+        summary=audit_summary,
         suggested_action_id=action.id,
     ))
     db.session.commit()
-    flash("Action approved and queued.", "success")
+    if delivery_status == "failed":
+        flash(f"Approved, but the email didn't send automatically: {delivery_error}", "error")
+    else:
+        flash("Action approved and queued.", "success")
     return redirect(request.referrer or url_for("dashboard.index"))
 
 

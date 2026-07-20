@@ -61,6 +61,27 @@ class Contact(db.Model):
     def primary_person(self):
         return next((p for p in self.people if p.household_role == "head"), self.people[0] if self.people else None)
 
+    def primary_email(self):
+        """Best email address to reach this household at: the head of
+        household's primary email if set, else the first email found on
+        the head, else the first email found on anyone in the household.
+        Returns None if nobody has one on file."""
+        head = self.primary_person()
+        if head:
+            primary = next(
+                (m.value for m in head.contact_methods if m.method_type == "email" and m.is_primary), None
+            )
+            if primary:
+                return primary
+            any_head_email = next((m.value for m in head.contact_methods if m.method_type == "email"), None)
+            if any_head_email:
+                return any_head_email
+        for person in self.people:
+            for method in person.contact_methods:
+                if method.method_type == "email":
+                    return method.value
+        return None
+
     @staticmethod
     def visible_to(query, user):
         """

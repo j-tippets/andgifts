@@ -49,6 +49,32 @@ def send_email(to_email, subject, html_content):
         return False
 
 
+def send_flow_action_email(action, sender_name):
+    """Sends an approved flow 'email' action's message to the contact.
+    Returns (delivered, error_message) -- error_message is None on
+    success, and set to a short human-readable reason on failure (no
+    email on file, or the SendGrid send itself failing) so it can be
+    stored on the ActionLog and shown in the reports."""
+    to_email = action.contact.primary_email()
+    if not to_email:
+        return False, "No email address on file for this contact."
+
+    body_text = action.generated_message or action.reason_text
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <p>{body_text}</p>
+      <p style="color:#6B6459; font-size:13px;">&mdash; {sender_name}</p>
+    </div>
+    """
+    subject = f"A note from {sender_name}"
+
+    delivered = send_email(to_email, subject, html)
+    if not delivered:
+        if not current_app.config.get("SENDGRID_API_KEY"):
+            return False, "SendGrid isn't configured for this environment."
+        return False, "SendGrid send failed. Check the app logs, or try sending manually."
+    return True, None
+
 def send_order_confirmation(order):
     """Order confirmation sent to the agent who placed it (not the
     contact) -- this is a receipt for what the agent bought on the
