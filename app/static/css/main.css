@@ -526,8 +526,8 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 
 .btn-delete { background: transparent; color: var(--coral-deep); opacity: .7; border: 1.5px solid var(--line); }
 .btn-delete:hover { opacity: 1; border-color: var(--coral-deep); background: var(--paper-raised); }
-.btn-tertiary { background: transparent; color: var(--evergreen); border: 1.5px solid var(--line); }
-.btn-tertiary:hover { border-color: var(--evergreen); background: var(--paper-raised); }
+.btn-tertiary { background: var(--paper-raised); color: var(--evergreen); border: 1.5px solid var(--line); }
+.btn-tertiary:hover { border-color: var(--evergreen); background: #fff; }
 .btn-save-gift {
   background: var(--mint-ink); color: #fff; box-shadow: 0 3px 0 #142d1f;
   width: 100%; justify-content: center;
@@ -535,16 +535,35 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .btn-save-gift:hover { transform: translateY(-2px); box-shadow: 0 5px 0 #142d1f; }
 .btn-save-gift:active { transform: translateY(1px); box-shadow: 0 1px 0 #142d1f; }
 
-.s-edit-disclosure { margin: 4px 0 6px; }
+/* Note/Edit disclosure -- a real chip-style toggle instead of the bare
+   native <summary> (default triangle marker + browser focus outline box,
+   which is what made this look like a raw form control rather than part
+   of the card's design system). */
+.s-edit-disclosure { margin: 12px 0 6px; }
 .s-edit-toggle {
-  cursor: pointer; font-family: var(--font-rounded); font-weight: 700; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 7px;
+  cursor: pointer; font-family: var(--font-rounded); font-weight: 700; font-size: 11.5px;
   letter-spacing: .03em; text-transform: uppercase; color: var(--evergreen-light);
+  padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--line);
+  background: var(--paper); list-style: none;
+  transition: background .16s var(--ease), border-color .16s var(--ease);
 }
+.s-edit-toggle::-webkit-details-marker { display: none; }
+.s-edit-toggle::marker { content: ""; }
+.s-edit-toggle:hover { background: var(--paper-raised); border-color: var(--evergreen-light); }
+.s-edit-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(58,107,74,.25); }
+.s-edit-toggle::before {
+  content: ""; width: 6px; height: 6px; margin-top: -2px; flex-shrink: 0;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg); transition: transform .16s var(--ease);
+}
+.s-edit-disclosure[open] > .s-edit-toggle::before { transform: rotate(-135deg); margin-top: 2px; }
 .s-edit-hint { font-size: 12.5px; margin: 8px 0; }
 .s-edit-textarea {
-  width: 100%; box-sizing: border-box; font-family: var(--font-body); font-size: 13.5px;
-  padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper-raised);
-  resize: vertical; margin-bottom: 8px;
+  width: 100%; box-sizing: border-box; font-family: var(--font-body); font-size: 13.5px; line-height: 1.5;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper-raised);
+  resize: vertical; margin: 10px 0 8px; outline: none;
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
 }
 
 .stamp {
