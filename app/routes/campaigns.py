@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact
+from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact, User
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
@@ -228,28 +228,75 @@ def list_campaigns():
 @campaigns_bp.route("/actions")
 @login_required
 def actions_report():
-    """Org-wide report of actions: everything still pending (Upcoming)
-    and everything already logged as sent/approved (Recently completed),
-    across every flow and every agent -- same org-wide scope as the
-    Today dashboard, not filtered to just the current user's own flows."""
+    """Report of actions: everything still pending (Upcoming) and
+    everything already logged as sent/approved (Recently completed).
+
+    Agency admins see every action across the org, with an optional
+    filter down to one agent. A single agent only ever sees their own:
+    actions from their own flows, or (for the older non-flow path)
+    actions on contacts privately owned by them or shared org-wide."""
     org_id = current_user.org_id
-    upcoming = (
+    selected_agent = request.args.get("agent", "").strip()
+
+    upcoming_query = (
         SuggestedAction.query
         .filter_by(org_id=org_id, status="pending")
-        .order_by(SuggestedAction.target_date)
-        .all()
+        .outerjoin(Campaign, SuggestedAction.source_campaign_id == Campaign.id)
+        .join(Contact, SuggestedAction.contact_id == Contact.id)
     )
-    recently_completed = (
+    completed_query = (
         ActionLog.query
         .filter_by(org_id=org_id)
-        .order_by(ActionLog.sent_at.desc())
-        .limit(50)
-        .all()
+        .outerjoin(SuggestedAction, ActionLog.suggested_action_id == SuggestedAction.id)
+        .outerjoin(Campaign, SuggestedAction.source_campaign_id == Campaign.id)
+        .join(Contact, ActionLog.contact_id == Contact.id)
     )
+
+    if not current_user.is_admin:
+        upcoming_query = upcoming_query.filter(db.or_(
+            Campaign.owner_user_id == current_user.id,
+            db.and_(
+                SuggestedAction.source_campaign_id.is_(None),
+                db.or_(Contact.owner_user_id == current_user.id, Contact.owner_user_id.is_(None)),
+            ),
+        ))
+        completed_query = completed_query.filter(db.or_(
+            ActionLog.approved_by_user_id == current_user.id,
+            Campaign.owner_user_id == current_user.id,
+            db.and_(
+                SuggestedAction.source_campaign_id.is_(None),
+                db.or_(Contact.owner_user_id == current_user.id, Contact.owner_user_id.is_(None)),
+            ),
+        ))
+    elif selected_agent == "unassigned":
+        upcoming_query = upcoming_query.filter(
+            SuggestedAction.source_campaign_id.is_(None), Contact.owner_user_id.is_(None)
+        )
+        completed_query = completed_query.filter(ActionLog.approved_by_user_id.is_(None))
+    elif selected_agent:
+        upcoming_query = upcoming_query.filter(db.or_(
+            Campaign.owner_user_id == selected_agent,
+            db.and_(SuggestedAction.source_campaign_id.is_(None), Contact.owner_user_id == selected_agent),
+        ))
+        completed_query = completed_query.filter(ActionLog.approved_by_user_id == selected_agent)
+
+    upcoming = upcoming_query.order_by(SuggestedAction.target_date).all()
+    recently_completed = completed_query.order_by(ActionLog.sent_at.desc()).limit(50).all()
+
+    agents = None
+    if current_user.is_admin:
+        agents = (
+            User.query.filter_by(org_id=org_id, status="active")
+            .order_by(User.first_name, User.last_name)
+            .all()
+        )
+
     return render_template(
         "campaigns/actions.html",
         upcoming=upcoming,
         recently_completed=recently_completed,
+        agents=agents,
+        selected_agent=selected_agent,
     )
 
 

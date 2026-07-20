@@ -45,6 +45,17 @@ class SuggestedAction(db.Model):
     suggested_gift = db.relationship("GiftCatalogItem")
     source_campaign = db.relationship("Campaign")
 
+    @property
+    def owning_agent(self):
+        """Best guess at which agent this suggestion 'belongs to', for the
+        actions report and its per-agent filter: the flow's owner if it
+        came from a personal flow, else whoever privately owns the
+        contact. None for a shared contact with no owning flow -- those
+        are org-wide/legacy and aren't any one agent's."""
+        if self.source_campaign_id:
+            return self.source_campaign.owner if self.source_campaign else None
+        return self.contact.owner if self.contact else None
+
 
 class ActionLog(db.Model):
     """
@@ -71,7 +82,25 @@ class ActionLog(db.Model):
     delivery_status = db.Column(db.Enum("sent", "failed", name="action_log_delivery_status"), nullable=True)
     delivery_error = db.Column(db.Text, nullable=True)
 
+    # Which agent actually approved this -- used for the "who did what"
+    # column/filter on the org-wide actions report. Nullable because it's
+    # only set going forward (backfilled from ContactAuditLog for existing
+    # rows where that history exists); a NULL here just means "unknown",
+    # not "nobody".
+    approved_by_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     contact = db.relationship("Contact")
     suggested_action = db.relationship("SuggestedAction")
+    approved_by = db.relationship("User", foreign_keys=[approved_by_user_id])
+
+    @property
+    def owning_agent(self):
+        """Who to credit this completed action to: whoever actually
+        approved it if we know that, else fall back to the suggestion's
+        owning agent (covers old rows from before approved_by_user_id
+        existed, in the rare case the backfill didn't find a match)."""
+        if self.approved_by_user_id:
+            return self.approved_by
+        return self.suggested_action.owning_agent if self.suggested_action else None
