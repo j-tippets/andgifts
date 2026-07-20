@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, Contact
+from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
@@ -29,6 +29,20 @@ def _has_pending_actions(campaign):
     return db.session.query(
         SuggestedAction.query.filter_by(source_campaign_id=campaign.id, status="pending").exists()
     ).scalar()
+
+
+def _resulting_actions(campaign, limit=25):
+    """Actions that resulted from this specific flow -- the completed/sent
+    record (ActionLog), joined back through the SuggestedAction that
+    generated it, most recent first."""
+    return (
+        ActionLog.query
+        .join(SuggestedAction, ActionLog.suggested_action_id == SuggestedAction.id)
+        .filter(SuggestedAction.source_campaign_id == campaign.id)
+        .order_by(ActionLog.sent_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def _can_manage_recipe(recipe):
@@ -211,6 +225,34 @@ def list_campaigns():
     return render_template("campaigns/list.html", my_campaigns=my_campaigns)
 
 
+@campaigns_bp.route("/actions")
+@login_required
+def actions_report():
+    """Org-wide report of actions: everything still pending (Upcoming)
+    and everything already logged as sent/approved (Recently completed),
+    across every flow and every agent -- same org-wide scope as the
+    Today dashboard, not filtered to just the current user's own flows."""
+    org_id = current_user.org_id
+    upcoming = (
+        SuggestedAction.query
+        .filter_by(org_id=org_id, status="pending")
+        .order_by(SuggestedAction.target_date)
+        .all()
+    )
+    recently_completed = (
+        ActionLog.query
+        .filter_by(org_id=org_id)
+        .order_by(ActionLog.sent_at.desc())
+        .limit(50)
+        .all()
+    )
+    return render_template(
+        "campaigns/actions.html",
+        upcoming=upcoming,
+        recently_completed=recently_completed,
+    )
+
+
 @campaigns_bp.route("/book")
 @login_required
 def recipe_book():
@@ -251,7 +293,7 @@ def add_from_recipe(recipe_id):
     db.session.add(campaign)
     db.session.commit()
 
-    flash(f"Added \u201c{campaign.name}\u201d to your campaigns.", "success")
+    flash(f"Added \u201c{campaign.name}\u201d to your flows.", "success")
     return redirect(url_for("campaigns.list_campaigns"))
 
 
@@ -444,6 +486,7 @@ def campaign_edit(campaign_id):
             campaign=campaign,
             rule_values=_rule_form_values(campaign),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
+            resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )
 
@@ -465,6 +508,7 @@ def campaign_edit(campaign_id):
             preview_results=preview_results,
             preview_scope_label=scope_label,
             previewed_spec=spec,
+            resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )
 

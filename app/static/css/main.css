@@ -102,6 +102,25 @@ button { font-family: inherit; }
 .topbar .nav-links a.active { opacity: 1; background: var(--paper-raised); box-shadow: 0 1px 0 var(--line) inset; }
 .topbar .nav-links a:hover { opacity: 1; }
 
+/* ---- Sub-tabs within a top-level section (e.g. Flows: Your flows / Actions) ---- */
+.subtab-links { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.subtab-links a {
+  font-family: var(--font-rounded);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 8px 4px;
+  margin-bottom: -1px;
+  color: var(--ink);
+  opacity: .55;
+  border-bottom: 2px solid transparent;
+  transition: opacity .2s var(--ease), border-color .2s var(--ease);
+}
+.subtab-links a + a { margin-left: 14px; }
+.subtab-links a.active { opacity: 1; border-color: var(--coral); }
+.subtab-links a:hover { opacity: 1; }
+
+
 .account-chip {
   display: flex;
   align-items: center;

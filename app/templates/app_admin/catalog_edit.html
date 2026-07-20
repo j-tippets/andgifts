@@ -52,7 +52,7 @@
   <h2>{{ 'Deactivate' if item.is_active else 'Reactivate' }} this item</h2>
   <p class="subdued">
     {% if item.is_active %}
-      Hides it from future campaign matching without deleting its history. Safe even if it's referenced by a trigger.
+      Hides it from future flow matching without deleting its history. Safe even if it's referenced by a trigger.
     {% else %}
       Makes it available for suggestions and manual sends again, across every agency.
     {% endif %}
@@ -66,7 +66,7 @@
   <h2>Delete this item</h2>
   {% if trigger_count %}
     <div class="flash flash-error">
-      {{ item.name }} is used by {{ trigger_count }} campaign trigger{{ 's' if trigger_count != 1 else '' }}.
+      {{ item.name }} is used by {{ trigger_count }} flow trigger{{ 's' if trigger_count != 1 else '' }}.
       Remove those triggers first, or deactivate instead of deleting.
     </div>
   {% else %}
