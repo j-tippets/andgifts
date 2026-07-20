@@ -27,12 +27,43 @@ from dateutil.relativedelta import relativedelta
 from app.extensions import db
 from app.models import (
     TimelineEvent, SuggestedAction, GiftTrigger, GiftCatalogItem, Contact,
-    Campaign, User,
+    Campaign, User, ContactAuditLog,
 )
 from app.services import llm
 from app.services import campaign_rules
 
 LOOKAHEAD_DAYS = 14
+
+
+def _log_qualified(suggestion, contact):
+    """Records that a contact newly qualified for a suggested action --
+    fired the moment a SuggestedAction row is created, from either
+    generation path. Not tied to a user (this runs unattended, e.g. from
+    the on-demand dashboard generation or a future cron job), so it's
+    attributed to "System" the same way Stripe-driven ActionLog entries
+    are attributed to "Stripe checkout" rather than a real user.
+    suggestion.id must already be flushed to the DB before this is
+    called, since it's stored as a FK on the log row."""
+    kind = suggestion.action_type.replace("_", " ")
+    if suggestion.action_type == "gift" and suggestion.suggested_gift_id:
+        gift = GiftCatalogItem.query.get(suggestion.suggested_gift_id)
+        summary = (
+            f"Qualified for a suggested gift \u2014 {gift.name} \u2014 for {contact.household_name}."
+            if gift else f"Qualified for a suggested gift for {contact.household_name}."
+        )
+    else:
+        summary = f"Qualified for a suggested {kind} for {contact.household_name}."
+
+    db.session.add(ContactAuditLog(
+        org_id=suggestion.org_id,
+        contact_id=contact.id,
+        contact_name_snapshot=contact.household_name,
+        actor_user_id=None,
+        actor_name_snapshot="System",
+        action="action_suggested",
+        summary=summary,
+        suggested_action_id=suggestion.id,
+    ))
 
 
 def generate_suggestions_for_org(org, today=None):
@@ -80,6 +111,8 @@ def generate_suggestions_for_org(org, today=None):
             status="pending",
         )
         db.session.add(suggestion)
+        db.session.flush()  # populate suggestion.id before logging the FK reference
+        _log_qualified(suggestion, event.contact)
         created.append(suggestion)
 
     if created:
@@ -251,6 +284,8 @@ def generate_campaign_suggestions_for_org(org, today=None):
                     status="pending",
                 )
                 db.session.add(suggestion)
+                db.session.flush()  # populate suggestion.id before logging the FK reference
+                _log_qualified(suggestion, contact)
                 created.append(suggestion)
 
     if created:

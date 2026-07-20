@@ -237,6 +237,12 @@ def view_contact(contact_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
+    pending_actions = (
+        SuggestedAction.query
+        .filter_by(contact_id=contact.id, status="pending")
+        .order_by(SuggestedAction.target_date)
+        .all()
+    )
     recent_activity = (
         ContactAuditLog.query.filter_by(contact_id=contact.id)
         .order_by(ContactAuditLog.created_at.desc())
@@ -250,6 +256,7 @@ def view_contact(contact_id):
         event_types=STANDARD_EVENT_TYPES,
         custom_fields=_visible_custom_fields(),
         custom_values=custom_values,
+        pending_actions=pending_actions,
         recent_activity=recent_activity,
         action_log_count=action_log_count,
     )
