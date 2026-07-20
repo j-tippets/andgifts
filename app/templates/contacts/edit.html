@@ -158,9 +158,7 @@
 </form>
 
 <div class="danger-zone">
-  <h2>Remove this contact</h2>
-  <p class="subdued">Permanently delete {{ contact.household_name }} and their timeline. This can't be undone.</p>
-  <a href="#" onclick="document.getElementById('delete-contact-dialog').showModal(); return false;" class="btn btn-danger">Delete contact</a>
+  <a href="#" onclick="document.getElementById('delete-contact-dialog').showModal(); return false;" class="subdued" style="color:var(--danger); text-decoration:underline; font-size:13px;">Delete the contact</a>
 </div>
 
 <dialog id="delete-contact-dialog" class="confirm-dialog">
