@@ -22,7 +22,7 @@
           <div class="timeline-item">
             <div class="timeline-date">{{ a.target_date.strftime('%b %-d, %Y') }}</div>
             <strong>
-              {{ type_icon(a.action_type) }}
+              <span class="action-type-icon">{{ type_icon(a.action_type) }}</span>
               {{ a.action_type.replace('_', ' ')|capitalize }}
               &mdash;
               <a href="{{ url_for('contacts.view_contact', contact_id=a.contact_id) }}">{{ a.contact.household_name }}</a>
@@ -53,7 +53,7 @@
           <div class="timeline-item">
             <div class="timeline-date">{{ entry.sent_at.strftime('%b %-d, %Y %-I:%M %p') }}</div>
             <strong>
-              {{ type_icon(entry.action_type) }}
+              <span class="action-type-icon">{{ type_icon(entry.action_type) }}</span>
               {{ entry.action_type.replace('_', ' ')|capitalize }}
               &mdash;
               <a href="{{ url_for('contacts.view_contact', contact_id=entry.contact_id) }}">{{ entry.contact.household_name }}</a>
