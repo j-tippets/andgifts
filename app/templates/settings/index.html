@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Settings — Ag{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+  <div class="eyebrow">{{ current_user.org.name }}</div>
+  <h1>Settings</h1>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+  <a href="{{ url_for('contacts.manage_fields') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Custom fields</strong>
+    <span class="subdued"><small>Add fields for your own contacts, or &mdash; if you're an admin &mdash; fields every agent in {{ current_user.org.name }} sees.</small></span>
+  </a>
+
+  <a href="{{ url_for('profile.edit_profile') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Profile</strong>
+    <span class="subdued"><small>Your name, email, photo, and password.</small></span>
+  </a>
+
+  {% if current_user.is_admin %}
+    <a href="{{ url_for('team.list_members') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Team</strong>
+      <span class="subdued"><small>Invite agents, manage roles and access.</small></span>
+    </a>
+  {% endif %}
+</div>
+{% endblock %}

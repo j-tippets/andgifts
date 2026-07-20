@@ -65,6 +65,7 @@
       <span class="account-menu-plan">{{ current_user.org.tier|capitalize }} plan</span>
     </div>
     <a href="{{ url_for('profile.edit_profile') }}">Profile</a>
+    <a href="{{ url_for('settings.index') }}">Settings</a>
     {% if current_user.is_admin %}
       <a href="{{ url_for('team.list_members') }}">Team</a>
     {% endif %}
