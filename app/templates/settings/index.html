@@ -12,6 +12,11 @@
     <span class="subdued"><small>Add fields for your own contacts, or &mdash; if you're an admin &mdash; fields every agent in {{ current_user.org.name }} sees.</small></span>
   </a>
 
+  <a href="{{ url_for('contacts.manage_event_types') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Milestone events</strong>
+    <span class="subdued"><small>Add your own timeline milestones on top of the built-ins, or &mdash; if you're an admin &mdash; ones every agent shares.</small></span>
+  </a>
+
   <a href="{{ url_for('profile.edit_profile') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
     <strong>Profile</strong>
     <span class="subdued"><small>Your name, email, photo, and password.</small></span>

@@ -4,8 +4,8 @@
     <div class="field">
       <label>Event type</label>
       <select name="event_type" class="timeline-event-type" data-label-target="timeline-label-field-{{ fid }}">
-        {% for et in event_types %}
-          <option value="{{ et }}" {{ 'selected' if event and event.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
+        {% for et, et_label in event_types %}
+          <option value="{{ et }}" {{ 'selected' if event and event.event_type == et else '' }}>{{ et_label }}</option>
         {% endfor %}
       </select>
     </div>

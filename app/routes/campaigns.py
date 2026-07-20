@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact, User
-from app.models.timeline import STANDARD_EVENT_TYPES
+from app.models.timeline import STANDARD_EVENT_TYPES, CustomEventType
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
 from app.services import campaign_rules
@@ -56,10 +56,34 @@ def _can_manage_recipe(recipe):
     )
 
 
+def _org_event_type_choices():
+    """(key, label) pairs for the local Flow Library's trigger dropdown:
+    built-ins plus this org's shared (org-scope) milestones. Personal
+    milestones are deliberately excluded -- a local recipe is a shared
+    team template any agent can copy, so it can't rely on a milestone
+    that's private to whichever admin happened to author it."""
+    standard = [(t, t.replace("_", " ").title()) for t in STANDARD_EVENT_TYPES if t != "custom"]
+    org_types = (
+        CustomEventType.query.filter_by(org_id=current_user.org_id, scope="org")
+        .order_by(CustomEventType.label).all()
+    )
+    return standard + [(t.key, t.label) for t in org_types]
+
+
+def _personal_event_type_choices():
+    """(key, label) pairs for a personal flow's trigger dropdown:
+    built-ins, this org's shared milestones, and this agent's own
+    personal milestones."""
+    standard = [(t, t.replace("_", " ").title()) for t in STANDARD_EVENT_TYPES if t != "custom"]
+    query = CustomEventType.query.filter_by(org_id=current_user.org_id)
+    visible = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
+    return standard + [(t.key, t.label) for t in visible]
+
+
 def _recipe_form_kwargs():
     """Shared dropdown data for the local-recipe new/edit forms."""
     return dict(
-        event_types=STANDARD_EVENT_TYPES,
+        event_types=_org_event_type_choices(),
         gift_items=current_user.org.available_catalog_items(),
     )
 
@@ -132,7 +156,7 @@ def _org_contacts_query():
 def _campaign_form_kwargs():
     """Shared dropdown data for the campaign wizard."""
     return dict(
-        event_types=STANDARD_EVENT_TYPES,
+        event_types=_personal_event_type_choices(),
         gift_items=current_user.org.available_catalog_items(),
     )
 
