@@ -102,7 +102,7 @@
               <button class="btn btn-skip" type="submit">Skip</button>
             </form>
             <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
-                  onsubmit="return confirm('Delete this suggestion? It won\'t be suggested again, but you can undelete it later from {{ s.contact.household_name }}\'s recent activity.');">
+                  onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
               <button class="btn btn-delete btn-small" type="submit">Delete</button>
             </form>
           </div>
@@ -183,7 +183,7 @@
               <button class="btn btn-skip btn-small" type="submit">Deny</button>
             </form>
             <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}"
-                  onsubmit="return confirm('Delete this suggestion? It won\'t be suggested again, but you can undelete it later from {{ s.contact.household_name }}\'s recent activity.');">
+                  onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
               <button class="btn btn-delete btn-small" type="submit">Delete</button>
             </form>
           </div>

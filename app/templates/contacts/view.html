@@ -74,12 +74,24 @@
           <div class="s-quote">&ldquo;{{ a.generated_message }}&rdquo;</div>
         {% endif %}
 
+        <details class="s-edit-disclosure">
+          <summary class="s-edit-toggle">{{ 'Note' if a.action_type == 'gift' else 'Edit' }}</summary>
+          <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=a.id) }}" class="s-form s-form-edit">
+            <textarea name="generated_message" class="s-edit-textarea" rows="3"
+                      placeholder="{{ 'Add a note about what this gift is for…' if a.action_type == 'gift' else 'Write your own ' ~ a.action_type.replace('_', ' ') ~ '…' }}">{{ a.generated_message or '' }}</textarea>
+            <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if a.action_type == 'gift' else 'text' }}</button>
+          </form>
+        </details>
+
         <div style="display:flex; gap:8px; margin-top:14px;">
           <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=a.id) }}">
             <button class="btn btn-primary btn-small" type="submit">Accept</button>
           </form>
+          <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=a.id) }}">
+            <button class="btn btn-skip btn-small" type="submit">Ignore</button>
+          </form>
           <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=a.id) }}"
-                onsubmit="return confirm('Delete this suggestion? It won\'t be suggested again, but you can undelete it later from the recent activity below.');">
+                onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but this contact can still qualify next time -- you can also undelete it from the recent activity below.');">
             <button class="btn btn-delete btn-small" type="submit">Delete</button>
           </form>
         </div>

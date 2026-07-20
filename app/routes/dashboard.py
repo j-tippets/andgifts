@@ -87,17 +87,19 @@ def skip_action(action_id):
     action.status = "skipped"
     action.resolved_at = datetime.utcnow()
     db.session.commit()
-    return redirect(url_for("dashboard.index"))
+    return redirect(request.referrer or url_for("dashboard.index"))
 
 
 @dashboard_bp.route("/actions/<action_id>/delete", methods=["POST"])
 @login_required
 def delete_action(action_id):
-    """Stronger than skip: hides the action AND stops it from ever being
-    suggested again, including future occurrences of a recurring event
-    (see _permanently_deleted / _campaign_permanently_deleted in the
-    suggestion engine). Logged to the contact's activity feed so it can be
-    undone from there if it was a mistake."""
+    """Hides the action and stops THIS occurrence from ever regenerating
+    (the (contact, event, target_date) tuple stays taken -- see
+    _suggestion_exists / _campaign_suggestion_exists in the suggestion
+    engine), but does NOT block a future occurrence of a recurring event:
+    a deleted purchase-anniversary gift this year still lets the contact
+    qualify for next year's anniversary. Logged to the contact's activity
+    feed so it can be undone from there if it was a mistake."""
     action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
     action.status = "deleted"
     action.resolved_at = datetime.utcnow()
@@ -113,7 +115,7 @@ def delete_action(action_id):
         suggested_action_id=action.id,
     ))
     db.session.commit()
-    flash("Deleted. This won't be suggested again.", "success")
+    flash("Deleted. It won't reappear for this occurrence, but the contact can still qualify next time.", "success")
     return redirect(request.referrer or url_for("dashboard.index"))
 
 
