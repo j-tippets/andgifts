@@ -65,3 +65,4 @@ class ActionLog(db.Model):
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     contact = db.relationship("Contact")
+    suggested_action = db.relationship("SuggestedAction")

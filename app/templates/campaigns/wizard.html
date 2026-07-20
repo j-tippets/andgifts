@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }} — Campaigns{% endblock %}
+{% block title %}{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }} — Flows{% endblock %}
 {% block content %}
 <div class="page-head with-action">
   <div>
     <h1>{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }}</h1>
     <p class="subdued" style="margin-top:4px;"><small>Applies only to your own contacts.</small></p>
   </div>
-  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Campaigns</a>
+  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Flows</a>
 </div>
 
 <div class="wizard-steps">
@@ -177,6 +177,30 @@
 {% endif %}
 
 {% if campaign %}
+{% from "dashboard/_type_icon.html" import type_icon %}
+<div class="form-section" style="margin-top:28px;">
+  <h3 class="form-section-title">Actions from this flow</h3>
+  {% if resulting_actions %}
+    <div class="timeline">
+      {% for entry in resulting_actions %}
+        <div class="timeline-item">
+          <div class="timeline-date">{{ entry.sent_at.strftime('%b %-d, %Y %-I:%M %p') }}</div>
+          <strong>
+            {{ type_icon(entry.action_type) }}
+            {{ entry.action_type.replace('_', ' ')|capitalize }}
+            &mdash;
+            <a href="{{ url_for('contacts.view_contact', contact_id=entry.contact_id) }}">{{ entry.contact.household_name }}</a>
+          </strong>
+          {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
+          {% if entry.cost_cents %}<div class="subdued">${{ '%.2f'|format(entry.cost_cents / 100) }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="subdued">No actions have resulted from this flow yet.</p>
+  {% endif %}
+</div>
+
 <div class="form-section" style="margin-top:28px;">
   <h3 class="form-section-title">{{ 'Pause' if campaign.is_active else 'Resume' }} this flow</h3>
   <p class="subdued" style="margin-bottom:12px;">

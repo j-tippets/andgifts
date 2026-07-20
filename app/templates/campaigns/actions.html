@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Actions — Ag{% endblock %}
+{% block content %}
+{% from "dashboard/_type_icon.html" import type_icon %}
+<div class="subtab-links">
+  <a href="{{ url_for('campaigns.list_campaigns') }}">Your flows</a>
+  <a href="{{ url_for('campaigns.actions_report') }}" class="active">Actions</a>
+</div>
+<div class="page-head">
+  <div>
+    <h1>Actions</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Every action across all flows, org-wide &mdash; not just your own.</small></p>
+  </div>
+</div>
+
+<div class="contact-card">
+  <div class="contact-card-section">
+    <h2>Upcoming</h2>
+    {% if upcoming %}
+      <div class="timeline">
+        {% for a in upcoming %}
+          <div class="timeline-item">
+            <div class="timeline-date">{{ a.target_date.strftime('%b %-d, %Y') }}</div>
+            <strong>
+              {{ type_icon(a.action_type) }}
+              {{ a.action_type.replace('_', ' ')|capitalize }}
+              &mdash;
+              <a href="{{ url_for('contacts.view_contact', contact_id=a.contact_id) }}">{{ a.contact.household_name }}</a>
+            </strong>
+            <div class="subdued">
+              {% if a.source_campaign %}
+                From flow: <a href="{{ url_for('campaigns.campaign_edit', campaign_id=a.source_campaign_id) }}">{{ a.source_campaign.name }}</a>
+              {% else %}
+                Not tied to a flow
+              {% endif %}
+            </div>
+            <div class="subdued">{{ a.reason_text }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="subdued">Nothing pending right now.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="contact-card" style="margin-top:20px;">
+  <div class="contact-card-section">
+    <h2>Recently completed</h2>
+    {% if recently_completed %}
+      <div class="timeline">
+        {% for entry in recently_completed %}
+          <div class="timeline-item">
+            <div class="timeline-date">{{ entry.sent_at.strftime('%b %-d, %Y %-I:%M %p') }}</div>
+            <strong>
+              {{ type_icon(entry.action_type) }}
+              {{ entry.action_type.replace('_', ' ')|capitalize }}
+              &mdash;
+              <a href="{{ url_for('contacts.view_contact', contact_id=entry.contact_id) }}">{{ entry.contact.household_name }}</a>
+            </strong>
+            <div class="subdued">
+              {% if entry.suggested_action and entry.suggested_action.source_campaign %}
+                From flow: <a href="{{ url_for('campaigns.campaign_edit', campaign_id=entry.suggested_action.source_campaign_id) }}">{{ entry.suggested_action.source_campaign.name }}</a>
+              {% else %}
+                Not tied to a flow
+              {% endif %}
+            </div>
+            {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
+            {% if entry.cost_cents %}<div class="subdued">${{ '%.2f'|format(entry.cost_cents / 100) }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="subdued">Nothing completed yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

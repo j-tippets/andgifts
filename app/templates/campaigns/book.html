@@ -3,12 +3,12 @@
 {% block content %}
 <div class="page-head with-action">
   <div>
-    <div class="eyebrow">Campaign templates</div>
+    <div class="eyebrow">Flow templates</div>
     <h1>Flow Library</h1>
     <p class="subdued" style="margin-top:6px; max-width:520px;"><small>Global flows from the &amp;Gifts team, plus your agency's own local flows. Add one to make it yours &mdash; editing or deleting the original here never touches a copy you've already added.</small></p>
   </div>
   <div style="display:flex; gap:8px; flex-shrink:0;">
-    <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Campaigns</a>
+    <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Flows</a>
     {% if current_user.is_admin %}
       <a href="{{ url_for('campaigns.library_new') }}" class="btn btn-primary">+ Create local flow</a>
     {% endif %}

@@ -1,13 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Campaigns — Ag{% endblock %}
+{% block title %}Flows — Ag{% endblock %}
 {% block content %}
+<div class="subtab-links">
+  <a href="{{ url_for('campaigns.list_campaigns') }}" class="active">Your flows</a>
+  <a href="{{ url_for('campaigns.actions_report') }}">Actions</a>
+</div>
 <div class="page-head with-action">
   <div>
     <h1>
-      Campaigns
+      Flows
       <span class="info-icon" tabindex="0">
         <span aria-hidden="true">i</span>
-        <span class="info-icon-popover">Every campaign only ever creates a pending suggestion on the dashboard for you to approve or skip &mdash; nothing sends automatically. Want something the whole team can use? Add it to your agency's <a href="{{ url_for('campaigns.recipe_book') }}">Flow Library</a> instead &mdash; each agent (including you) adds their own copy from there.</span>
+        <span class="info-icon-popover">Every flow only ever creates a pending suggestion on the dashboard for you to approve or skip &mdash; nothing sends automatically. Want something the whole team can use? Add it to your agency's <a href="{{ url_for('campaigns.recipe_book') }}">Flow Library</a> instead &mdash; each agent (including you) adds their own copy from there.</span>
       </span>
     </h1>
   </div>
