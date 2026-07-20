@@ -145,6 +145,43 @@ def undelete_action(action_id):
     return redirect(request.referrer or url_for("contacts.view_contact", contact_id=action.contact_id))
 
 
+@dashboard_bp.route("/actions/<action_id>/unapprove", methods=["POST"])
+@login_required
+def unapprove_action(action_id):
+    """Undoes an approval: puts the suggestion back to pending (so it's
+    editable again via edit_action and reappears as an active-event card
+    on the Today tab / contact page), and removes the ActionLog row that
+    approve_action created -- that row is the permanent spend/tax record,
+    and it shouldn't survive an undone approval, both because it was
+    never accurate to begin with and because re-approving later would
+    otherwise create a second, duplicate ActionLog entry for the same
+    suggestion. Only called from the contact's Recent Activity list,
+    next to the action_approved entry it's undoing -- same pattern as
+    undelete_action next to action_deleted."""
+    action = SuggestedAction.query.filter_by(
+        id=action_id, org_id=current_user.org_id, status="approved"
+    ).first_or_404()
+
+    ActionLog.query.filter_by(suggested_action_id=action.id).delete(synchronize_session=False)
+
+    action.status = "pending"
+    action.resolved_at = None
+
+    db.session.add(ContactAuditLog(
+        org_id=action.org_id,
+        contact_id=action.contact_id,
+        contact_name_snapshot=action.contact.household_name,
+        actor_user_id=current_user.id,
+        actor_name_snapshot=current_user.full_name,
+        action="action_unapproved",
+        summary=_action_summary_for_log(action, "Un-approved"),
+        suggested_action_id=action.id,
+    ))
+    db.session.commit()
+    flash("Approval undone. It's back to pending -- edit it and re-approve when it's ready.", "success")
+    return redirect(request.referrer or url_for("contacts.view_contact", contact_id=action.contact_id))
+
+
 @dashboard_bp.route("/actions/<action_id>/edit", methods=["POST"])
 @login_required
 def edit_action(action_id):

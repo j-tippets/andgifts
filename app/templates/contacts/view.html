@@ -152,6 +152,11 @@
                 <form method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
                   <button class="btn btn-tertiary btn-small" type="submit">Undelete</button>
                 </form>
+              {% elif entry.action == 'action_approved' and entry.suggested_action and entry.suggested_action.status == 'approved' %}
+                <form method="POST" action="{{ url_for('dashboard.unapprove_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;"
+                      onsubmit="return confirm('Undo this approval? It goes back to pending so you can edit it, and its spend/tax record is removed.');">
+                  <button class="btn btn-tertiary btn-small" type="submit">Undo approval</button>
+                </form>
               {% endif %}
             </div>
           {% endfor %}

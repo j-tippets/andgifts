@@ -26,7 +26,7 @@ class ContactAuditLog(db.Model):
             "created", "updated", "status_changed", "reassigned",
             "timeline_added", "timeline_updated", "deleted", "gift_ordered",
             "action_deleted", "action_undeleted",
-            "action_suggested", "action_approved",
+            "action_suggested", "action_approved", "action_unapproved",
             name="contact_audit_action",
         ),
         nullable=False,
