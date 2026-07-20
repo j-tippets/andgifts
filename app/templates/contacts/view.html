@@ -235,35 +235,6 @@
   </form>
 </div>
 
-<div style="text-align:center; margin-top:8px;">
-  <a href="#" onclick="document.getElementById('delete-contact-dialog').showModal(); return false;"
-     class="subdued" style="color:var(--danger); text-decoration:underline; font-size:13px;">
-    Delete this contact
-  </a>
-</div>
-
-<dialog id="delete-contact-dialog" class="confirm-dialog">
-  <form method="post" action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}">
-    <h2 style="color:var(--danger);">Delete {{ contact.household_name }}?</h2>
-    <p class="subdued">This permanently removes the contact and their timeline. This can't be undone.</p>
-    {% if action_log_count %}
-      <div class="flash flash-error">
-        {{ contact.household_name }} has {{ action_log_count }} sent-gift record{{ 's' if action_log_count != 1 else '' }} on file
-        (used for spend/tax tracking). Deleting this contact will delete {{ 'those records' if action_log_count != 1 else 'that record' }} too.
-      </div>
-      <label class="checkbox-chip" style="margin-bottom:12px;">
-        <input type="checkbox" name="confirm_delete_history" value="1" required>
-        I understand — delete {{ contact.household_name }}'s {{ action_log_count }} sent-gift record{{ 's' if action_log_count != 1 else '' }} along with this contact
-      </label><br>
-    {% endif %}
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-ghost"
-              onclick="document.getElementById('delete-contact-dialog').close();">Cancel</button>
-      <button type="submit" class="btn btn-danger">Delete contact</button>
-    </div>
-  </form>
-</dialog>
-
 <script>
   (function () {
     function toggleLabelField(select) {
