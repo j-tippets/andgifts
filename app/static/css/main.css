@@ -499,6 +499,9 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .s-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
 .s-type-pill { display: inline-flex; align-items: center; gap: 5px; }
 .s-type-pill svg { width: 12px; height: 12px; }
+
+.action-type-icon { display: inline-flex; vertical-align: -3px; margin-right: 4px; }
+.action-type-icon svg { width: 15px; height: 15px; }
 .s-card-who { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .s-card-who h3 { font-family: var(--font-rounded); font-weight: 700; font-size: 16px; margin: 0; line-height: 1.3; }
 .s-badge {
