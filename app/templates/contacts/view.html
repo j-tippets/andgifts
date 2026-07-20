@@ -39,6 +39,55 @@
       {% endif %}
 </div>
 
+{% if pending_actions %}
+  {% from "dashboard/_type_icon.html" import type_icon %}
+  {% for a in pending_actions %}
+    <div class="contact-card" style="margin-top:20px;">
+      <div class="contact-card-section">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <span class="status-pill s-type-pill pill-type-{{ a.action_type }}">
+            {{ type_icon(a.action_type) }}
+            {{ a.action_type.replace('_', ' ')|capitalize }}
+          </span>
+          <span class="s-badge">{{ a.target_date.strftime('%b %-d') }}</span>
+        </div>
+
+        <p class="s-card-reason">{{ a.reason_text }}</p>
+
+        {% if a.action_type == 'gift' %}
+          <div class="s-gift-box">
+            <div class="s-gift-info">
+              {% if a.suggested_gift and a.suggested_gift.image_url %}
+                <img src="{{ a.suggested_gift.image_url }}" alt="" class="s-gift-thumb">
+              {% else %}
+                <div class="s-gift-thumb s-gift-thumb-placeholder">{{ type_icon('gift') }}</div>
+              {% endif %}
+              <div>
+                <div class="s-gift-name">{{ a.suggested_gift.name if a.suggested_gift else 'No gift selected yet' }}</div>
+                {% if a.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(a.suggested_gift.price_cents / 100) }}</div>{% endif %}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if a.generated_message %}
+          <div class="s-quote">&ldquo;{{ a.generated_message }}&rdquo;</div>
+        {% endif %}
+
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=a.id) }}">
+            <button class="btn btn-primary btn-small" type="submit">Accept</button>
+          </form>
+          <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=a.id) }}"
+                onsubmit="return confirm('Delete this suggestion? It won\'t be suggested again, but you can undelete it later from the recent activity below.');">
+            <button class="btn btn-delete btn-small" type="submit">Delete</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}
+
 <div class="contact-card" style="margin-top:28px;">
   <div class="contact-card-section">
     <h2>People</h2>

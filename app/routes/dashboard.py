@@ -65,9 +65,19 @@ def approve_action(action_id):
         detail=detail,
         cost_cents=cost_cents,
     ))
+    db.session.add(ContactAuditLog(
+        org_id=action.org_id,
+        contact_id=action.contact_id,
+        contact_name_snapshot=action.contact.household_name,
+        actor_user_id=current_user.id,
+        actor_name_snapshot=current_user.full_name,
+        action="action_approved",
+        summary=_action_summary_for_log(action, "Approved"),
+        suggested_action_id=action.id,
+    ))
     db.session.commit()
     flash("Action approved and queued.", "success")
-    return redirect(url_for("dashboard.index"))
+    return redirect(request.referrer or url_for("dashboard.index"))
 
 
 @dashboard_bp.route("/actions/<action_id>/skip", methods=["POST"])
@@ -104,7 +114,7 @@ def delete_action(action_id):
     ))
     db.session.commit()
     flash("Deleted. This won't be suggested again.", "success")
-    return redirect(url_for("dashboard.index"))
+    return redirect(request.referrer or url_for("dashboard.index"))
 
 
 @dashboard_bp.route("/actions/<action_id>/undelete", methods=["POST"])
