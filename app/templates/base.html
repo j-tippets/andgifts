@@ -32,7 +32,7 @@
 
   <!-- Mobile top bar -->
   <header class="mobile-topbar">
-    <center><img class="mobile-topbar-logo" src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_white.svg" height="70px" alt="&amp;Gifts"></center>
+    <center><a href="{{ url_for('dashboard.index') }}"><img class="mobile-topbar-logo" src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_white.svg" height="70px" alt="&amp;Gifts"></a></center>
     <button class="hamburger-btn" id="accountToggleMobile" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
@@ -41,7 +41,7 @@
   <!-- Desktop top nav -->
   <header class="topbar">
     <div class="nav-left">
-      <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts">
+      <a href="{{ url_for('dashboard.index') }}" class="nav-logo-link"><img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts"></a>
       <nav class="nav-links">
         {% for endpoint_prefix, href, label, key in nav_items %}
           <a href="{{ href }}" class="{{ 'active' if (request.endpoint == endpoint_prefix or (request.endpoint and request.endpoint.startswith(endpoint_prefix))) }}">{{ label }}</a>
