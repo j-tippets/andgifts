@@ -9,9 +9,30 @@
 <div class="page-head">
   <div>
     <h1>Actions</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Every action across all flows, org-wide &mdash; not just your own.</small></p>
+    <p class="subdued" style="margin-top:4px;">
+      <small>
+        {% if agents is not none %}
+          Every action across the agency &mdash; use the filter below to narrow it to one agent.
+        {% else %}
+          Your actions across all your flows.
+        {% endif %}
+      </small>
+    </p>
   </div>
 </div>
+
+{% if agents is not none %}
+  <form method="get" style="margin-bottom:20px; display:flex; align-items:center; gap:10px;">
+    <label for="agent-filter" class="subdued"><small>Agent</small></label>
+    <select name="agent" id="agent-filter" onchange="this.form.submit()">
+      <option value="" {{ 'selected' if not selected_agent }}>Everyone</option>
+      <option value="unassigned" {{ 'selected' if selected_agent == 'unassigned' }}>Unassigned / shared</option>
+      {% for agent in agents %}
+        <option value="{{ agent.id }}" {{ 'selected' if selected_agent == agent.id }}>{{ agent.full_name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+{% endif %}
 
 <div class="contact-card">
   <div class="contact-card-section">
@@ -34,6 +55,9 @@
                 Not tied to a flow
               {% endif %}
             </div>
+            {% if agents is not none %}
+              <div class="subdued">Agent: {{ a.owning_agent.full_name if a.owning_agent else 'Unassigned / shared' }}</div>
+            {% endif %}
             <div class="subdued">{{ a.reason_text }}</div>
           </div>
         {% endfor %}
@@ -65,6 +89,9 @@
                 Not tied to a flow
               {% endif %}
             </div>
+            {% if agents is not none %}
+              <div class="subdued">Agent: {{ entry.owning_agent.full_name if entry.owning_agent else 'Unassigned / shared' }}</div>
+            {% endif %}
             {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
             {% if entry.delivery_status == 'sent' %}
               <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Emailed</span>

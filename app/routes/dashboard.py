@@ -80,6 +80,7 @@ def approve_action(action_id):
         cost_cents=cost_cents,
         delivery_status=delivery_status,
         delivery_error=delivery_error,
+        approved_by_user_id=current_user.id,
     ))
     audit_summary = _action_summary_for_log(action, "Approved")
     if delivery_status == "failed":
