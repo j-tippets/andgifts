@@ -62,6 +62,15 @@ class ActionLog(db.Model):
     detail = db.Column(db.Text, nullable=True)  # e.g. gift name + price, or email subject line
     cost_cents = db.Column(db.Integer, nullable=True)  # for spend tracking / tax export
 
+    # Automated-send tracking. NULL for action types that aren't wired up to
+    # an actual send yet (gift fulfillment, text, handwritten_note) -- those
+    # stay manual for now, so this column simply doesn't apply to them.
+    # "email" is the first channel with a real send behind it (SendGrid);
+    # 'sent' / 'failed' record whether that actually went out, with the
+    # reason in delivery_error when it didn't.
+    delivery_status = db.Column(db.Enum("sent", "failed", name="action_log_delivery_status"), nullable=True)
+    delivery_error = db.Column(db.Text, nullable=True)
+
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     contact = db.relationship("Contact")
