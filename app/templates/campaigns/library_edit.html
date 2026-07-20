@@ -28,8 +28,8 @@
       <div class="field">
         <label>Event</label>
         <select name="event_type" required>
-          {% for et in event_types %}
-            <option value="{{ et }}" {{ 'selected' if recipe.event_type == et else '' }}>{{ et.replace('_', ' ')|title }}</option>
+          {% for et, et_label in event_types %}
+            <option value="{{ et }}" {{ 'selected' if recipe.event_type == et else '' }}>{{ et_label }}</option>
           {% endfor %}
         </select>
       </div>

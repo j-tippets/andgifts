@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Milestone events — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Settings</div>
+    <h1>Milestone events</h1>
+  </div>
+  <a href="{{ url_for('settings.index') }}" class="btn btn-ghost">&larr; Settings</a>
+</div>
+
+<h2>Built-in milestones</h2>
+<p class="subdued">Every agency starts with these &mdash; can't be renamed or removed.</p>
+{% for t in standard_event_types %}
+  <div class="team-row static-row">
+    <div><strong>{{ t.replace('_', ' ')|title }}</strong></div>
+  </div>
+{% endfor %}
+
+<h2 style="margin-top:28px;">Organization milestones</h2>
+<p class="subdued">Visible and usable by everyone in {{ current_user.org.name }} &mdash; on contact timelines and as flow triggers.</p>
+
+{% if org_types %}
+  {% for t in org_types %}
+    <div class="team-row static-row">
+      <div><strong>{{ t.label }}</strong></div>
+      {% if current_user.is_admin %}
+        <form method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=t.id) }}"
+              onsubmit="return confirm('Remove the {{ t.label }} milestone? Timeline events and flows already using it keep working, it just won\'t be offered as an option going forward.');">
+          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">No organization-wide milestones yet.</p>
+{% endif %}
+
+{% if current_user.is_admin %}
+<details style="margin-top:12px; margin-bottom:32px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add organization milestone</summary>
+  <form method="post" action="{{ url_for('contacts.new_event_type') }}" style="margin-top:14px;">
+    <input type="hidden" name="scope" value="org">
+    <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. 5 Year Anniversary" required></div>
+    <button type="submit" class="btn btn-primary">Add milestone</button>
+  </form>
+</details>
+{% else %}
+<p class="subdued" style="margin-bottom:32px;"><small>Only an org admin can add or remove organization-wide milestones.</small></p>
+{% endif %}
+
+<h2>My milestones</h2>
+<p class="subdued">Only usable by you, on any contact you can see.</p>
+
+{% if my_types %}
+  {% for t in my_types %}
+    <div class="team-row static-row">
+      <div><strong>{{ t.label }}</strong></div>
+      <form method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=t.id) }}"
+            onsubmit="return confirm('Remove your {{ t.label }} milestone? Timeline events and flows already using it keep working, it just won\'t be offered as an option going forward.');">
+        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+      </form>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">You haven't added any personal milestones yet.</p>
+{% endif %}
+
+<details style="margin-top:12px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add personal milestone</summary>
+  <form method="post" action="{{ url_for('contacts.new_event_type') }}" style="margin-top:14px;">
+    <input type="hidden" name="scope" value="personal">
+    <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. Kid started kindergarten" required></div>
+    <button type="submit" class="btn btn-primary">Add milestone</button>
+  </form>
+</details>
+{% endblock %}

@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import (
     Contact, ContactPerson, ContactMethod,
-    TimelineEvent, STANDARD_EVENT_TYPES,
+    TimelineEvent, STANDARD_EVENT_TYPES, CustomEventType, slugify_event_key,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
     GiftCatalogItem, Order,
@@ -211,6 +211,17 @@ def _visible_custom_fields():
     ).all()
 
 
+def _visible_event_types():
+    """(key, label) pairs for the timeline event-type dropdown: the
+    built-in milestones first, then this org's custom ones the current
+    agent can see (org-wide, plus their own personal milestones), then
+    the 'Custom' escape hatch last for a genuine one-off label."""
+    standard = [(t, t.replace("_", " ").title()) for t in STANDARD_EVENT_TYPES if t != "custom"]
+    query = CustomEventType.query.filter_by(org_id=current_user.org_id)
+    custom = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
+    return standard + [(c.key, c.label) for c in custom] + [("custom", "Custom")]
+
+
 def _save_custom_field_values(contact, form, fields):
     existing = {v.field_definition_id: v for v in contact.custom_values}
     for field in fields:
@@ -252,7 +263,7 @@ def view_contact(contact_id):
     return render_template(
         "contacts/view.html",
         contact=contact,
-        event_types=STANDARD_EVENT_TYPES,
+        event_types=_visible_event_types(),
         custom_fields=_visible_custom_fields(),
         custom_values=custom_values,
         pending_actions=pending_actions,
@@ -662,6 +673,81 @@ def delete_field(field_id):
     db.session.commit()
     flash(f"Removed the '{label}' field, along with its saved values on every contact.", "success")
     return redirect(url_for("contacts.manage_fields"))
+
+
+@contacts_bp.route("/event-types")
+@login_required
+def manage_event_types():
+    org_types = CustomEventType.query.filter_by(
+        org_id=current_user.org_id, scope="org"
+    ).order_by(CustomEventType.label).all()
+    my_types = CustomEventType.query.filter_by(
+        org_id=current_user.org_id, scope="personal", owner_user_id=current_user.id
+    ).order_by(CustomEventType.label).all()
+    return render_template(
+        "contacts/event_types.html",
+        org_types=org_types,
+        my_types=my_types,
+        standard_event_types=[t for t in STANDARD_EVENT_TYPES if t != "custom"],
+    )
+
+
+@contacts_bp.route("/event-types/new", methods=["POST"])
+@login_required
+def new_event_type():
+    scope = request.form.get("scope", "personal")
+    if scope == "org" and not current_user.is_admin:
+        flash("Only an admin can add an organization-wide milestone.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the milestone a name.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    key = slugify_event_key(label)
+    if key in STANDARD_EVENT_TYPES or CustomEventType.query.filter_by(
+        org_id=current_user.org_id, key=key
+    ).first():
+        flash(f"A milestone already exists with a name too similar to '{label}'. Try something more distinct.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    event_type = CustomEventType(
+        org_id=current_user.org_id,
+        scope=scope,
+        owner_user_id=None if scope == "org" else current_user.id,
+        key=key,
+        label=label,
+    )
+    db.session.add(event_type)
+    db.session.commit()
+    flash(f"Added the '{event_type.label}' milestone.", "success")
+    return redirect(url_for("contacts.manage_event_types"))
+
+
+@contacts_bp.route("/event-types/<event_type_id>/delete", methods=["POST"])
+@login_required
+def delete_event_type(event_type_id):
+    event_type = CustomEventType.query.filter_by(
+        id=event_type_id, org_id=current_user.org_id
+    ).first_or_404()
+
+    if event_type.scope == "org" and not current_user.is_admin:
+        flash("Only an admin can remove an organization-wide milestone.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+    if event_type.scope == "personal" and event_type.owner_user_id != current_user.id:
+        flash("You can only remove your own personal milestones.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    label = event_type.label
+    db.session.delete(event_type)
+    db.session.commit()
+    flash(
+        f"Removed the '{label}' milestone. Timeline events and flows already using it are unaffected "
+        "-- it just won't be offered as an option going forward.",
+        "success",
+    )
+    return redirect(url_for("contacts.manage_event_types"))
 
 
 @contacts_bp.route("/<contact_id>/timeline/new", methods=["POST"])
