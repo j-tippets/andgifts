@@ -15,6 +15,7 @@
       <label>Password</label>
       <input type="password" name="password" required>
     </div>
+    <p class="subdued" style="margin:-8px 0 16px; text-align:right;"><a href="{{ url_for('auth.forgot_password') }}"><small>Forgot password?</small></a></p>
     <button class="btn btn-primary" type="submit" style="width:100%;">Sign in</button>
   </form>
   <p class="subdued" style="margin-top:16px;">No account yet? <a href="{{ url_for('auth.register') }}">Create one</a>.</p>

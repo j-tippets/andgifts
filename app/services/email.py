@@ -49,6 +49,50 @@ def send_email(to_email, subject, html_content):
         return False
 
 
+def send_verification_email(user, verify_link):
+    """Sent right after self-registration. The account can't log in
+    (see User.is_active) until this link is clicked."""
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color:#2A1A45;">Confirm your email</h2>
+      <p>Hi {user.first_name or 'there'} &mdash; one more step before you can sign in to &amp;Gifts.</p>
+      <p><a href="{verify_link}" style="display:inline-block; background:#F77055; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold;">Verify my email</a></p>
+      <p style="color:#6B6459; font-size:13px;">This link expires in 48 hours. If you didn't create an &amp;Gifts account, you can ignore this email.</p>
+    </div>
+    """
+    return send_email(user.email, "Confirm your &Gifts account", html)
+
+
+def send_password_reset_email(user, reset_link):
+    """Sent from the 'forgot password' flow. Safe to call for any user --
+    the calling route is responsible for not leaking whether an account
+    exists (see auth.forgot_password)."""
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color:#2A1A45;">Reset your password</h2>
+      <p>We got a request to reset the password on your &amp;Gifts account.</p>
+      <p><a href="{reset_link}" style="display:inline-block; background:#F77055; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold;">Choose a new password</a></p>
+      <p style="color:#6B6459; font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email -- your password won't change.</p>
+    </div>
+    """
+    return send_email(user.email, "Reset your &Gifts password", html)
+
+
+def send_team_invite_email(user, invite_link, inviter_name):
+    """Sent when an admin invites a new agent by email (as opposed to
+    setting a temp password directly). The account stays in 'pending'
+    status until this link is clicked and a password is set."""
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color:#2A1A45;">You're invited to &amp;Gifts</h2>
+      <p>{inviter_name} invited you to join {user.org.name} on &amp;Gifts.</p>
+      <p><a href="{invite_link}" style="display:inline-block; background:#F77055; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold;">Accept invite &amp; set your password</a></p>
+      <p style="color:#6B6459; font-size:13px;">This link expires in 7 days.</p>
+    </div>
+    """
+    return send_email(user.email, f"You're invited to join {user.org.name} on &Gifts", html)
+
+
 def send_flow_action_email(action, sender_name):
     """Sends an approved flow 'email' action's message to the contact.
     Returns (delivered, error_message) -- error_message is None on
