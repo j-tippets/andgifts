@@ -35,7 +35,7 @@ def send_email(to_email, subject, html_content):
 
     try:
         from sendgrid.helpers.mail import Mail
-        from_email = current_app.config.get("SENDGRID_FROM_EMAIL") or "orders@andgifts.app"
+        from_email = current_app.config.get("SENDGRID_FROM_EMAIL") or "notifications@andgifts.app"
         message = Mail(
             from_email=from_email,
             to_emails=to_email,
