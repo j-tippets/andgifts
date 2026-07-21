@@ -41,6 +41,7 @@
 
 {% if pending_actions %}
   {% from "dashboard/_type_icon.html" import type_icon %}
+  <h2 style="margin-top:28px; margin-bottom:0;">Upcoming Actions</h2>
   {% for a in pending_actions %}
     <div class="contact-card" style="margin-top:20px;">
       <div class="contact-card-section">
@@ -102,7 +103,7 @@
 
 <div class="contact-card" style="margin-top:28px;">
   <div class="contact-card-section">
-    <h2>People</h2>
+    <h2>Household</h2>
     {% for person in contact.people %}
       <div style="margin-bottom:14px;">
         <strong>{{ person.full_name }}</strong> <span class="subdued">({{ person.household_role }})</span>
