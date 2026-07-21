@@ -25,6 +25,33 @@
   <input type="text" id="catalog-search" placeholder="Search by name or tag&hellip;">
 </form>
 
+{% if items %}
+  <div class="catalog-filters">
+    <div class="catalog-filter">
+      <label for="filter-theme">Theme</label>
+      <select id="filter-theme">
+        <option value="">Any theme</option>
+        {% for theme in all_themes %}
+          <option value="{{ theme|lower }}">{{ theme }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if max_price > min_price %}
+      <div class="catalog-filter">
+        <label for="filter-price">Max price: <span id="filter-price-label">${{ max_price }}</span></label>
+        <input type="range" id="filter-price" min="{{ min_price }}" max="{{ max_price }}" value="{{ max_price }}" step="1">
+      </div>
+    {% endif %}
+    {% if max_lead > min_lead %}
+      <div class="catalog-filter">
+        <label for="filter-lead">Ships within: <span id="filter-lead-label">{{ max_lead }} days</span></label>
+        <input type="range" id="filter-lead" min="{{ min_lead }}" max="{{ max_lead }}" value="{{ max_lead }}" step="1">
+      </div>
+    {% endif %}
+    <button type="button" id="filters-clear" class="catalog-filters-clear">Clear filters</button>
+  </div>
+{% endif %}
+
 {% set excluded_items = items|rejectattr('id', 'in', selected_ids)|list %}
 {% if current_user.is_admin and excluded_items %}
   <div class="chips">
@@ -39,6 +66,9 @@
     class="catalog-card {{ 'is-excluded' if not included else '' }}"
     data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}"
     data-status="{{ 'included' if included else 'excluded' }}"
+    data-price="{{ item.price_cents // 100 }}"
+    data-lead="{{ item.lead_time_days }}"
+    data-tags="{{ item.tag_list()|map('lower')|join('|') }}"
   >
     <div class="catalog-card-media">
       {% if item.image_url %}
@@ -109,13 +139,27 @@
     var noResults = document.getElementById('catalog-no-results');
     var activeFilter = 'all';
 
+    var themeSelect = document.getElementById('filter-theme');
+    var priceRange = document.getElementById('filter-price');
+    var priceLabel = document.getElementById('filter-price-label');
+    var leadRange = document.getElementById('filter-lead');
+    var leadLabel = document.getElementById('filter-lead-label');
+    var clearBtn = document.getElementById('filters-clear');
+
     function apply() {
       var q = (input && input.value.trim().toLowerCase()) || '';
+      var theme = (themeSelect && themeSelect.value) || '';
+      var maxPrice = priceRange ? parseInt(priceRange.value, 10) : null;
+      var maxLead = leadRange ? parseInt(leadRange.value, 10) : null;
       var visibleCount = 0;
+
       cards.forEach(function (card) {
         var matchesSearch = !q || card.dataset.search.indexOf(q) !== -1;
         var matchesFilter = activeFilter === 'all' || card.dataset.status === activeFilter;
-        var visible = matchesSearch && matchesFilter;
+        var matchesTheme = !theme || card.dataset.tags.split('|').indexOf(theme) !== -1;
+        var matchesPrice = maxPrice === null || parseInt(card.dataset.price, 10) <= maxPrice;
+        var matchesLead = maxLead === null || parseInt(card.dataset.lead, 10) <= maxLead;
+        var visible = matchesSearch && matchesFilter && matchesTheme && matchesPrice && matchesLead;
         card.style.display = visible ? '' : 'none';
         if (visible) visibleCount++;
       });
@@ -123,6 +167,34 @@
     }
 
     if (input) input.addEventListener('input', apply);
+    if (themeSelect) themeSelect.addEventListener('change', apply);
+    if (priceRange) {
+      priceRange.addEventListener('input', function () {
+        if (priceLabel) priceLabel.textContent = '$' + priceRange.value;
+        apply();
+      });
+    }
+    if (leadRange) {
+      leadRange.addEventListener('input', function () {
+        if (leadLabel) leadLabel.textContent = leadRange.value + ' days';
+        apply();
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        if (input) input.value = '';
+        if (themeSelect) themeSelect.value = '';
+        if (priceRange) {
+          priceRange.value = priceRange.max;
+          if (priceLabel) priceLabel.textContent = '$' + priceRange.max;
+        }
+        if (leadRange) {
+          leadRange.value = leadRange.max;
+          if (leadLabel) leadLabel.textContent = leadRange.max + ' days';
+        }
+        apply();
+      });
+    }
 
     chips.forEach(function (chip) {
       chip.addEventListener('click', function (e) {
