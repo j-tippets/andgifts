@@ -734,6 +734,28 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .chip.active { opacity: 1; background: var(--evergreen); color: var(--paper); border-color: var(--evergreen); }
 .chip:hover { opacity: 1; }
 
+.catalog-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-bottom: 22px; }
+.catalog-filter { display: flex; flex-direction: column; gap: 5px; }
+.catalog-filter label {
+  font-family: var(--font-rounded); font-weight: 700; font-size: 11px; letter-spacing: .04em;
+  text-transform: uppercase; color: rgba(42,26,69,.5);
+}
+.catalog-filter select {
+  font-family: var(--font-body); font-size: 14px; padding: 9px 12px; min-width: 140px;
+  border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper-raised);
+  color: var(--ink); outline: none; transition: border-color .2s;
+}
+.catalog-filter select:focus { border-color: var(--coral); }
+.catalog-filter input[type="range"] { width: 160px; accent-color: var(--coral); }
+.catalog-filters-clear {
+  font-family: var(--font-body); font-size: 12.5px; color: var(--coral-deep); text-decoration: underline;
+  background: none; border: none; cursor: pointer; padding: 0 0 9px;
+}
+@media (max-width: 640px) {
+  .catalog-filters { gap: 12px 18px; }
+  .catalog-filter input[type="range"] { width: 130px; }
+}
+
 .contact-card-row {
   display: flex; align-items: center; gap: 14px; background: var(--paper-raised); border: 1.5px solid var(--line);
   border-radius: 18px; padding: 14px 16px; margin-bottom: 10px; text-decoration: none; color: var(--ink);

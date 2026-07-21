@@ -18,11 +18,27 @@ def list_catalog():
         .all()
     )
     selected_ids = org.selected_item_ids() if org.catalog_curated else {i.id for i in items}
+
+    if items:
+        price_dollars = [i.price_cents // 100 for i in items]
+        lead_times = [i.lead_time_days for i in items]
+        min_price, max_price = min(price_dollars), max(price_dollars)
+        min_lead, max_lead = min(lead_times), max(lead_times)
+    else:
+        min_price = max_price = min_lead = max_lead = 0
+
+    all_themes = sorted({tag for i in items for tag in i.tag_list()}, key=str.lower)
+
     return render_template(
         "catalog/list.html",
         items=items,
         selected_ids=selected_ids,
         catalog_curated=org.catalog_curated,
+        all_themes=all_themes,
+        min_price=min_price,
+        max_price=max_price,
+        min_lead=min_lead,
+        max_lead=max_lead,
     )
 
 
