@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from app.extensions import db
 from app.models.org import gen_uuid
 
@@ -55,6 +55,39 @@ class SuggestedAction(db.Model):
         if self.source_campaign_id:
             return self.source_campaign.owner if self.source_campaign else None
         return self.contact.owner if self.contact else None
+
+    @property
+    def gift_timing(self):
+        """For a gift suggestion with a resolved catalog item, how much
+        runway is left to approve it and still have it ship in time for
+        target_date -- based on the gift's lead_time_days (order-to-ship,
+        not a delivery promise; we don't control carrier transit time).
+
+        Returns None for non-gift actions or a gift with no catalog item
+        resolved yet (nothing to compute a lead time from). Otherwise a
+        dict: {order_by, days_left, urgency}, where urgency is one of:
+          - "late": order_by has already passed and this is still pending
+          - "urgent": needs to be approved today (0 days left)
+          - "soon": 1-2 days left
+          - "ok": 3+ days left
+        """
+        if self.action_type != "gift" or not self.suggested_gift:
+            return None
+
+        order_by = self.target_date - timedelta(days=self.suggested_gift.lead_time_days)
+        days_left = (order_by - date.today()).days
+
+        if days_left < 0:
+            urgency = "late"
+        elif days_left == 0:
+            urgency = "urgent"
+        elif days_left <= 2:
+            urgency = "soon"
+        else:
+            urgency = "ok"
+
+        return {"order_by": order_by, "days_left": days_left, "urgency": urgency}
+
 
 
 class ActionLog(db.Model):

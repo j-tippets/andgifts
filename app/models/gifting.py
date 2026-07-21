@@ -35,6 +35,13 @@ class GiftCatalogItem(db.Model):
     shopify_product_id = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
 
+    # Order-to-ship time in business days -- how long it takes us to
+    # assemble/pack this item and hand it to the carrier. This is NOT a
+    # delivery promise (we don't control carrier transit time), so it
+    # should only ever be communicated as "ships within N days of
+    # approval", never as an arrival date.
+    lead_time_days = db.Column(db.Integer, nullable=False, default=7)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def tag_list(self):

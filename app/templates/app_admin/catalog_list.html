@@ -30,6 +30,7 @@
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <span class="status-pill status-new">{{ item.item_type|capitalize }}</span>
+        <span class="status-pill status-past">{{ item.lead_time_days }}d lead</span>
         <a href="{{ url_for('app_admin.catalog_edit', item_id=item.id) }}" class="btn btn-ghost btn-small">Edit</a>
       </div>
     </div>

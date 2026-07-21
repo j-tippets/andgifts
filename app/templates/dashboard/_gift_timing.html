@@ -1,0 +1,15 @@
+{% macro gift_timing_badge(timing) %}
+  {% if timing %}
+    <span class="s-gift-timing s-gift-timing-{{ timing.urgency }}">
+      {% if timing.urgency == 'late' %}
+        &#9888; Past ideal order date
+      {% elif timing.urgency == 'urgent' %}
+        &#9888; Order today to ship on time
+      {% elif timing.urgency == 'soon' %}
+        Order by {{ timing.order_by.strftime('%b %-d') }} &middot; {{ timing.days_left }} day{{ 's' if timing.days_left != 1 else '' }} left
+      {% else %}
+        Order by {{ timing.order_by.strftime('%b %-d') }}
+      {% endif %}
+    </span>
+  {% endif %}
+{% endmacro %}
