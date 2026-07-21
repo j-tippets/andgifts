@@ -17,3 +17,17 @@ def tags_from_form(raw):
     raw = (raw or "").replace(";", ",")
     tags = [t.strip() for t in raw.split(",") if t.strip()]
     return ", ".join(tags) if tags else None
+
+
+def lead_time_from_form(raw, default=7):
+    """Parse the lead-time-days field. Falls back to `default` for blank
+    input; returns None for anything that isn't a positive whole number
+    of days, so the caller can reject the submission."""
+    raw = (raw or "").strip()
+    if not raw:
+        return default
+    try:
+        days = int(raw)
+    except ValueError:
+        return None
+    return days if days > 0 else None

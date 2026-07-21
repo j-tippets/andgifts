@@ -532,6 +532,15 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   font-family: var(--font-rounded); font-weight: 700; font-size: 11px; letter-spacing: .03em;
   color: rgba(42,26,69,.5); text-transform: uppercase;
 }
+.s-gift-timing {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  font-family: var(--font-rounded); font-weight: 700; font-size: 11px; letter-spacing: .02em;
+  padding: 4px 10px; border-radius: 999px;
+}
+.s-gift-timing-ok { background: var(--mint); color: var(--mint-ink); }
+.s-gift-timing-soon { background: var(--gold-soft); color: var(--gold-ink); }
+.s-gift-timing-urgent { background: var(--coral); color: #fff; }
+.s-gift-timing-late { background: var(--danger); color: #fff; }
 .s-gift-select {
   font-family: var(--font-body); font-size: 13.5px; font-weight: 400; text-transform: none;
   letter-spacing: normal; color: var(--ink); padding: 8px 10px; border-radius: 8px;

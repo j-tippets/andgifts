@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "dashboard/_type_icon.html" import type_icon %}
+{% from "dashboard/_gift_timing.html" import gift_timing_badge %}
 {% block title %}Today — Ag{% endblock %}
 {% block content %}
 <div class="page-head with-action">
@@ -71,6 +72,7 @@
                     {% if s.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(s.suggested_gift.price_cents / 100) }}</div>{% endif %}
                   </div>
                 </div>
+                {{ gift_timing_badge(s.gift_timing) }}
                 <label class="s-gift-select-label">
                   <span>Change gift</span>
                   <select name="gift_catalog_item_id" form="s-approve-{{ s.id }}" class="s-gift-select">
@@ -153,6 +155,7 @@
                     {% if s.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(s.suggested_gift.price_cents / 100) }}</div>{% endif %}
                   </div>
                 </div>
+                {{ gift_timing_badge(s.gift_timing) }}
                 <label class="s-gift-select-label">
                   <span>Change gift</span>
                   <select name="gift_catalog_item_id" form="list-approve-{{ s.id }}" class="s-gift-select">

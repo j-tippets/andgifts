@@ -4,7 +4,7 @@ from app.extensions import db
 from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.decorators import platform_admin_required
-from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str, tags_from_form
+from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str, tags_from_form, lead_time_from_form
 
 app_admin_bp = Blueprint("app_admin", __name__, url_prefix="/app-admin")
 
@@ -40,8 +40,12 @@ def catalog_new():
         return render_template("app_admin/catalog_new.html")
 
     price_cents = dollars_to_cents(request.form.get("price"))
+    lead_time_days = lead_time_from_form(request.form.get("lead_time_days"))
     if not request.form.get("name", "").strip() or price_cents is None:
         flash("Name and a valid price are required.", "error")
+        return render_template("app_admin/catalog_new.html")
+    if lead_time_days is None:
+        flash("Lead time must be a whole number of days greater than 0.", "error")
         return render_template("app_admin/catalog_new.html")
 
     item = GiftCatalogItem(
@@ -52,6 +56,7 @@ def catalog_new():
         item_type=request.form.get("item_type", "product"),
         interest_tags=tags_from_form(request.form.get("interest_tags")),
         image_url=request.form.get("image_url", "").strip() or None,
+        lead_time_days=lead_time_days,
         is_active=True,
     )
     db.session.add(item)
@@ -75,8 +80,12 @@ def catalog_edit(item_id):
         )
 
     price_cents = dollars_to_cents(request.form.get("price"))
+    lead_time_days = lead_time_from_form(request.form.get("lead_time_days"))
     if not request.form.get("name", "").strip() or price_cents is None:
         flash("Name and a valid price are required.", "error")
+        return redirect(url_for("app_admin.catalog_edit", item_id=item.id))
+    if lead_time_days is None:
+        flash("Lead time must be a whole number of days greater than 0.", "error")
         return redirect(url_for("app_admin.catalog_edit", item_id=item.id))
 
     item.name = request.form["name"].strip()
@@ -85,6 +94,7 @@ def catalog_edit(item_id):
     item.item_type = request.form.get("item_type", item.item_type)
     item.interest_tags = tags_from_form(request.form.get("interest_tags"))
     item.image_url = request.form.get("image_url", "").strip() or None
+    item.lead_time_days = lead_time_days
     db.session.commit()
     flash(f"Updated {item.name}.", "success")
     return redirect(url_for("app_admin.catalog_list"))
