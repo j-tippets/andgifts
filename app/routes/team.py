@@ -9,6 +9,7 @@ from app.models import User, ContactAuditLog
 from app.models.contact import Contact
 from app.decorators import admin_required
 from app.services.storage import upload_avatar, delete_avatar, StorageError
+from app.services.email import send_team_invite_email
 
 team_bp = Blueprint("team", __name__, url_prefix="/team")
 
@@ -81,19 +82,21 @@ def new_member():
     else:
         # Email-invite path: account exists in "pending" state until the
         # agent clicks the link and sets their own password.
-        # NOTE: actually emailing the link requires SendGrid, which is still
-        # deferred -- for now the admin can copy/paste the link manually.
         user.status = "pending"
         user.invite_token = secrets.token_urlsafe(32)
         user.invite_expires_at = datetime.utcnow() + timedelta(days=INVITE_EXPIRY_DAYS)
         db.session.add(user)
         db.session.commit()
         invite_link = url_for("team.accept_invite", token=user.invite_token, _external=True)
-        flash(
-            f"Invite created for {email}. Send them this link (expires in "
-            f"{INVITE_EXPIRY_DAYS} days): {invite_link}",
-            "success",
-        )
+        delivered = send_team_invite_email(user, invite_link, current_user.full_name)
+        if delivered:
+            flash(f"Invite sent to {email}.", "success")
+        else:
+            flash(
+                f"Invite created for {email}, but the email failed to send. "
+                f"Share this link directly (expires in {INVITE_EXPIRY_DAYS} days): {invite_link}",
+                "error",
+            )
 
     return redirect(url_for("team.list_members"))
 

@@ -140,6 +140,20 @@ class User(UserMixin, db.Model):
     invite_expires_at = db.Column(db.DateTime, nullable=True)
     invited_by_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
 
+    # --- Email verification ---
+    # Defaults to True so every EXISTING creation path (team invite accept,
+    # admin direct-add, the original migration backfill) stays exactly as
+    # trusted as it is today. Only self-registration (auth.register)
+    # explicitly sets this False, since that's the one path where nobody
+    # else has vouched for the address yet.
+    email_verified = db.Column(db.Boolean, default=True, nullable=False)
+    email_verify_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    email_verify_expires_at = db.Column(db.DateTime, nullable=True)
+
+    # --- Password reset ---
+    reset_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
+    reset_expires_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_at = db.Column(db.DateTime, nullable=True)
 
@@ -162,7 +176,9 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         return self.role == "admin"
 
-    # Flask-Login: don't let pending (no-password-yet) or disabled users log in
+    # Flask-Login: don't let pending (no-password-yet) or disabled users log
+    # in, and don't let a self-registered user in until they've clicked
+    # their verification link either.
     @property
     def is_active(self):
-        return self.status == "active"
+        return self.status == "active" and self.email_verified
