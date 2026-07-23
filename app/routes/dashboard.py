@@ -3,7 +3,9 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import SuggestedAction, ActionLog, ContactAuditLog
-from app.services.suggestion_engine import generate_suggestions_for_org, generate_campaign_suggestions_for_org
+from app.services.suggestion_engine import (
+    generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
+)
 from app.services.email import send_flow_action_email
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -19,6 +21,7 @@ def index():
     if org.feature_enabled("ai_dashboard"):
         generate_suggestions_for_org(org)
         generate_campaign_suggestions_for_org(org)
+        expire_stale_suggestions(org)
 
     pending = (
         SuggestedAction.query

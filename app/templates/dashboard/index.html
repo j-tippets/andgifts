@@ -45,6 +45,8 @@
               <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
             </div>
 
+            <div class="s-card-expires">Expires {{ s.expires_on.strftime('%b %-d') }} if not actioned</div>
+
             <div class="s-card-who">
               <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}" class="s-card-who-link">
                 {% if s.contact.photo_url %}
@@ -141,6 +143,7 @@
             <div class="sub">
               <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}" class="list-row-contact-link">{{ s.contact.household_name }}</a>
               &middot; {{ s.target_date.strftime('%b %-d') }}
+              &middot; <span class="s-card-expires">expires {{ s.expires_on.strftime('%b %-d') }}</span>
             </div>
             {% if s.action_type == 'gift' %}
               <div class="s-gift-box">

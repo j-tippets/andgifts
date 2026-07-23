@@ -2,6 +2,12 @@ from datetime import date, datetime, timedelta
 from app.extensions import db
 from app.models.org import gen_uuid
 
+# How many days past target_date a pending suggestion is allowed to sit
+# before the nightly job auto-expires it (see expire_stale_suggestions in
+# app/services/suggestion_engine.py). Hardcoded for now rather than a
+# per-org setting -- easy to promote later if agencies want it tuned.
+EXPIRATION_GRACE_DAYS = 10
+
 
 class SuggestedAction(db.Model):
     """
@@ -32,7 +38,7 @@ class SuggestedAction(db.Model):
     target_date = db.Column(db.Date, nullable=False)  # the date of the event this relates to
 
     status = db.Column(
-        db.Enum("pending", "approved", "skipped", "sent", "deleted", name="suggested_action_status"),
+        db.Enum("pending", "approved", "skipped", "sent", "deleted", "expired", name="suggested_action_status"),
         default="pending",
         index=True,
     )
@@ -55,6 +61,15 @@ class SuggestedAction(db.Model):
         if self.source_campaign_id:
             return self.source_campaign.owner if self.source_campaign else None
         return self.contact.owner if self.contact else None
+
+    @property
+    def expires_on(self):
+        """The date after which, if still pending, the nightly job will
+        auto-expire this suggestion (see expire_stale_suggestions in
+        app/services/suggestion_engine.py). Shown on the dashboard card so
+        the agent knows there's a clock on it -- not just informational
+        after the fact."""
+        return self.target_date + timedelta(days=EXPIRATION_GRACE_DAYS)
 
     @property
     def gift_timing(self):

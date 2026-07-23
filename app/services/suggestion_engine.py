@@ -21,13 +21,13 @@ Designed to be called either from a nightly cron job (DO App Platform
 supports scheduled jobs / worker components) or on-demand from the
 dashboard route.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 from app.extensions import db
 from app.models import (
     TimelineEvent, SuggestedAction, GiftTrigger, GiftCatalogItem, Contact,
-    Campaign, User, ContactAuditLog,
+    Campaign, User, ContactAuditLog, EXPIRATION_GRACE_DAYS,
 )
 from app.services import llm
 from app.services import campaign_rules
@@ -426,3 +426,76 @@ def preview_flow_matches(spec, contacts, org, today=None, limit=20):
             })
 
     return results
+
+
+def _log_expired(action, contact):
+    """Records that a pending suggestion aged out unactioned -- fired from
+    expire_stale_suggestions. Attributed to "System" the same way
+    _log_qualified is, since this runs unattended from the nightly job."""
+    kind = action.action_type.replace("_", " ")
+    if action.action_type == "gift" and action.suggested_gift_id:
+        gift = GiftCatalogItem.query.get(action.suggested_gift_id)
+        summary = (
+            f"Suggested gift \u2014 {gift.name} \u2014 for {contact.household_name} expired after "
+            f"{EXPIRATION_GRACE_DAYS} days with no action taken."
+            if gift else
+            f"Suggested gift for {contact.household_name} expired after "
+            f"{EXPIRATION_GRACE_DAYS} days with no action taken."
+        )
+    else:
+        summary = (
+            f"Suggested {kind} for {contact.household_name} expired after "
+            f"{EXPIRATION_GRACE_DAYS} days with no action taken."
+        )
+
+    db.session.add(ContactAuditLog(
+        org_id=action.org_id,
+        contact_id=contact.id,
+        contact_name_snapshot=contact.household_name,
+        actor_user_id=None,
+        actor_name_snapshot="System",
+        action="action_expired",
+        summary=summary,
+        suggested_action_id=action.id,
+    ))
+
+
+def expire_stale_suggestions(org, today=None):
+    """
+    Auto-expires pending suggestions once they're EXPIRATION_GRACE_DAYS past
+    their target_date -- an unactioned "happy anniversary" gift suggestion
+    sitting pending three weeks after the anniversary passed is worse than
+    useless, and this keeps the dashboard limited to things still worth
+    acting on. Based on target_date, not created_at, so a suggestion that
+    was itself generated late doesn't get a fresh grace window.
+
+    Deliberately a distinct status from "skipped" (an agent's deliberate
+    choice) -- this is the system giving up, not the agent, and the contact
+    audit log entry says so. Doesn't affect recurrence: dedup in
+    _suggestion_exists / _campaign_suggestion_exists is scoped to
+    (contact, event, target_date), so an expired suggestion here still
+    lets a recurring event qualify again next year.
+
+    Returns the list of SuggestedAction rows that were expired, for the
+    nightly job's log output.
+    """
+    today = today or date.today()
+    cutoff = today - timedelta(days=EXPIRATION_GRACE_DAYS)
+
+    stale = (
+        SuggestedAction.query
+        .filter(
+            SuggestedAction.org_id == org.id,
+            SuggestedAction.status == "pending",
+            SuggestedAction.target_date < cutoff,
+        )
+        .all()
+    )
+
+    for action in stale:
+        action.status = "expired"
+        action.resolved_at = datetime.utcnow()
+        _log_expired(action, action.contact)
+
+    db.session.commit()
+    return stale
