@@ -9,6 +9,7 @@ from app.models.actions import SuggestedAction, ActionLog
 from app.models.audit import ContactAuditLog
 from app.models.campaigns import CampaignRecipe, Campaign, CampaignRecipeRule, CampaignRule
 from app.models.orders import Order
+from app.models.support import SupportRequest
 
 __all__ = [
     "Org", "User",
@@ -20,4 +21,5 @@ __all__ = [
     "ContactAuditLog",
     "CampaignRecipe", "Campaign", "CampaignRecipeRule", "CampaignRule",
     "Order",
+    "SupportRequest",
 ]
