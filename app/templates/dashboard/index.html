@@ -42,10 +42,11 @@
                 {{ type_icon(s.action_type) }}
                 {{ s.action_type.replace('_', ' ')|capitalize }}
               </span>
-              <span class="s-badge">{{ s.target_date.strftime('%b %-d') }}</span>
+              <span class="s-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ s.target_date.strftime('%b %-d') }}
+              </span>
             </div>
-
-            <div class="s-card-expires">Expires {{ s.expires_on.strftime('%b %-d') }} if not actioned</div>
 
             <div class="s-card-who">
               <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}" class="s-card-who-link">
@@ -88,29 +89,53 @@
               </div>
             {% endif %}
 
-            {% if s.generated_message %}
-              <div class="s-quote">&ldquo;{{ s.generated_message }}&rdquo;</div>
+            {% if s.action_type != 'gift' or s.generated_message %}
+              <div class="s-message-box">
+                <div class="s-message-label">
+                  {% if s.action_type == 'gift' %}Note
+                  {% elif s.action_type == 'email' %}Suggested email
+                  {% elif s.action_type == 'text' %}Suggested text
+                  {% else %}Suggested note
+                  {% endif %}
+                </div>
+                <p class="s-message-text">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
+                <details class="s-edit-disclosure">
+                  <summary class="s-message-edit-toggle" aria-label="Edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </summary>
+                  <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+                    <textarea name="generated_message" class="s-edit-textarea" rows="4"
+                              placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
+                    <button class="btn btn-tertiary btn-small" type="submit">Save</button>
+                  </form>
+                </details>
+              </div>
             {% endif %}
 
-            <details class="s-edit-disclosure">
-              <summary class="s-edit-toggle">{{ 'Note' if s.action_type == 'gift' else 'Edit' }}</summary>
-              <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
-                <textarea name="generated_message" class="s-edit-textarea" rows="4"
-                          placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
-                <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
-              </form>
-            </details>
+            <div class="s-card-expires">Expires {{ s.expires_on.strftime('%b %-d') }} if not actioned</div>
 
-            <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">
-              <button class="btn btn-primary" type="submit">Approve</button>
-            </form>
-            <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
-              <button class="btn btn-skip" type="submit">Skip</button>
-            </form>
-            <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
-                  onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
-              <button class="btn btn-delete btn-small" type="submit">Delete</button>
-            </form>
+            <div class="s-card-footer">
+              <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
+                <button class="s-skip-link" type="submit">Skip for now</button>
+              </form>
+
+              <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">{%- if s.action_type != 'gift' -%}
+                  <button class="btn btn-primary s-approve-btn" type="submit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Approve &amp; Send
+                  </button>
+              {%- endif %}</form>
+
+              <div class="s-card-menu">
+                <button type="button" class="s-kebab-btn" aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#8942;</button>
+                <div class="s-card-menu-dropdown" hidden>
+                  <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
+                        onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
+                    <button class="s-menu-delete" type="submit">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
         {% endfor %}
 
@@ -119,13 +144,6 @@
           <h3>You're all caught up</h3>
           <p>New suggestions will show up here as timeline events approach.</p>
         </div>
-      </div>
-
-      <p class="swipe-hint" id="swipeHint">&larr; skip &middot; approve &rarr;</p>
-
-      <div class="actions" id="actionsRow">
-        <button class="action-btn skip" type="button" id="btnSkip">&#10005; Skip</button>
-        <button class="action-btn approve" type="button" id="btnApprove">&#10003; Approve</button>
       </div>
     </div>
   </div>

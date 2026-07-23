@@ -19,8 +19,6 @@
   var emptyState = document.getElementById('emptyState');
   var progressWrap = document.getElementById('progress');
   var progressLabel = document.getElementById('progressLabel');
-  var btnApprove = document.getElementById('btnApprove');
-  var btnSkip = document.getElementById('btnSkip');
 
   var originalTotal = cards.length;
   var approvedCount = 0;
@@ -78,16 +76,12 @@
 
     if (list.length === 0) {
       emptyState.classList.add('show');
-      btnApprove.disabled = true;
-      btnSkip.disabled = true;
       launchConfetti();
       updateProgress();
       return;
     }
 
     stackWrap.classList.toggle('js-loop', showingLoop);
-    btnApprove.disabled = showingLoop;
-    btnSkip.disabled = showingLoop;
 
     list.forEach(function (card, rel) {
       card.style.transition = 'transform .4s var(--ease), opacity .4s var(--ease)';
@@ -217,9 +211,47 @@
     }
   }
 
-  btnApprove.addEventListener('click', function () { completeTop('right', false); });
-  btnSkip.addEventListener('click', function () { completeTop('left', false); });
+  // Each card carries its own Skip/Approve forms now (no more shared
+  // bottom bar) -- intercept their submit here so the same fly-out
+  // animation plays, but only for whichever card is actually on top;
+  // a card behind it is visually covered and shouldn't act even if
+  // somehow reached (e.g. keyboard nav).
+  stack.addEventListener('submit', function (e) {
+    var form = e.target;
+    var isApprove = form.classList.contains('s-form-approve');
+    var isSkip = form.classList.contains('s-form-skip');
+    if (!isApprove && !isSkip) return;
+    e.preventDefault();
+    var card = form.closest('.s-card');
+    if (!card || card !== topEl()) return;
+    completeTop(isApprove ? 'right' : 'left', false);
+  });
+
   loopBtn.addEventListener('click', function () { completeTop('right', false); });
+
+  // --- per-card "..." menu (Delete) ---
+  stack.addEventListener('click', function (e) {
+    var kebab = e.target.closest('.s-kebab-btn');
+    var openDropdown = stack.querySelector('.s-card-menu-dropdown:not([hidden])');
+    if (kebab) {
+      var dropdown = kebab.nextElementSibling;
+      var wasOpen = dropdown === openDropdown;
+      if (openDropdown) { openDropdown.hidden = true; }
+      if (!wasOpen) {
+        dropdown.hidden = false;
+        kebab.setAttribute('aria-expanded', 'true');
+      }
+      return;
+    }
+    if (openDropdown && !e.target.closest('.s-card-menu-dropdown')) {
+      openDropdown.hidden = true;
+    }
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.s-card-menu')) return;
+    var openDropdown = stack.querySelector('.s-card-menu-dropdown:not([hidden])');
+    if (openDropdown) openDropdown.hidden = true;
+  });
 
   // --- drag / swipe on top card ---
   var dragging = false, startX = 0, startY = 0, dx = 0, activeCard = null;
@@ -233,7 +265,7 @@
     var card = topEl();
     if (!card) return;
     if (e.target.closest('.s-card') !== card) return;
-    if (e.target.closest('.s-form') || e.target.closest('.s-loop-btn') || e.target.closest('.s-edit-disclosure') || e.target.closest('.s-gift-box')) return; // let real buttons work untouched
+    if (e.target.closest('.s-form') || e.target.closest('.s-loop-btn') || e.target.closest('.s-edit-disclosure') || e.target.closest('.s-gift-box') || e.target.closest('.s-card-menu')) return; // let real buttons work untouched
     dragging = true;
     activeCard = card;
     startX = e.touches ? e.touches[0].clientX : e.clientX;

@@ -3,6 +3,8 @@
   --ink-2: #1B1130;
   --paper: #fbf5f1;
   --paper-raised: #FCF9F7;
+  --page-bg: #f8f6f6;
+  --header-bg: #ffffff;
   --evergreen: #2A1A45;
   --evergreen-light: #6B5F86;
   --mint: #D0E9D9;
@@ -25,7 +27,7 @@
 body {
   margin: 0;
   font-family: var(--font-body);
-  background: var(--paper);
+  background: var(--page-bg);
   color: var(--ink);
   font-size: 15px;
   line-height: 1.5;
@@ -44,8 +46,7 @@ button { font-family: inherit; }
   position: sticky;
   top: 0;
   z-index: 60;
-  background: #fcf8f5;
-  backdrop-filter: blur(10px);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--line);
 }
 .mobile-topbar-logo {
@@ -81,8 +82,7 @@ button { font-family: inherit; }
   position: sticky;
   top: 0;
   z-index: 60;
-  background: rgba(251,245,241,.9);
-  backdrop-filter: blur(10px);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--line);
 }
 .topbar .nav-left { display: flex; align-items: center; gap: 44px; }
@@ -94,13 +94,14 @@ button { font-family: inherit; }
   font-weight: 700;
   font-size: 14.5px;
   text-decoration: none;
-  padding: 9px 16px;
-  border-radius: 999px;
+  padding: 9px 4px;
+  margin: 0 8px;
+  border-bottom: 2px solid transparent;
   color: var(--ink);
-  opacity: .6;
-  transition: opacity .2s var(--ease), background .2s var(--ease);
+  opacity: .55;
+  transition: opacity .2s var(--ease), border-color .2s var(--ease);
 }
-.topbar .nav-links a.active { opacity: 1; background: var(--paper-raised); box-shadow: 0 1px 0 var(--line) inset; }
+.topbar .nav-links a.active { opacity: 1; border-color: var(--coral); }
 .topbar .nav-links a:hover { opacity: 1; }
 
 /* ---- Sub-tabs within a top-level section (e.g. Flows: Your flows / Actions) ---- */
@@ -496,7 +497,8 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 }
 .progress span.done::after { transform: scaleX(1); }
 
-.stack-wrap { position: relative; max-width: 640px; }
+#cardsView { max-width: 640px; margin: 0 auto; }
+.stack-wrap { position: relative; max-width: 640px; margin: 0 auto; }
 .stack { position: relative; min-height: 300px; touch-action: pan-y; }
 
 .s-card {
@@ -518,13 +520,15 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .s-card-who-link { display: contents; color: inherit; text-decoration: none; }
 .s-card-who-link:hover h3 { text-decoration: underline; }
 .s-badge {
+  display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px; letter-spacing: .03em;
   background: rgba(42,26,69,.06); color: var(--ink); padding: 4px 10px; border-radius: 999px;
   white-space: nowrap; flex-shrink: 0;
 }
+.s-badge svg { width: 12px; height: 12px; }
 .s-card-reason { font-size: 14px; line-height: 1.45; color: rgba(42,26,69,.7); margin: 0 0 14px; }
 .s-card-expires {
-  font-size: 11.5px; color: #8A8375; margin: -4px 0 12px;
+  font-size: 11.5px; color: #8A8375; margin: 4px 0 0;
 }
 
 .s-gift-box {
@@ -565,11 +569,37 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   margin: 0 0 14px;
 }
 
+/* Suggested-text / note box on the redesigned Today card: one place for
+   the reason-generated copy, with a small pencil toggle in the corner
+   instead of a separate labeled "Edit" pill floating below. */
+.s-message-box {
+  position: relative; background: var(--paper); border-radius: 14px;
+  padding: 12px 40px 12px 14px; margin: 0 0 10px;
+}
+.s-message-label {
+  font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px; letter-spacing: .04em;
+  text-transform: uppercase; color: rgba(42,26,69,.45); margin-bottom: 4px;
+}
+.s-message-text {
+  font-style: italic; font-size: 14px; line-height: 1.5; color: rgba(42,26,69,.85); margin: 0;
+}
+.s-message-box .s-edit-disclosure { margin: 0; }
+.s-message-edit-toggle {
+  position: absolute; top: 10px; right: 10px; width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer; color: rgba(42,26,69,.45); list-style: none;
+  transition: background .16s var(--ease), color .16s var(--ease);
+}
+.s-message-edit-toggle svg { width: 14px; height: 14px; }
+.s-message-edit-toggle::-webkit-details-marker { display: none; }
+.s-message-edit-toggle::marker { content: ""; }
+.s-message-edit-toggle:hover { background: rgba(42,26,69,.08); color: var(--ink); }
+.s-message-edit-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(58,107,74,.25); }
+.s-message-box .s-edit-textarea { margin-top: 10px; }
+.s-message-box .s-form-edit { margin-top: 0; }
+
 .s-form { margin-top: 14px; display: inline-block; }
 .s-form + .s-form { margin-left: 8px; }
-.stack-wrap.js-active .s-form { display: none; }
-.stack-wrap.js-active .s-form-delete,
-.stack-wrap.js-active .s-form-edit { display: inline-block; }
 
 .btn-delete { background: transparent; color: var(--coral-deep); opacity: .7; border: 1.5px solid var(--line); }
 .btn-delete:hover { opacity: 1; border-color: var(--coral-deep); background: var(--paper-raised); }
@@ -585,7 +615,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 /* Note/Edit disclosure -- a real chip-style toggle instead of the bare
    native <summary> (default triangle marker + browser focus outline box,
    which is what made this look like a raw form control rather than part
-   of the card's design system). */
+   of the card's design system). Still used by the List view. */
 .s-edit-disclosure { margin: 12px 0 6px; }
 .s-edit-toggle {
   display: inline-flex; align-items: center; gap: 7px;
@@ -621,16 +651,44 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .stamp.approve { right: 20px; background: var(--mint); color: var(--mint-ink); }
 .stamp.skip { left: 20px; background: rgba(42,26,69,.12); color: var(--ink); transform: scale(.6) rotate(12deg); }
 
-.swipe-hint {
-  text-align: center; font-family: var(--font-rounded); font-weight: 600; font-size: 12.5px;
-  color: rgba(42,26,69,.4); margin-top: 16px; opacity: 0; transition: opacity .3s var(--ease);
+/* Per-card footer: replaces the old global bottom Skip/Approve bar --
+   each card now carries its own actions, so there's nothing left for a
+   fixed row below the stack to do. */
+.s-card-footer {
+  display: flex; align-items: center; gap: 10px; margin-top: auto;
+  padding-top: 14px; border-top: 1px solid var(--line);
 }
-.stack-wrap.js-active .swipe-hint { opacity: 1; }
+.s-card-footer .s-form { margin: 0; }
+.s-card-footer .s-form + .s-form { margin-left: 0; }
+.s-card-footer .s-form-approve:empty { display: none; }
+.s-skip-link {
+  background: none; border: none; cursor: pointer; padding: 10px 4px;
+  font-family: var(--font-rounded); font-weight: 700; font-size: 13.5px;
+  color: rgba(42,26,69,.55);
+}
+.s-skip-link:hover { color: var(--ink); text-decoration: underline; }
+.s-approve-btn { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; }
+.s-approve-btn svg { width: 14px; height: 14px; }
 
-.actions { display: none; gap: 12px; margin-top: 22px; }
-.stack-wrap.js-active .actions { display: flex; }
-.stack-wrap.js-loop .actions,
-.stack-wrap.js-loop .swipe-hint { display: none; }
+.s-card-menu { position: relative; margin-left: 4px; }
+.s-kebab-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--line);
+  background: transparent; color: var(--ink); cursor: pointer; font-size: 16px;
+  line-height: 1; display: flex; align-items: center; justify-content: center;
+  transition: background .16s var(--ease);
+}
+.s-kebab-btn:hover { background: var(--paper); }
+.s-card-menu-dropdown {
+  position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 20;
+  background: #fff; border: 1.5px solid var(--line); border-radius: 12px;
+  box-shadow: 0 16px 32px -16px rgba(42,26,69,.35); padding: 6px; min-width: 120px;
+}
+.s-menu-delete {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  cursor: pointer; padding: 8px 10px; border-radius: 8px;
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--coral-deep);
+}
+.s-menu-delete:hover { background: var(--paper); }
 
 .s-card-loop { align-items: center; justify-content: center; text-align: center; }
 .s-card-loop .s-card-top { justify-content: center; padding-left: 0; }
@@ -639,18 +697,6 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   color: rgba(42,26,69,.6); margin: 0 0 20px; max-width: 380px;
 }
 .s-loop-btn { padding-left: 28px; padding-right: 28px; }
-.action-btn {
-  flex: 1; font-family: var(--font-rounded); font-weight: 700; font-size: 15px;
-  padding: 15px 0; border-radius: 999px; border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: transform .16s var(--ease), box-shadow .16s var(--ease);
-}
-.action-btn.skip { background: var(--paper-raised); color: var(--ink); border: 2px solid var(--line); }
-.action-btn.skip:hover { background: var(--paper); }
-.action-btn.approve { background: var(--coral); color: var(--paper-raised); box-shadow: 0 4px 0 var(--coral-deep); }
-.action-btn.approve:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--coral-deep); }
-.action-btn:active { transform: translateY(1px) !important; box-shadow: 0 1px 0 var(--coral-deep) !important; }
-.action-btn:disabled { opacity: .4; cursor: default; transform: none !important; }
 
 .empty-state-flip {
   position: absolute; inset: 0; background: var(--evergreen); border-radius: 24px;
