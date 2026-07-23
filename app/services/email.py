@@ -119,6 +119,31 @@ def send_flow_action_email(action, sender_name):
         return False, "SendGrid send failed. Check the app logs, or try sending manually."
     return True, None
 
+def send_support_request(user, topic, message):
+    """Sent when a user submits the Support form (see routes/support.py).
+    Goes to the internal support inbox, not the user -- this is a report
+    of an issue, not a user-facing notification."""
+    to_email = current_app.config.get("SUPPORT_INBOX_EMAIL")
+    if not to_email:
+        return False
+
+    org_name = user.org.name if user.org else "(no org)"
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color:#2A1A45;">New support request</h2>
+      <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+        <tr><td style="padding:6px 0; color:#6B6459; width:120px;">Company</td><td>{org_name}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459;">User</td><td>{user.full_name}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459;">Email</td><td>{user.email}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459;">Topic</td><td>{topic}</td></tr>
+      </table>
+      <p style="color:#6B6459; font-size:13px; margin-bottom:4px;">Message</p>
+      <p style="white-space: pre-wrap;">{message}</p>
+    </div>
+    """
+    return send_email(to_email, f"&Gifts support: {topic} ({org_name})", html)
+
+
 def send_order_confirmation(order):
     """Order confirmation sent to the agent who placed it (not the
     contact) -- this is a receipt for what the agent bought on the

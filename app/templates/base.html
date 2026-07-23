@@ -72,6 +72,7 @@
     {% if current_user.platform_admin %}
       <a href="{{ url_for('app_admin.dashboard') }}">App Admin</a>
     {% endif %}
+    <a href="{{ url_for('support.contact') }}">Support</a>
     <a href="{{ url_for('auth.logout') }}" class="account-menu-signout">Sign out</a>
   </div>
 
