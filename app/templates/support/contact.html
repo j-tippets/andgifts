@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Support — Ag{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+  <div class="eyebrow">Get help</div>
+  <h1>Contact support</h1>
+  <p class="subdued">Send us a note and we'll get back to you at {{ current_user.email }}.</p>
+</div>
+
+<form method="post">
+  <fieldset>
+    <legend>Your issue</legend>
+    <div class="field">
+      <label>Topic</label>
+      <select name="topic" required>
+        <option value="" disabled selected>Choose a topic&hellip;</option>
+        {% for topic in topics %}
+          <option value="{{ topic }}">{{ topic }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>What's going on?</label>
+      <textarea name="message" rows="6" placeholder="Tell us what happened, what you expected, and any steps to reproduce it." required></textarea>
+    </div>
+    <p class="subdued"><small>We'll include your name, email, and company ({{ current_user.org.name }}) so we can follow up.</small></p>
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Send to support</button>
+</form>
+{% endblock %}
