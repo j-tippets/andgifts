@@ -34,19 +34,31 @@
         </select>
       </div>
       <div class="field">
-        <label>Timing (days)</label>
-        <input type="text" name="offset_days" value="0" placeholder="0">
-        <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
+        <label>Timing</label>
+        <div style="display:flex; gap:8px;">
+          <select name="timing_direction">
+            <option value="before">Before</option>
+            <option value="same_day">On the day</option>
+            <option value="after" selected>After</option>
+          </select>
+          <input type="text" name="timing_amount" value="1" style="max-width:70px;">
+          <select name="timing_unit">
+            <option value="day" selected>Days</option>
+            <option value="week">Weeks</option>
+            <option value="month">Months</option>
+            <option value="year">Years</option>
+          </select>
+        </div>
       </div>
     </div>
+    <label class="checkbox-chip" style="margin-top:10px;">
+      <input type="checkbox" name="repeat_enabled" checked>
+      Repeat every time this event recurs (e.g. every year)
+    </label>
   </fieldset>
 
   <fieldset>
-    <legend>Conditions (optional)</legend>
-    <div class="field">
-      <label>Only if contact has this interest tag</label>
-      <input type="text" name="interest_tag" placeholder="e.g. golf">
-    </div>
+    <legend>Action settings</legend>
     <div class="field">
       <label>Max gift price (USD)</label>
       <input type="text" name="price_max" placeholder="e.g. 150.00">

@@ -228,21 +228,22 @@ def generate_campaign_suggestions_for_org(org, today=None):
         contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
 
         for contact in contacts:
-            if campaign.interest_tag:
-                contact_interest_names = {i.name for i in contact.interests}
-                if campaign.interest_tag not in contact_interest_names:
-                    continue
-
             matching_events = [e for e in contact.timeline_events if e.event_type == campaign.event_type]
             for event in matching_events:
-                trigger_date = _campaign_trigger_date(event, campaign.offset_days, today, window_end)
+                trigger_date = _campaign_trigger_date(
+                    event, campaign.timing_direction, campaign.timing_amount, campaign.timing_unit,
+                    today, window_end,
+                )
                 if trigger_date is None:
                     continue
 
                 if _campaign_suggestion_exists(org.id, campaign.id, contact.id, event.id, trigger_date):
                     continue
 
-                if not campaign_rules.evaluate_rules(campaign, contact, event, org, today):
+                if not campaign.repeat_enabled and _campaign_already_fired_for_contact(campaign.id, contact.id):
+                    continue
+
+                if not campaign_rules.evaluate_conditions(campaign, contact, org, today):
                     continue
 
                 gift_item, gift_reasoning = None, None
@@ -279,13 +280,29 @@ def generate_campaign_suggestions_for_org(org, today=None):
     return created
 
 
-def _campaign_trigger_date(event, offset_days, today, window_end):
-    """The date campaign's action should fire on, or None if that's not
-    within [today, window_end]. Handles offsets that push a recurring
-    event's occurrence across a year boundary by checking last/this/next
-    year's occurrence, not just 'this year'."""
+def _campaign_trigger_date(event, direction, amount, unit, today, window_end):
+    """The date a campaign/recipe's action should fire on, or None if
+    that's outside [today, window_end]. Month/year units use calendar
+    arithmetic (relativedelta) so '1 year after' lands on the same
+    calendar date next year rather than +365 raw days -- important for
+    an annual closing anniversary to keep landing on the actual closing
+    date. Handles an offset that pushes a recurring event's occurrence
+    across a year boundary by checking last/this/next year's
+    occurrence, not just 'this year'."""
+    def apply_offset(base_date):
+        if direction == "same_day":
+            return base_date
+        signed = amount if direction == "after" else -amount
+        if unit == "day":
+            return base_date + timedelta(days=signed)
+        if unit == "week":
+            return base_date + timedelta(weeks=signed)
+        if unit == "month":
+            return base_date + relativedelta(months=signed)
+        return base_date + relativedelta(years=signed)  # unit == "year"
+
     if not event.is_recurring:
-        trigger_date = event.event_date + timedelta(days=offset_days)
+        trigger_date = apply_offset(event.event_date)
         return trigger_date if today <= trigger_date <= window_end else None
 
     for year_delta in (-1, 0, 1):
@@ -293,7 +310,7 @@ def _campaign_trigger_date(event, offset_days, today, window_end):
             base = event.event_date.replace(year=today.year + year_delta)
         except ValueError:
             base = event.event_date.replace(year=today.year + year_delta, day=28)  # Feb 29 -> Feb 28
-        trigger_date = base + timedelta(days=offset_days)
+        trigger_date = apply_offset(base)
         if today <= trigger_date <= window_end:
             return trigger_date
     return None
@@ -318,14 +335,29 @@ def _campaign_suggestion_exists(org_id, campaign_id, contact_id, event_id, targe
     ).scalar()
 
 
+def _campaign_already_fired_for_contact(campaign_id, contact_id):
+    """True if this campaign has ever generated a suggestion for this
+    contact before, of ANY status, regardless of which occurrence
+    triggered it. Enforces Campaign.repeat_enabled == False ('fire at
+    most once per contact, ever') -- the dedup in
+    _campaign_suggestion_exists above only blocks the SAME (contact,
+    event, date) tuple, so without this check a recurring event's next
+    yearly occurrence would still qualify again even with repeat turned
+    off."""
+    return db.session.query(
+        SuggestedAction.query.filter_by(
+            source_campaign_id=campaign_id, contact_id=contact_id,
+        ).exists()
+    ).scalar()
+
+
 def _resolve_campaign_gift(campaign, contact, available_item_ids):
-    if campaign_rules.uses_llm_gift_selection(campaign):
+    if campaign.use_llm_gift_selection:
         candidates = GiftCatalogItem.query.filter(
             GiftCatalogItem.id.in_(available_item_ids), GiftCatalogItem.is_active.is_(True)
         )
-        price_cap = campaign_rules.get_price_cap_cents(campaign)
-        if price_cap:
-            candidates = candidates.filter(GiftCatalogItem.price_cents <= price_cap)
+        if campaign.price_max_cents:
+            candidates = candidates.filter(GiftCatalogItem.price_cents <= campaign.price_max_cents)
         return llm.pick_gift(contact, candidates.all())
 
     if campaign.suggested_gift_id and campaign.suggested_gift_id in available_item_ids:
@@ -369,17 +401,21 @@ def preview_flow_matches(spec, contacts, org, today=None, limit=20):
     uses, just never written to the database.
 
     `spec` only needs to duck-type the same fields Campaign and
-    CampaignRecipe both already have: name, event_type, offset_days,
-    interest_tag, price_max_cents, use_llm_gift_selection, action_type,
-    suggested_gift_id, use_llm_copy, message_template, llm_prompt_hint.
+    CampaignRecipe both already have: name, event_type,
+    timing_direction, timing_amount, timing_unit, repeat_enabled,
+    rules (a list of objects with .field/.config, or real
+    CampaignRule/CampaignRecipeRule rows), price_max_cents,
+    use_llm_gift_selection, action_type, suggested_gift_id,
+    use_llm_copy, message_template, llm_prompt_hint.
 
     This makes REAL LLM calls when use_llm_gift_selection/use_llm_copy
     are set -- it's a genuine dry run of what would be generated, not a
     mock, so it costs the same as a real suggestion would.
 
-    Does not check for already-existing suggestions (there's nothing to
-    dedupe against for a flow that isn't live yet) -- it shows every
-    match in the lookahead window, capped at `limit` results.
+    Does not check for already-existing suggestions, or repeat_enabled
+    (there's nothing to dedupe against, or repeat, for a flow that
+    isn't live yet) -- it shows every match in the lookahead window,
+    capped at `limit` results.
     """
     today = today or date.today()
     window_end = today + timedelta(days=LOOKAHEAD_DAYS)
@@ -391,17 +427,18 @@ def preview_flow_matches(spec, contacts, org, today=None, limit=20):
             break
         if contact.do_not_contact:
             continue
-        if spec.interest_tag:
-            contact_interest_names = {i.name for i in contact.interests}
-            if spec.interest_tag not in contact_interest_names:
-                continue
 
         matching_events = [e for e in contact.timeline_events if e.event_type == spec.event_type]
         for event in matching_events:
             if len(results) >= limit:
                 break
-            trigger_date = _campaign_trigger_date(event, spec.offset_days, today, window_end)
+            trigger_date = _campaign_trigger_date(
+                event, spec.timing_direction, spec.timing_amount, spec.timing_unit, today, window_end,
+            )
             if trigger_date is None:
+                continue
+
+            if not campaign_rules.evaluate_conditions(spec, contact, org, today):
                 continue
 
             gift_item, gift_reasoning = None, None

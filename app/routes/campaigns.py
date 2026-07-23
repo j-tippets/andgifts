@@ -5,6 +5,7 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact, User
+from app.models.campaigns import _timing_label as timing_label_phrase
 from app.models.timeline import STANDARD_EVENT_TYPES, CustomEventType
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
@@ -80,35 +81,45 @@ def _personal_event_type_choices():
     return standard + [(t.key, t.label) for t in visible]
 
 
+def _condition_form_kwargs(org):
+    """Shared dropdown data for the generic condition builder (used by
+    both the personal-flow wizard and the local Flow Library forms)."""
+    fields = campaign_rules.condition_field_choices(org)
+    operator_map = {
+        key: [
+            (op, campaign_rules.OPERATOR_LABELS.get(op, op))
+            for op in campaign_rules.operators_for_field(key, org)
+        ]
+        for key, _label, _value_type in fields
+    }
+    return dict(condition_fields=fields, condition_operator_map=operator_map)
+
+
 def _recipe_form_kwargs():
     """Shared dropdown data for the local-recipe new/edit forms."""
     return dict(
         event_types=_org_event_type_choices(),
         gift_items=current_user.org.available_catalog_items(),
+        **_condition_form_kwargs(current_user.org),
     )
 
 
 def _save_recipe_from_form(recipe):
     recipe.name = request.form["name"].strip()
     recipe.description = request.form.get("description", "").strip() or None
-    recipe.event_type = request.form["event_type"]
-
-    try:
-        recipe.offset_days = int(request.form.get("offset_days", "0"))
-    except ValueError:
-        recipe.offset_days = 0
-
-    recipe.interest_tag = request.form.get("interest_tag", "").strip() or None
-    recipe.price_max_cents = dollars_to_cents(request.form.get("price_max"))
-    recipe.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
+    _timing_from_form(recipe)
 
     recipe.action_type = request.form["action_type"]
     gift_id = request.form.get("suggested_gift_id", "").strip()
     recipe.suggested_gift_id = gift_id or None
+    recipe.price_max_cents = dollars_to_cents(request.form.get("price_max"))
+    recipe.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
 
     recipe.use_llm_copy = bool(request.form.get("use_llm_copy"))
     recipe.message_template = request.form.get("message_template", "").strip() or None
     recipe.llm_prompt_hint = request.form.get("llm_prompt_hint", "").strip() or None
+
+    recipe.rules = _conditions_from_form(CampaignRecipeRule, current_user.org)
 
 
 def _build_flow_spec_from_form(default_name="Untitled preview"):
@@ -117,15 +128,18 @@ def _build_flow_spec_from_form(default_name="Untitled preview"):
     dry-run a flow's matching logic before anything is written to the
     database."""
     try:
-        offset_days = int(request.form.get("offset_days", "0"))
+        timing_amount = max(0, int(request.form.get("timing_amount", "1")))
     except ValueError:
-        offset_days = 0
+        timing_amount = 1
 
     return SimpleNamespace(
         name=request.form.get("name", "").strip() or default_name,
         event_type=request.form.get("event_type"),
-        offset_days=offset_days,
-        interest_tag=request.form.get("interest_tag", "").strip() or None,
+        timing_direction=request.form.get("timing_direction", "after"),
+        timing_amount=timing_amount,
+        timing_unit=request.form.get("timing_unit", "day"),
+        repeat_enabled=bool(request.form.get("repeat_enabled")),
+        rules=_conditions_from_form(CampaignRule, current_user.org),
         price_max_cents=dollars_to_cents(request.form.get("price_max")),
         use_llm_gift_selection=bool(request.form.get("use_llm_gift_selection")),
         action_type=request.form.get("action_type"),
@@ -136,7 +150,75 @@ def _build_flow_spec_from_form(default_name="Untitled preview"):
     )
 
 
-def _run_preview(spec, contacts_query):
+def _describe_condition(rule, field_labels):
+    """One condition row as a plain-English clause -- deterministic from
+    structured fields, not LLM-written (same principle as
+    Campaign.timing_label()). A bit literal for some built-in fields
+    today (e.g. the cooldown field's own label already reads like a
+    sentence); fine to hand-tune per-field phrasing later without
+    touching the condition model itself."""
+    label = field_labels.get(rule.field, rule.field)
+    operator = (rule.config or {}).get("operator")
+    value = (rule.config or {}).get("value")
+    operator_label = campaign_rules.OPERATOR_LABELS.get(operator, operator or "")
+    if operator in ("is_empty", "is_not_empty"):
+        return f"{label} {operator_label}"
+    return f"{label} {operator_label} {value}"
+
+
+def _describe_flow_sentence(spec, org):
+    """Deterministic plain-English summary of a flow's full
+    configuration, for the wizard's Review step -- built from
+    structured fields the same way Campaign.timing_label() is, not
+    generated by an LLM. &Gifts never sends anything without an agent's
+    explicit approval on the Today tab, so unlike the general Flows
+    spec this never needs an 'ask for approval' clause -- that's not a
+    per-flow setting here, it's always true."""
+    timing_phrase_text = timing_label_phrase(spec.timing_direction, spec.timing_amount, spec.timing_unit)
+
+    if spec.action_type == "gift":
+        if spec.use_llm_gift_selection:
+            action = "recommend the best gift"
+            if spec.price_max_cents:
+                action += f" under ${spec.price_max_cents / 100:.0f}"
+            action += " based on the client's interests"
+        elif spec.suggested_gift_id:
+            gift = next((g for g in current_user.org.available_catalog_items() if g.id == spec.suggested_gift_id), None)
+            action = f"send {gift.name}" if gift else "send the selected gift"
+        else:
+            action = "send a gift (none selected yet)"
+    else:
+        kind_label = {"email": "an email", "text": "a text", "handwritten_note": "a handwritten note"}[spec.action_type]
+        action = f"send {kind_label}"
+        if spec.use_llm_copy:
+            action += ", written by the LLM"
+
+    sentence = f"{timing_phrase_text.capitalize()}, {action}."
+    if not spec.repeat_enabled:
+        sentence += " This only ever fires once per contact."
+
+    field_labels = {key: label for key, label, _value_type in campaign_rules.condition_field_choices(org)}
+    condition_phrases = [_describe_condition(rule, field_labels) for rule in spec.rules]
+    if condition_phrases:
+        sentence += " Skip anyone who doesn't match: " + "; ".join(condition_phrases) + "."
+
+    return sentence
+
+
+def _review_stats(preview_results):
+    """Small, honest set of numbers for the Review step -- deliberately
+    scoped to the same 14-day lookahead window preview_flow_matches
+    already checks, rather than projecting a full year of activity
+    (which would need scanning every contact's event regardless of the
+    window, a bigger computation this MVP doesn't attempt yet)."""
+    matching_contacts = len(preview_results)
+    total_spend_cents = sum(r["gift_price_cents"] or 0 for r in preview_results if r.get("gift_price_cents"))
+    next_trigger = min((r["trigger_date"] for r in preview_results), default=None)
+    return dict(
+        matching_contacts=matching_contacts,
+        total_spend_cents=total_spend_cents,
+        next_trigger=next_trigger,
+    )
     contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
     return suggestion_engine.preview_flow_matches(spec, contacts, current_user.org, limit=15)
 
@@ -158,84 +240,68 @@ def _campaign_form_kwargs():
     return dict(
         event_types=_personal_event_type_choices(),
         gift_items=current_user.org.available_catalog_items(),
+        **_condition_form_kwargs(current_user.org),
     )
 
 
-def _rule_form_values(campaign):
-    """Flatten a campaign's current rule rows into plain values for
-    prefilling the wizard on GET. campaign=None (the 'new flow' case)
-    returns all-empty defaults."""
-    if campaign is None:
-        return dict(
-            interest_tag="", price_max="", use_llm_gift_selection=False,
-            once_per_contact=False, cooldown_enabled=False, cooldown_days="",
-        )
-    price_cfg = campaign_rules.get_rule_config(campaign, "price_cap")
-    cooldown_cfg = campaign_rules.get_rule_config(campaign, "cooldown_days")
-    tag_cfg = campaign_rules.get_rule_config(campaign, "interest_tag")
-    return dict(
-        interest_tag=(tag_cfg or {}).get("tag", ""),
-        price_max=cents_to_dollars_str(price_cfg.get("max_cents")) if price_cfg else "",
-        use_llm_gift_selection=campaign_rules.get_rule_config(campaign, "llm_gift_selection") is not None,
-        once_per_contact=campaign_rules.get_rule_config(campaign, "once_per_contact") is not None,
-        cooldown_enabled=cooldown_cfg is not None,
-        cooldown_days=str(cooldown_cfg.get("days", "")) if cooldown_cfg else "",
-    )
+def _conditions_from_form(rule_cls, org):
+    """Build a list of CampaignRule/CampaignRecipeRule instances (not yet
+    attached to any parent) from the generic condition builder's
+    parallel form arrays: condition_field[], condition_operator[],
+    condition_value[]. Anything that doesn't validate against
+    campaign_rules.operators_for_field is dropped rather than trusted
+    blindly -- the client-side dropdowns already constrain this, but a
+    condition row referencing a deleted custom field, or a field/operator
+    pairing that doesn't make sense, shouldn't silently get saved."""
+    fields = request.form.getlist("condition_field")
+    operators = request.form.getlist("condition_operator")
+    values = request.form.getlist("condition_value")
+
+    rows = []
+    for position, (field, operator, value) in enumerate(zip(fields, operators, values)):
+        field = field.strip()
+        operator = operator.strip()
+        if not field or not operator:
+            continue
+        if operator not in campaign_rules.operators_for_field(field, org):
+            continue
+        rows.append(rule_cls(field=field, config={"operator": operator, "value": value.strip()}, position=position))
+    return rows
+
+
+def _timing_from_form(target):
+    """Reads the Event/Timing steps' fields onto target (a Campaign,
+    CampaignRecipe, or the SimpleNamespace preview spec) in place."""
+    target.event_type = request.form.get("event_type")
+    target.timing_direction = request.form.get("timing_direction", "after")
+    try:
+        target.timing_amount = max(0, int(request.form.get("timing_amount", "1")))
+    except ValueError:
+        target.timing_amount = 1
+    target.timing_unit = request.form.get("timing_unit", "day")
+    target.repeat_enabled = bool(request.form.get("repeat_enabled"))
 
 
 def _save_campaign_from_form(campaign):
     campaign.name = request.form["name"].strip()
     campaign.description = request.form.get("description", "").strip() or None
-    campaign.event_type = request.form["event_type"]
-
-    try:
-        campaign.offset_days = int(request.form.get("offset_days", "0"))
-    except ValueError:
-        campaign.offset_days = 0
+    _timing_from_form(campaign)
 
     campaign.action_type = request.form["action_type"]
     gift_id = request.form.get("suggested_gift_id", "").strip()
     campaign.suggested_gift_id = gift_id or None
+    campaign.price_max_cents = dollars_to_cents(request.form.get("price_max"))
+    campaign.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
 
     campaign.use_llm_copy = bool(request.form.get("use_llm_copy"))
     campaign.message_template = request.form.get("message_template", "").strip() or None
     campaign.llm_prompt_hint = request.form.get("llm_prompt_hint", "").strip() or None
 
-    # Rules step -- rebuild the whole rule set from what was submitted
-    # rather than patching individual rows. Simpler and safer than
-    # trying to diff old vs. new: cascade="all, delete-orphan" on the
-    # relationship cleans up whatever isn't in the new list.
-    #
-    # Note: this does NOT touch the legacy interest_tag/price_max_cents/
-    # use_llm_gift_selection columns anymore -- they're left frozen at
-    # whatever value they last had (from the one-time backfill or
-    # earlier direct edits). campaign_rules.py's helpers already prefer
-    # the rule row over the column, so this is harmless; a future
-    # migration can drop those columns once nothing reads them.
-    new_rules = []
-    tag = request.form.get("interest_tag", "").strip()
-    if tag:
-        new_rules.append(CampaignRule(rule_type="interest_tag", config={"tag": tag}, position=0))
-
-    price_cap_cents = dollars_to_cents(request.form.get("price_max"))
-    if price_cap_cents:
-        new_rules.append(CampaignRule(rule_type="price_cap", config={"max_cents": price_cap_cents}, position=1))
-
-    if request.form.get("use_llm_gift_selection"):
-        new_rules.append(CampaignRule(rule_type="llm_gift_selection", config={}, position=2))
-
-    if request.form.get("once_per_contact"):
-        new_rules.append(CampaignRule(rule_type="once_per_contact", config={}, position=3))
-
-    if request.form.get("cooldown_enabled"):
-        try:
-            cooldown_days = int(request.form.get("cooldown_days", "0"))
-        except ValueError:
-            cooldown_days = 0
-        if cooldown_days > 0:
-            new_rules.append(CampaignRule(rule_type="cooldown_days", config={"days": cooldown_days}, position=4))
-
-    campaign.rules = new_rules
+    # Who step -- rebuild the whole condition set from what was
+    # submitted rather than patching individual rows. Simpler and safer
+    # than trying to diff old vs. new: cascade="all, delete-orphan" on
+    # the relationship cleans up whatever isn't in the new list.
+    campaign.rules = _conditions_from_form(CampaignRule, current_user.org)
 
 
 @campaigns_bp.route("/")
@@ -394,6 +460,8 @@ def library_new():
             spec=spec,
             preview_results=preview_results,
             preview_scope_label="every contact in your agency",
+            flow_sentence=_describe_flow_sentence(spec, current_user.org),
+            review_stats=_review_stats(preview_results),
             **_recipe_form_kwargs(),
         )
 
@@ -435,6 +503,8 @@ def library_edit(recipe_id):
             preview_results=preview_results,
             preview_scope_label="every contact in your agency",
             previewed_spec=spec,
+            flow_sentence=_describe_flow_sentence(spec, current_user.org),
+            review_stats=_review_stats(preview_results),
             **_recipe_form_kwargs(),
         )
 
@@ -503,7 +573,6 @@ def campaign_new():
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
-            rule_values=_rule_form_values(None),
             **_campaign_form_kwargs(),
         )
 
@@ -512,7 +581,6 @@ def campaign_new():
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
-            rule_values=_rule_form_values(None),
             **_campaign_form_kwargs(),
         )
 
@@ -522,10 +590,12 @@ def campaign_new():
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
-            rule_values=_rule_form_values(None),
             spec=spec,
+            previewed_spec=spec,
             preview_results=preview_results,
             preview_scope_label="your own contacts",
+            flow_sentence=_describe_flow_sentence(spec, current_user.org),
+            review_stats=_review_stats(preview_results),
             **_campaign_form_kwargs(),
         )
 
@@ -555,7 +625,7 @@ def campaign_edit(campaign_id):
         return render_template(
             "campaigns/wizard.html",
             campaign=campaign,
-            rule_values=_rule_form_values(campaign),
+            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
@@ -574,11 +644,13 @@ def campaign_edit(campaign_id):
         return render_template(
             "campaigns/wizard.html",
             campaign=campaign,
-            rule_values=_rule_form_values(campaign),
+            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             preview_results=preview_results,
             preview_scope_label=scope_label,
             previewed_spec=spec,
+            flow_sentence=_describe_flow_sentence(spec, current_user.org),
+            review_stats=_review_stats(preview_results),
             resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )

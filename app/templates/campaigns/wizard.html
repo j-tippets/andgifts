@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "campaigns/_condition_builder_macro.html" import condition_builder %}
 {% block title %}{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }} — Flows{% endblock %}
 {% block content %}
 <div class="page-head with-action">
@@ -11,13 +12,19 @@
 
 <div class="wizard-steps">
   <div class="wizard-step active" data-step-dot="1">1</div>
-  <span class="wizard-step-label" data-step-label="1">Trigger</span>
+  <span class="wizard-step-label" data-step-label="1">Event</span>
   <div class="wizard-step-line"></div>
   <div class="wizard-step" data-step-dot="2">2</div>
-  <span class="wizard-step-label" data-step-label="2">Rules</span>
+  <span class="wizard-step-label" data-step-label="2">When</span>
   <div class="wizard-step-line"></div>
   <div class="wizard-step" data-step-dot="3">3</div>
-  <span class="wizard-step-label" data-step-label="3">Action</span>
+  <span class="wizard-step-label" data-step-label="3">Who</span>
+  <div class="wizard-step-line"></div>
+  <div class="wizard-step" data-step-dot="4">4</div>
+  <span class="wizard-step-label" data-step-label="4">What</span>
+  <div class="wizard-step-line"></div>
+  <div class="wizard-step" data-step-dot="5">5</div>
+  <span class="wizard-step-label" data-step-label="5">Review</span>
 </div>
 
 <form method="POST" id="wizard-form">
@@ -35,19 +42,15 @@
     </div>
 
     <div class="form-section">
-      <h3 class="form-section-title">When should this fire?</h3>
+      <h3 class="form-section-title">How would you like to start?</h3>
       <div class="field">
-        <label>Event</label>
+        <label>When should this happen?</label>
         <select name="event_type" required>
           {% for et, et_label in event_types %}
             <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
           {% endfor %}
         </select>
-      </div>
-      <div class="field">
-        <label>Timing (days)</label>
-        <input type="text" name="offset_days" value="{{ campaign.offset_days if campaign else 0 }}" placeholder="0">
-        <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
+        <p class="subdued" style="margin-top:4px;"><small>Choose the moment that starts this flow.</small></p>
       </div>
     </div>
 
@@ -58,29 +61,42 @@
 
   <div class="wizard-pane" data-pane="2">
     <div class="form-section">
-      <h3 class="form-section-title">Who should this apply to?</h3>
-      <p class="subdued" style="margin-top:-6px; margin-bottom:14px;"><small>Two rules always apply, free, to every flow: contacts who've opted out are always skipped, and the same milestone never fires twice for the same contact. Everything below is optional, on top of those.</small></p>
-
-      <label class="checkbox-chip" style="margin-bottom:10px;">
-        <input type="checkbox" name="once_per_contact" {{ 'checked' if rule_values.once_per_contact else '' }}>
-        Only trigger once per contact, ever &mdash; even if they have more than one matching event later
-      </label>
-
-      <div class="field">
-        <label class="checkbox-chip">
-          <input type="checkbox" name="cooldown_enabled" id="cooldown_enabled" {{ 'checked' if rule_values.cooldown_enabled else '' }}>
-          Skip if they've gotten anything from any flow recently
+      <h3 class="form-section-title">When relative to this event?</h3>
+      <div class="timing-direction-row">
+        <label class="timing-direction-option">
+          <input type="radio" name="timing_direction" value="before" {{ 'checked' if campaign and campaign.timing_direction == 'before' else '' }}>
+          Before
         </label>
-        <div id="cooldown-field" style="margin-top:8px; max-width:160px;">
-          <input type="text" name="cooldown_days" value="{{ rule_values.cooldown_days }}" placeholder="90">
-          <p class="subdued" style="margin-top:4px;"><small>Days since their last suggestion, from any flow.</small></p>
+        <label class="timing-direction-option">
+          <input type="radio" name="timing_direction" value="same_day" {{ 'checked' if campaign and campaign.timing_direction == 'same_day' else '' }}>
+          On the day
+        </label>
+        <label class="timing-direction-option">
+          <input type="radio" name="timing_direction" value="after" {{ 'checked' if not campaign or campaign.timing_direction == 'after' else '' }}>
+          After
+        </label>
+      </div>
+      <div class="timing-amount-row" id="timing-amount-row">
+        <div class="field">
+          <label>Amount</label>
+          <input type="text" name="timing_amount" value="{{ campaign.timing_amount if campaign else 1 }}">
+        </div>
+        <div class="field">
+          <label>Unit</label>
+          <select name="timing_unit">
+            <option value="day" {{ 'selected' if not campaign or campaign.timing_unit == 'day' else '' }}>Days</option>
+            <option value="week" {{ 'selected' if campaign and campaign.timing_unit == 'week' else '' }}>Weeks</option>
+            <option value="month" {{ 'selected' if campaign and campaign.timing_unit == 'month' else '' }}>Months</option>
+            <option value="year" {{ 'selected' if campaign and campaign.timing_unit == 'year' else '' }}>Years</option>
+          </select>
         </div>
       </div>
 
-      <div class="field">
-        <label>Only if contact has this interest tag (optional)</label>
-        <input type="text" name="interest_tag" value="{{ rule_values.interest_tag }}" placeholder="e.g. golf">
-      </div>
+      <label class="checkbox-chip" style="margin-top:14px;">
+        <input type="checkbox" name="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }}>
+        Repeat this every time the event recurs (e.g. every year)
+      </label>
+      <p class="subdued" style="margin-top:4px;"><small>Unchecked means this flow only ever fires once per contact, even if the event itself repeats.</small></p>
     </div>
 
     <div style="display:flex; justify-content:space-between;">
@@ -91,7 +107,28 @@
 
   <div class="wizard-pane" data-pane="3">
     <div class="form-section">
-      <h3 class="form-section-title">What should happen?</h3>
+      <h3 class="form-section-title">Who should receive this?</h3>
+      <div class="safeguards-card">
+        <div class="safeguards-card-icon">&#10003;</div>
+        <div>
+          <div class="safeguards-card-title">Built-in safeguards</div>
+          <div class="subdued"><small>Opt-outs are always skipped, and the same milestone never fires twice for the same contact. Everything below is optional, on top of those.</small></div>
+        </div>
+      </div>
+
+      <label style="font-family:var(--font-rounded); font-weight:700; font-size:13px; display:block; margin-bottom:8px;">Add a condition (optional)</label>
+      {{ condition_builder(condition_fields, condition_operator_map, campaign.rules if campaign else []) }}
+    </div>
+
+    <div style="display:flex; justify-content:space-between;">
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(2)">&larr; Back</button>
+      <button type="button" class="btn btn-primary" onclick="wizardGo(4)">Next &rarr;</button>
+    </div>
+  </div>
+
+  <div class="wizard-pane" data-pane="4">
+    <div class="form-section">
+      <h3 class="form-section-title">What should &amp;Gifts do?</h3>
       <div class="access-method">
         <label class="access-option">
           <input type="radio" name="action_type" value="gift" id="action_type_gift" {{ 'checked' if not campaign or campaign.action_type == 'gift' else '' }}>
@@ -126,12 +163,12 @@
 
     <div class="form-section" id="gift-fields">
       <label class="checkbox-chip" style="margin-bottom:10px;">
-        <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if rule_values.use_llm_gift_selection else '' }}>
+        <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if campaign and campaign.use_llm_gift_selection else '' }}>
         Let the LLM pick the best gift instead of a fixed item
       </label>
       <div class="field">
         <label>Gift budget cap (USD)</label>
-        <input type="text" name="price_max" value="{{ rule_values.price_max }}" placeholder="e.g. 150.00">
+        <input type="text" name="price_max" value="{{ request.form.get('price_max', price_max_display if campaign else '') }}" placeholder="e.g. 150.00">
         <p class="subdued" style="margin-top:4px;"><small>Used as the LLM's budget above, or ignored if you pick a fixed gift below.</small></p>
       </div>
       <div class="field" id="fixed-gift-field">
@@ -162,19 +199,26 @@
     </div>
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
-      <button type="button" class="btn btn-ghost" onclick="wizardGo(2)">&larr; Back</button>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="submit" name="action" value="preview" class="btn btn-ghost">Preview matches</button>
-        <button type="submit" name="action" value="save" class="btn btn-primary">{{ 'Save changes' if campaign else 'Turn on automation' }}</button>
-      </div>
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(3)">&larr; Back</button>
+      <button type="submit" name="action" value="preview" class="btn btn-primary">Continue to review &rarr;</button>
+    </div>
+  </div>
+
+  <div class="wizard-pane" data-pane="5">
+    <div class="form-section">
+      <h3 class="form-section-title">Review your flow</h3>
+      {% include "campaigns/_preview_results.html" %}
+      {% if not preview_results is defined %}
+        <p class="subdued">Go back and continue through the previous steps to see your review here.</p>
+      {% endif %}
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(4)">&larr; Back</button>
+      <button type="submit" name="action" value="save" class="btn btn-primary">{{ 'Save changes' if campaign else 'Turn on automation' }}</button>
     </div>
   </div>
 </form>
-
-{% include "campaigns/_preview_results.html" %}
-{% if previewed_spec %}
-  <p class="subdued" style="margin-top:12px;"><small>Note: the preview above reflects the values you just submitted, even if the form above still shows your last-saved version &mdash; click Save changes to keep them.</small></p>
-{% endif %}
 
 {% if campaign %}
 {% from "dashboard/_type_icon.html" import type_icon %}
@@ -233,10 +277,12 @@
 </div>
 {% endif %}
 
+<script src="{{ url_for('static', filename='js/condition-builder.js') }}" defer></script>
 <script>
   (function () {
+    var TOTAL_STEPS = 5;
     function wizardGoImpl(n) {
-      for (var i = 1; i <= 3; i++) {
+      for (var i = 1; i <= TOTAL_STEPS; i++) {
         var pane = document.querySelector('[data-pane="' + i + '"]');
         var dot = document.querySelector('[data-step-dot="' + i + '"]');
         var label = document.querySelector('[data-step-label="' + i + '"]');
@@ -256,8 +302,8 @@
     var useLlmCopy = document.getElementById('use_llm_copy');
     var templateField = document.getElementById('template-field');
     var llmHintField = document.getElementById('llm-hint-field');
-    var cooldownEnabled = document.getElementById('cooldown_enabled');
-    var cooldownField = document.getElementById('cooldown-field');
+    var timingAmountRow = document.getElementById('timing-amount-row');
+    var timingDirectionInputs = document.querySelectorAll('input[name="timing_direction"]');
 
     function refresh() {
       var checked = document.querySelector('input[name="action_type"]:checked');
@@ -267,19 +313,21 @@
       fixedGiftField.style.display = useLlmGift.checked ? 'none' : '';
       templateField.style.display = useLlmCopy.checked ? 'none' : '';
       llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
-      cooldownField.style.display = cooldownEnabled.checked ? '' : 'none';
+
+      var direction = document.querySelector('input[name="timing_direction"]:checked');
+      timingAmountRow.style.display = (direction && direction.value === 'same_day') ? 'none' : 'flex';
     }
     actionTypeInputs.forEach(function (el) { el.addEventListener('change', refresh); });
+    timingDirectionInputs.forEach(function (el) { el.addEventListener('change', refresh); });
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
-    cooldownEnabled.addEventListener('change', refresh);
     refresh();
 
     {% if preview_results is defined %}
-    // A preview submission came from step 3 -- land back there instead
-    // of resetting to step 1, so the results sit next to the form that
-    // produced them.
-    wizardGoImpl(3);
+    // A preview/review submission came from step 4 -- land back on the
+    // Review step instead of resetting to step 1, so the results sit
+    // next to the form that produced them.
+    wizardGoImpl(5);
     {% endif %}
   })();
 </script>

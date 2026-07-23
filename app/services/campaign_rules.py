@@ -1,69 +1,176 @@
 """
-Registry of campaign rule types.
+Generic condition engine for Flows (Campaign / CampaignRecipe).
 
-The split that matters: WHICH rules are attached to a given campaign,
-and with what parameters, is pure data (CampaignRule / CampaignRecipeRule
-rows) -- turning a rule on/off, changing a threshold, stacking three
-rules on one campaign, all need zero deploys. But the logic behind a
-rule_type -- what "once per contact" or "cooldown" actually checks
-against the database -- is code, registered here. Adding a genuinely
-new rule TYPE is still a small, contained code change (one function +
-one registry entry + one builder-UI card), not a rebuild of the
-campaign system.
+A condition is (field, operator, value), stored as one CampaignRule /
+CampaignRecipeRule row -- `field` is the DB column still named
+`rule_type` (see app/models/campaigns.py), `config` holds
+{"operator": ..., "value": ...}. All conditions on a flow are ANDed
+together; the schema doesn't rule out OR/nested groups later, but nothing
+in this module builds that yet (matches the MVP scope we agreed on).
 
-Two different shapes of rule, and only one is handled by this module:
+Two kinds of field:
+- Built into BUILT_IN_FIELDS below: things every org has regardless of
+  their own setup (interest tags, a cross-flow gift cooldown).
+- An org's own custom fields (Contact custom fields -- see
+  app/models/contact.py CustomFieldDefinition), addressed as
+  "custom:<field_definition_id>". This is deliberately how a flow
+  reaches something like "transaction value" or "property type": &Gifts
+  doesn't have a first-class Transaction/Deal model, so those live as
+  agent-defined custom fields on Contact, not as a fabricated built-in.
 
-- Per-contact predicates (what's here): "does this one contact, right
-  now, satisfy this rule" -- evaluated once per (contact, event) pair
-  inside the normal suggestion-generation loop. interest_tag and
-  once_per_contact are both this shape.
-
-- Batch-level constraints (NOT modeled yet -- intentionally): things
-  like "stop after $500 spent this month" or "never generate more than
-  50 suggestions in one run" apply to the whole set of matches, not to
-  one contact in isolation, and need a different hook -- e.g. filtering
-  the candidate list after it's built, or a running total checked
-  mid-loop. When we build the first one of these, design that hook
-  deliberately rather than forcing it through evaluate_rules() below.
+Adding a genuinely new BUILT-IN field is a small code change here (one
+entry in BUILT_IN_FIELDS + a branch in _actual_value). Adding a new
+custom field needs no code change at all -- it's just a new
+CustomFieldDefinition row, and every flow's condition builder picks it
+up automatically via condition_field_choices().
 """
 from datetime import timedelta
 
 
-def _eval_once_per_contact(contact, event, campaign, org, today, config):
-    """True if this campaign has never generated a suggestion for this
-    contact before -- of ANY status (pending, approved, skipped) and
-    regardless of which of the contact's events triggered it. This is
-    different from the dedup that already runs unconditionally for
-    every campaign (_campaign_suggestion_exists in suggestion_engine.py),
-    which only blocks the SAME event occurrence from firing twice --
-    a contact with two closing-type events could still get two gifts
-    under that dedup alone. This rule closes that gap when an agent
-    wants a true "only ever once" flow."""
+BUILT_IN_FIELDS = {
+    "interest_tag": {
+        "label": "Contact has interest tag",
+        "value_type": "text",
+        "operators": ["equals", "not_equals"],
+    },
+    "gift_cooldown_days": {
+        "label": "Days since their last suggestion (any flow)",
+        "value_type": "number",
+        "operators": ["older_than"],
+    },
+}
+
+# Which operators make sense for each custom-field type. Date fields are
+# intentionally left out of the condition builder for now -- "older
+# than" already covers the one date-shaped comparison that comes up in
+# practice (gift_cooldown_days above); a general date condition can be
+# added here later without touching anything else.
+OPERATORS_BY_VALUE_TYPE = {
+    "text": ["equals", "not_equals", "contains", "is_empty", "is_not_empty"],
+    "number": ["equals", "not_equals", "greater_than", "less_than", "is_empty", "is_not_empty"],
+    "checkbox": ["equals"],
+}
+
+OPERATOR_LABELS = {
+    "equals": "is",
+    "not_equals": "is not",
+    "contains": "contains",
+    "greater_than": "is greater than",
+    "less_than": "is less than",
+    "older_than": "is more than",
+    "is_empty": "is empty",
+    "is_not_empty": "is not empty",
+}
+
+
+def condition_field_choices(org):
+    """(field_key, label, value_type) tuples for the condition builder's
+    field dropdown: built-ins first, then this org's own custom fields
+    (org-scope and every agent's personal ones -- a flow's conditions
+    aren't scoped per-agent the way personal custom fields otherwise
+    are, since the flow itself already belongs to one agent or is a
+    shared team template)."""
+    from app.models import CustomFieldDefinition
+
+    choices = [
+        (key, spec["label"], spec["value_type"]) for key, spec in BUILT_IN_FIELDS.items()
+    ]
+    custom_fields = (
+        CustomFieldDefinition.query.filter_by(org_id=org.id)
+        .filter(CustomFieldDefinition.field_type.in_(["text", "number", "checkbox", "select"]))
+        .order_by(CustomFieldDefinition.label)
+        .all()
+    )
+    for f in custom_fields:
+        value_type = "text" if f.field_type in ("text", "select") else f.field_type
+        choices.append((f"custom:{f.id}", f.label, value_type))
+    return choices
+
+
+def operators_for_field(field_key, org):
+    """Which operators are valid for this field key -- used both to
+    populate the operator dropdown and to validate a submitted
+    condition server-side."""
+    spec = BUILT_IN_FIELDS.get(field_key)
+    if spec:
+        return spec["operators"]
+    if field_key.startswith("custom:"):
+        from app.models import CustomFieldDefinition
+
+        field_id = field_key.split(":", 1)[1]
+        definition = CustomFieldDefinition.query.filter_by(id=field_id, org_id=org.id).first()
+        if not definition:
+            return []
+        value_type = "text" if definition.field_type in ("text", "select") else definition.field_type
+        return OPERATORS_BY_VALUE_TYPE.get(value_type, [])
+    return []
+
+
+def _actual_value(field_key, contact):
+    """The contact's current value for a condition field, or a sentinel
+    tuple (False, None) for fields that need special per-condition
+    handling (gift_cooldown_days -- it depends on `today`/`org`, not
+    just the contact, so it's evaluated directly in evaluate_conditions
+    instead of through this generic path). Returns (True, value)
+    otherwise, so an actual None/empty value is distinguishable from
+    "not handled here"."""
+    if field_key == "interest_tag":
+        return True, {i.name for i in contact.interests}
+    if field_key.startswith("custom:"):
+        field_id = field_key.split(":", 1)[1]
+        row = next((v for v in contact.custom_values if v.field_definition_id == field_id), None)
+        return True, (row.value if row else None)
+    return False, None
+
+
+def _compare(operator, actual, expected):
+    """Generic comparator. `actual` is either a string/None (most
+    fields) or a set of strings (interest_tag, membership-style)."""
+    if operator == "is_empty":
+        return not actual
+    if operator == "is_not_empty":
+        return bool(actual)
+
+    if isinstance(actual, set):
+        if operator == "equals":
+            return expected in actual
+        if operator == "not_equals":
+            return expected not in actual
+        return False
+
+    if operator in ("equals", "not_equals"):
+        matches = (actual or "").strip().lower() == (expected or "").strip().lower()
+        return matches if operator == "equals" else not matches
+    if operator == "contains":
+        return (expected or "").strip().lower() in (actual or "").lower()
+
+    # Numeric comparisons -- a blank/non-numeric actual value never
+    # satisfies a greater/less-than condition (fails closed, not open).
+    try:
+        actual_num = float(actual)
+        expected_num = float(expected)
+    except (TypeError, ValueError):
+        return False
+    if operator == "greater_than":
+        return actual_num > expected_num
+    if operator == "less_than":
+        return actual_num < expected_num
+    return False
+
+
+def _eval_cooldown(contact, org, today, expected_days):
+    """True if this contact has NOT gotten a suggestion from any of the
+    org's flows within expected_days -- the one field that needs
+    database context beyond the contact itself."""
     from app.models import SuggestedAction
     from app.extensions import db
 
-    return not db.session.query(
-        SuggestedAction.query.filter_by(
-            source_campaign_id=campaign.id,
-            contact_id=contact.id,
-        ).exists()
-    ).scalar()
+    try:
+        days = int(expected_days)
+    except (TypeError, ValueError):
+        return True  # misconfigured condition shouldn't block every suggestion
 
-
-def _eval_cooldown_days(contact, event, campaign, org, today, config):
-    """True if this contact hasn't received a suggestion from ANY of
-    the org's campaigns (not just this one) in the last N days --
-    config: {"days": 90}. Guards against gift fatigue when several
-    campaigns can independently match the same contact around the
-    same time."""
-    from app.models import SuggestedAction
-    from app.extensions import db
-
-    days = config.get("days")
-    if not days:
-        return True  # misconfigured rule shouldn't block every suggestion
-
-    cutoff = today - timedelta(days=int(days))
+    cutoff = today - timedelta(days=days)
     return not db.session.query(
         SuggestedAction.query.filter(
             SuggestedAction.org_id == org.id,
@@ -74,110 +181,30 @@ def _eval_cooldown_days(contact, event, campaign, org, today, config):
     ).scalar()
 
 
-def _eval_interest_tag(contact, event, campaign, org, today, config):
-    """True if the contact has the interest tag this rule specifies.
-    Same check the legacy Campaign.interest_tag column used to gate
-    directly -- now expressed as a rule row instead of a hardcoded
-    column, so it composes with other rules instead of being special-cased."""
-    tag = config.get("tag")
-    if not tag:
-        return True
-    return tag in {i.name for i in contact.interests}
-
-
-RULE_TYPES = {
-    "once_per_contact": {
-        "label": "Only trigger once per contact, ever",
-        "description": "Skips this contact if this flow has already generated a suggestion for them before, no matter which of their events triggered it.",
-        "config_schema": {},
-        "evaluate": _eval_once_per_contact,
-    },
-    "cooldown_days": {
-        "label": "Cooldown since last touch",
-        "description": "Skips this contact if they've gotten a suggestion from any flow within the last N days.",
-        "config_schema": {"days": int},
-        "evaluate": _eval_cooldown_days,
-    },
-    "interest_tag": {
-        "label": "Contact has this interest tag",
-        "description": "Only matches contacts tagged with a specific interest.",
-        "config_schema": {"tag": str},
-        "evaluate": _eval_interest_tag,
-    },
-    # price_cap and llm_gift_selection are NOT predicates -- they don't
-    # gate whether a contact matches, they're parameters consumed
-    # directly by gift resolution (see get_price_cap_cents /
-    # uses_llm_gift_selection below). They're still stored as rule rows
-    # so they're DB-driven and show up in the Rules step alongside the
-    # real predicates, but evaluate_rules() below skips them.
-    "price_cap": {
-        "label": "Gift budget cap",
-        "description": "Upper bound in cents for gift selection.",
-        "config_schema": {"max_cents": int},
-        "evaluate": None,
-    },
-    "llm_gift_selection": {
-        "label": "Let the LLM pick the gift",
-        "description": "Instead of a fixed catalog item, the LLM picks within the budget cap.",
-        "config_schema": {},
-        "evaluate": None,
-    },
-}
-
-
-def get_rule_config(campaign, rule_type):
-    """First matching rule's config dict for this campaign, or None if
-    it doesn't have one attached. Used by parameter-style rule types
-    (price_cap, llm_gift_selection) that gift resolution reads
-    directly, rather than predicates evaluate_rules() checks."""
-    for rule in campaign.rules:
-        if rule.rule_type == rule_type:
-            return rule.config or {}
-    return None
-
-
-def get_price_cap_cents(campaign):
-    """Rule row wins if present; falls back to the legacy
-    price_max_cents column during the transition so campaigns that
-    haven't been touched since the data migration still behave
-    identically. Drop the fallback once the legacy column itself is
-    dropped."""
-    config = get_rule_config(campaign, "price_cap")
-    if config is not None:
-        return config.get("max_cents")
-    return campaign.price_max_cents
-
-
-def uses_llm_gift_selection(campaign):
-    """Same rule-row-wins-else-legacy-column fallback as
-    get_price_cap_cents above."""
-    if get_rule_config(campaign, "llm_gift_selection") is not None:
-        return True
-    return bool(campaign.use_llm_gift_selection)
-
-
-def evaluate_rules(campaign, contact, event, org, today):
-    """True if every per-contact rule attached to this campaign passes
-    for this contact/event. Call this inside the suggestion-generation
+def evaluate_conditions(campaign, contact, org, today):
+    """True if every condition attached to this campaign passes for
+    this contact (plain AND). Call this inside the suggestion-generation
     loop, after the trigger/timing check and before creating the
     SuggestedAction."""
     import logging
 
     for rule in campaign.rules:
-        spec = RULE_TYPES.get(rule.rule_type)
-        if spec is None:
-            # Fail open, not closed: an unrecognized rule_type (e.g. a
-            # rule type that got removed from the registry, or a row
-            # written by a future version of this code) shouldn't
-            # silently block every suggestion for every contact. Log it
-            # so it gets noticed and cleaned up.
+        field_key = rule.field
+        operator = (rule.config or {}).get("operator")
+        expected = (rule.config or {}).get("value")
+
+        if field_key == "gift_cooldown_days":
+            if not _eval_cooldown(contact, org, today, expected):
+                return False
+            continue
+
+        handled, actual = _actual_value(field_key, contact)
+        if not handled:
             logging.getLogger(__name__).warning(
-                "Unknown campaign rule_type %r on campaign %s -- skipping it.",
-                rule.rule_type, campaign.id,
+                "Unknown condition field %r on campaign %s -- skipping it.",
+                field_key, campaign.id,
             )
             continue
-        if spec["evaluate"] is None:
-            continue  # parameter-style rule (price_cap, llm_gift_selection) -- not a predicate
-        if not spec["evaluate"](contact, event, campaign, org, today, rule.config or {}):
+        if not _compare(operator, actual, expected):
             return False
     return True
