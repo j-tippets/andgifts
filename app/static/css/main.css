@@ -523,6 +523,9 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   white-space: nowrap; flex-shrink: 0;
 }
 .s-card-reason { font-size: 14px; line-height: 1.45; color: rgba(42,26,69,.7); margin: 0 0 14px; }
+.s-card-expires {
+  font-size: 11.5px; color: #8A8375; margin: -4px 0 12px;
+}
 
 .s-gift-box {
   background: var(--paper); border-radius: 14px; padding: 12px 14px; margin: 0 0 14px;

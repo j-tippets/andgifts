@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
 from app.models import Org
-from app.services.suggestion_engine import generate_suggestions_for_org
+from app.services.suggestion_engine import generate_suggestions_for_org, expire_stale_suggestions
 
 
 def main():
@@ -23,7 +23,8 @@ def main():
                 continue
             created = generate_suggestions_for_org(org)
             total += len(created)
-            print(f"[{org.name}] {len(created)} new suggestion(s)")
+            expired = expire_stale_suggestions(org)
+            print(f"[{org.name}] {len(created)} new suggestion(s), {len(expired)} expired")
         print(f"Done. {total} suggestion(s) created across {len(orgs)} org(s).")
 
 
