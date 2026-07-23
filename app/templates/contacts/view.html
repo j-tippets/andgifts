@@ -179,6 +179,10 @@
           <summary class="timeline-summary">
             <div class="timeline-date">{{ event.event_date.strftime('%b %-d, %Y') }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
             <strong>{{ event.display_label() }}</strong>
+            {% if event.id in completed_by_event_id %}
+              {% set log = completed_by_event_id[event.id] %}
+              <span class="badge badge-success" title="{{ log.detail or log.action_type|capitalize }} on {{ log.sent_at.strftime('%b %-d, %Y') }}">✓ {{ log.action_type|capitalize }} sent</span>
+            {% endif %}
             {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
           </summary>
           {{ timeline_event_form(
