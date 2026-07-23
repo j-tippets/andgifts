@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from app.extensions import db
 from app.models import (
     Contact, ContactPerson, ContactMethod,
@@ -260,6 +261,29 @@ def view_contact(contact_id):
         .limit(15)
         .all()
     )
+
+    # Badge data for the Timeline: for each event, the most recent completed
+    # action that was triggered by it (if any), so the template can show a
+    # small "done" indicator without agents having to open Recent activity.
+    # "Completed" means an ActionLog row exists and, for channels that track
+    # real delivery (currently just email), that delivery actually succeeded
+    # -- delivery_status is NULL for channels that aren't wired to a real
+    # send yet (gift, text, handwritten_note), which still counts as done.
+    completed_by_event_id = {}
+    logs = (
+        ActionLog.query
+        .join(SuggestedAction, ActionLog.suggested_action_id == SuggestedAction.id)
+        .filter(
+            SuggestedAction.contact_id == contact.id,
+            SuggestedAction.triggering_event_id.isnot(None),
+            or_(ActionLog.delivery_status.is_(None), ActionLog.delivery_status != "failed"),
+        )
+        .all()
+    )
+    for log in sorted(logs, key=lambda l: l.sent_at):
+        event_id = log.suggested_action.triggering_event_id
+        completed_by_event_id[event_id] = log  # last write wins -- keeps most recent
+
     return render_template(
         "contacts/view.html",
         contact=contact,
@@ -268,6 +292,7 @@ def view_contact(contact_id):
         custom_values=custom_values,
         pending_actions=pending_actions,
         recent_activity=recent_activity,
+        completed_by_event_id=completed_by_event_id,
     )
 
 
