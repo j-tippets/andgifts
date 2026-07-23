@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Edit {{ recipe.name }} — Flow Library{% endblock %}
+{% from "campaigns/_condition_builder_macro.html" import condition_builder %}
 {% block content %}
 <div class="page-head with-action">
   <div>
@@ -23,30 +24,68 @@
   </div>
 
   <div class="form-section">
-    <h3 class="form-section-title">Trigger</h3>
-    <div class="field-row">
-      <div class="field">
-        <label>Event</label>
-        <select name="event_type" required>
-          {% for et, et_label in event_types %}
-            <option value="{{ et }}" {{ 'selected' if recipe.event_type == et else '' }}>{{ et_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label>Timing (days)</label>
-        <input type="text" name="offset_days" value="{{ recipe.offset_days }}">
-        <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
-      </div>
+    <h3 class="form-section-title">Event</h3>
+    <div class="field">
+      <label>When should this happen?</label>
+      <select name="event_type" required>
+        {% for et, et_label in event_types %}
+          <option value="{{ et }}" {{ 'selected' if recipe.event_type == et else '' }}>{{ et_label }}</option>
+        {% endfor %}
+      </select>
     </div>
   </div>
 
   <div class="form-section">
-    <h3 class="form-section-title">Conditions (optional)</h3>
-    <div class="field">
-      <label>Only if contact has this interest tag</label>
-      <input type="text" name="interest_tag" value="{{ recipe.interest_tag or '' }}" placeholder="e.g. golf">
+    <h3 class="form-section-title">When relative to this event?</h3>
+    <div class="timing-direction-row">
+      <label class="timing-direction-option">
+        <input type="radio" name="timing_direction" value="before" {{ 'checked' if recipe.timing_direction == 'before' else '' }}>
+        Before
+      </label>
+      <label class="timing-direction-option">
+        <input type="radio" name="timing_direction" value="same_day" {{ 'checked' if recipe.timing_direction == 'same_day' else '' }}>
+        On the day
+      </label>
+      <label class="timing-direction-option">
+        <input type="radio" name="timing_direction" value="after" {{ 'checked' if recipe.timing_direction == 'after' else '' }}>
+        After
+      </label>
     </div>
+    <div class="timing-amount-row">
+      <div class="field">
+        <label>Amount</label>
+        <input type="text" name="timing_amount" value="{{ recipe.timing_amount }}">
+      </div>
+      <div class="field">
+        <label>Unit</label>
+        <select name="timing_unit">
+          <option value="day" {{ 'selected' if recipe.timing_unit == 'day' else '' }}>Days</option>
+          <option value="week" {{ 'selected' if recipe.timing_unit == 'week' else '' }}>Weeks</option>
+          <option value="month" {{ 'selected' if recipe.timing_unit == 'month' else '' }}>Months</option>
+          <option value="year" {{ 'selected' if recipe.timing_unit == 'year' else '' }}>Years</option>
+        </select>
+      </div>
+    </div>
+    <label class="checkbox-chip" style="margin-top:14px;">
+      <input type="checkbox" name="repeat_enabled" {{ 'checked' if recipe.repeat_enabled else '' }}>
+      Repeat this every time the event recurs (e.g. every year)
+    </label>
+  </div>
+
+  <div class="form-section">
+    <h3 class="form-section-title">Who should receive this?</h3>
+    <div class="safeguards-card">
+      <div class="safeguards-card-icon">&#10003;</div>
+      <div>
+        <div class="safeguards-card-title">Built-in safeguards</div>
+        <div class="subdued"><small>Opt-outs are always skipped, and the same milestone never fires twice for the same contact.</small></div>
+      </div>
+    </div>
+    {{ condition_builder(condition_fields, condition_operator_map, recipe.rules) }}
+  </div>
+
+  <div class="form-section">
+    <h3 class="form-section-title">Gift budget</h3>
     <div class="field">
       <label>Max gift price (USD)</label>
       <input type="text" name="price_max" value="{{ price_max_display }}" placeholder="e.g. 150.00">
@@ -104,6 +143,7 @@
 </form>
 
 {% include "campaigns/_preview_results.html" %}
+<script src="{{ url_for('static', filename='js/condition-builder.js') }}" defer></script>
 
 <div class="form-section" style="margin-top:28px;">
   <h3 class="form-section-title">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this flow</h3>

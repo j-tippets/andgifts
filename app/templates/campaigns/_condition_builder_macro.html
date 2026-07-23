@@ -1,0 +1,30 @@
+{% macro condition_builder(condition_fields, condition_operator_map, existing_conditions, container_id='condition-rows') %}
+{% set field_options = condition_fields | map(attribute=0) | list %}
+{% set field_labels = condition_fields | map(attribute=1) | list %}
+<div class="condition-rows" id="{{ container_id }}"
+     data-operator-map='{{ condition_operator_map|tojson }}'
+     data-field-options='{{ condition_fields | map("list") | list | tojson }}'>
+  {% for c in existing_conditions %}
+    <div class="condition-row">
+      <select name="condition_field" class="condition-field-select">
+        {% for key, label, value_type in condition_fields %}
+          <option value="{{ key }}" {{ 'selected' if c.field == key else '' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="condition_operator" class="condition-operator-select">
+        {% for op, op_label in condition_operator_map.get(c.field, []) %}
+          <option value="{{ op }}" {{ 'selected' if c.config and c.config.get('operator') == op else '' }}>{{ op_label }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="condition_value" class="condition-value-input"
+             value="{{ c.config.get('value', '') if c.config else '' }}" placeholder="value">
+      <button type="button" class="condition-remove-btn" aria-label="Remove condition">&times;</button>
+    </div>
+  {% endfor %}
+</div>
+{% if not condition_fields %}
+  <p class="subdued"><small>No condition fields available yet -- add a custom field to your contacts first if you want to condition on one.</small></p>
+{% else %}
+  <button type="button" class="btn btn-ghost btn-small condition-add-btn" data-target="{{ container_id }}">+ Add a condition</button>
+{% endif %}
+{% endmacro %}

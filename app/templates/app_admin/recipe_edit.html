@@ -34,19 +34,31 @@
         </select>
       </div>
       <div class="field">
-        <label>Timing (days)</label>
-        <input type="text" name="offset_days" value="{{ recipe.offset_days }}">
-        <p class="subdued" style="margin-top:4px;"><small>0 = same day. Positive = after (e.g. 5). Negative = before (e.g. -7).</small></p>
+        <label>Timing</label>
+        <div style="display:flex; gap:8px;">
+          <select name="timing_direction">
+            <option value="before" {{ 'selected' if recipe.timing_direction == 'before' else '' }}>Before</option>
+            <option value="same_day" {{ 'selected' if recipe.timing_direction == 'same_day' else '' }}>On the day</option>
+            <option value="after" {{ 'selected' if recipe.timing_direction == 'after' else '' }}>After</option>
+          </select>
+          <input type="text" name="timing_amount" value="{{ recipe.timing_amount }}" style="max-width:70px;">
+          <select name="timing_unit">
+            <option value="day" {{ 'selected' if recipe.timing_unit == 'day' else '' }}>Days</option>
+            <option value="week" {{ 'selected' if recipe.timing_unit == 'week' else '' }}>Weeks</option>
+            <option value="month" {{ 'selected' if recipe.timing_unit == 'month' else '' }}>Months</option>
+            <option value="year" {{ 'selected' if recipe.timing_unit == 'year' else '' }}>Years</option>
+          </select>
+        </div>
       </div>
     </div>
+    <label class="checkbox-chip" style="margin-top:10px;">
+      <input type="checkbox" name="repeat_enabled" {{ 'checked' if recipe.repeat_enabled else '' }}>
+      Repeat every time this event recurs (e.g. every year)
+    </label>
   </fieldset>
 
   <fieldset>
-    <legend>Conditions (optional)</legend>
-    <div class="field">
-      <label>Only if contact has this interest tag</label>
-      <input type="text" name="interest_tag" value="{{ recipe.interest_tag or '' }}" placeholder="e.g. golf">
-    </div>
+    <legend>Action settings</legend>
     <div class="field">
       <label>Max gift price (USD)</label>
       <input type="text" name="price_max" value="{{ price_max_display }}" placeholder="e.g. 150.00">

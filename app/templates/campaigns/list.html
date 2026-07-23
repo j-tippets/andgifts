@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "dashboard/_type_icon.html" import type_icon %}
 {% block title %}Flows — Ag{% endblock %}
 {% block content %}
 <div class="subtab-links">
@@ -21,28 +22,86 @@
   </div>
 </div>
 
-{% macro campaign_row(c) %}
-  <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="flow-card {{ 'is-inactive' if not c.is_active else '' }}" style="text-decoration:none; color:inherit;">
-    <div class="flow-info">
-      <h4>
-        {{ c.name }}
+{% macro campaign_card(c) %}
+  <div class="flow-card-v2 {{ 'is-inactive' if not c.is_active else '' }}">
+    <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="flow-card-v2-link">
+      <div class="flow-card-v2-header">
+        <h4>{{ c.name }}</h4>
         {% if not c.is_active %}<span class="status-pill pill-do-not-contact">Paused</span>{% endif %}
-      </h4>
-      <div class="flow-meta">
-        {{ c.event_type.replace('_', ' ')|title }}, {{ c.timing_label() }}
-        &rarr; {{ c.action_type.replace('_', ' ')|title }}
-        {% if c.use_llm_gift_selection %} (LLM picks the gift){% endif %}
-        {% if c.use_llm_copy %} (LLM writes the message){% endif %}
+      </div>
+
+      <div class="flow-when-then">
+        <div class="flow-when-then-row">
+          <span class="flow-when-then-label">When</span>
+          <div class="flow-when-then-card">
+            <span class="flow-when-then-icon flow-when-then-icon-event">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <div class="flow-when-then-title">{{ c.event_type.replace('_', ' ')|title }}</div>
+          </div>
+        </div>
+
+        <div class="flow-when-then-row">
+          <span class="flow-when-then-label">Then</span>
+          <div class="flow-when-then-card">
+            <span class="flow-when-then-icon flow-when-then-icon-time">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            </span>
+            <div class="flow-when-then-title">{{ c.timing_label()|capitalize }}{{ ' \u00b7 repeats' if c.repeat_enabled else ' \u00b7 once per contact' }}</div>
+          </div>
+          <div class="flow-when-then-card">
+            <span class="flow-when-then-icon flow-when-then-icon-action">{{ type_icon(c.action_type) }}</span>
+            <div>
+              <div class="flow-when-then-title">{{ c.action_type.replace('_', ' ')|title }}</div>
+              {% if c.use_llm_gift_selection or c.use_llm_copy %}
+                <div class="flow-when-then-sub">{{ 'LLM picks the gift' if c.use_llm_gift_selection else 'LLM writes the message' }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <div class="flow-card-menu s-card-menu">
+      <button type="button" class="s-kebab-btn" aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#8942;</button>
+      <div class="s-card-menu-dropdown" hidden>
+        <form method="POST" action="{{ url_for('campaigns.toggle_active', campaign_id=c.id) }}">
+          <button class="s-menu-delete" type="submit" style="color:var(--ink);">{{ 'Pause' if c.is_active else 'Resume' }}</button>
+        </form>
+        <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="s-menu-delete" style="display:block; text-decoration:none;">Edit</a>
       </div>
     </div>
-  </a>
+  </div>
 {% endmacro %}
 
 {% if my_campaigns %}
-  {% for c in my_campaigns %}
-    {{ campaign_row(c) }}
-  {% endfor %}
+  <div class="flow-card-v2-list">
+    {% for c in my_campaigns %}
+      {{ campaign_card(c) }}
+    {% endfor %}
+  </div>
 {% else %}
   <p class="subdued">You haven't added any flows yet.</p>
 {% endif %}
+
+<script>
+  (function () {
+    document.querySelectorAll('.flow-card-menu').forEach(function (menu) {
+      var btn = menu.querySelector('.s-kebab-btn');
+      var dropdown = menu.querySelector('.s-card-menu-dropdown');
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var opening = dropdown.hidden;
+        document.querySelectorAll('.s-card-menu-dropdown').forEach(function (d) { d.hidden = true; });
+        dropdown.hidden = !opening;
+        btn.setAttribute('aria-expanded', opening);
+      });
+      dropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+    });
+    document.addEventListener('click', function () {
+      document.querySelectorAll('.s-card-menu-dropdown').forEach(function (d) { d.hidden = true; });
+    });
+  })();
+</script>
 {% endblock %}

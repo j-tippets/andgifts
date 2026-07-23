@@ -192,12 +192,14 @@ def _save_recipe_from_form(recipe):
     recipe.description = request.form.get("description", "").strip() or None
     recipe.event_type = request.form["event_type"]
 
+    recipe.timing_direction = request.form.get("timing_direction", "after")
     try:
-        recipe.offset_days = int(request.form.get("offset_days", "0"))
+        recipe.timing_amount = max(0, int(request.form.get("timing_amount", "1")))
     except ValueError:
-        recipe.offset_days = 0
+        recipe.timing_amount = 1
+    recipe.timing_unit = request.form.get("timing_unit", "day")
+    recipe.repeat_enabled = bool(request.form.get("repeat_enabled"))
 
-    recipe.interest_tag = request.form.get("interest_tag", "").strip() or None
     price_max = dollars_to_cents(request.form.get("price_max"))
     recipe.price_max_cents = price_max
     recipe.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
