@@ -27,7 +27,7 @@
   <span class="wizard-step-label" data-step-label="5">Review</span>
 </div>
 
-<form method="POST" id="wizard-form">
+<form method="POST" id="wizard-form" novalidate>
   <div class="wizard-pane active" data-pane="1">
     <div class="form-section">
       <h3 class="form-section-title">Name this flow</h3>
@@ -322,6 +322,22 @@
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
     refresh();
+
+    // The form spans all 5 panes at once but only one is visible at a
+    // time, so native HTML5 validation (which the browser can't run on
+    // a hidden pane's required fields -- see the "not focusable"
+    // console warning) can't be trusted here. novalidate is set on the
+    // form; this replaces it with a manual check of just the one field
+    // that actually needs one; the rest are either preselected in a
+    // dropdown or aren't required at all.
+    var nameInput = document.querySelector('input[name="name"]');
+    document.getElementById('wizard-form').addEventListener('submit', function (e) {
+      if (!nameInput.value.trim()) {
+        e.preventDefault();
+        wizardGoImpl(1);
+        nameInput.focus();
+      }
+    });
 
     {% if preview_results is defined %}
     // A preview/review submission came from step 4 -- land back on the
