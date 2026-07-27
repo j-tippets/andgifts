@@ -219,6 +219,12 @@ def _review_stats(preview_results):
         total_spend_cents=total_spend_cents,
         next_trigger=next_trigger,
     )
+
+
+def _run_preview(spec, contacts_query):
+    """Dry-run a flow spec (real or not-yet-saved) against a set of
+    contacts -- shared by the wizard's Review step and both Flow
+    Library forms' Preview button."""
     contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
     return suggestion_engine.preview_flow_matches(spec, contacts, current_user.org, limit=15)
 
