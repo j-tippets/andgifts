@@ -991,6 +991,14 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .timing-amount-row .field { flex: 1; }
 
 /* ---- Safeguards card (Who step) ---- */
+.flow-sentence-bar {
+  background: var(--mint); color: var(--mint-ink); border-radius: 14px; padding: 14px 18px;
+  margin-bottom: 20px; font-size: 16px; line-height: 1.5; font-style: italic;
+}
+.flow-sentence-bar-label {
+  font-family: var(--font-rounded); font-weight: 700; font-size: 11px; letter-spacing: .03em;
+  text-transform: uppercase; opacity: .7; font-style: normal; display: block; margin-bottom: 4px;
+}
 .safeguards-card {
   display: flex; gap: 12px; background: var(--paper); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px;
 }

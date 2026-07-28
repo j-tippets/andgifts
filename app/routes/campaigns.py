@@ -114,6 +114,8 @@ def _save_recipe_from_form(recipe):
     recipe.suggested_gift_id = gift_id or None
     recipe.price_max_cents = dollars_to_cents(request.form.get("price_max"))
     recipe.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
+    recipe.add_note = bool(request.form.get("add_note"))
+    recipe.note_text = request.form.get("note_text", "").strip() or None
 
     recipe.use_llm_copy = bool(request.form.get("use_llm_copy"))
     recipe.message_template = request.form.get("message_template", "").strip() or None
@@ -142,6 +144,8 @@ def _build_flow_spec_from_form(default_name="Untitled preview"):
         rules=_conditions_from_form(CampaignRule, current_user.org),
         price_max_cents=dollars_to_cents(request.form.get("price_max")),
         use_llm_gift_selection=bool(request.form.get("use_llm_gift_selection")),
+        add_note=bool(request.form.get("add_note")),
+        note_text=request.form.get("note_text", "").strip() or None,
         action_type=request.form.get("action_type"),
         suggested_gift_id=request.form.get("suggested_gift_id", "").strip() or None,
         use_llm_copy=bool(request.form.get("use_llm_copy")),
@@ -166,6 +170,16 @@ def _describe_condition(rule, field_labels):
     return f"{label} {operator_label} {value}"
 
 
+def _event_type_label(event_type, org):
+    """Plain display label for an event_type key -- a standard type's
+    title-cased name, or a CustomEventType's own label when it's one of
+    this org's (shared or personal) custom milestones."""
+    if event_type in STANDARD_EVENT_TYPES:
+        return event_type.replace("_", " ").title()
+    custom = CustomEventType.query.filter_by(org_id=org.id, key=event_type).first()
+    return custom.label if custom else (event_type or "").replace("_", " ").title()
+
+
 def _describe_flow_sentence(spec, org):
     """Deterministic plain-English summary of a flow's full
     configuration, for the wizard's Review step -- built from
@@ -175,32 +189,35 @@ def _describe_flow_sentence(spec, org):
     spec this never needs an 'ask for approval' clause -- that's not a
     per-flow setting here, it's always true."""
     timing_phrase_text = timing_label_phrase(spec.timing_direction, spec.timing_amount, spec.timing_unit)
+    event_label_text = _event_type_label(spec.event_type, org)
 
     if spec.action_type == "gift":
         if spec.use_llm_gift_selection:
-            action = "recommend the best gift"
+            action = "send a gift"
             if spec.price_max_cents:
-                action += f" under ${spec.price_max_cents / 100:.0f}"
-            action += " based on the client's interests"
+                action += f" (LLM-picked, up to ${spec.price_max_cents / 100:.0f})"
+            else:
+                action += " (LLM-picked)"
         elif spec.suggested_gift_id:
             gift = next((g for g in current_user.org.available_catalog_items() if g.id == spec.suggested_gift_id), None)
             action = f"send {gift.name}" if gift else "send the selected gift"
         else:
             action = "send a gift (none selected yet)"
+        if spec.add_note:
+            action += ' with a note ("' + spec.note_text.strip() + '")' if spec.note_text else " with a note (LLM-written)"
     else:
         kind_label = {"email": "an email", "text": "a text", "handwritten_note": "a handwritten note"}[spec.action_type]
         action = f"send {kind_label}"
         if spec.use_llm_copy:
             action += ", written by the LLM"
 
-    sentence = f"{timing_phrase_text.capitalize()}, {action}."
-    if not spec.repeat_enabled:
-        sentence += " This only ever fires once per contact."
-
     field_labels = {key: label for key, label, _value_type in campaign_rules.condition_field_choices(org)}
     condition_phrases = [_describe_condition(rule, field_labels) for rule in spec.rules]
-    if condition_phrases:
-        sentence += " Skip anyone who doesn't match: " + "; ".join(condition_phrases) + "."
+    condition_clause = f", if {' and '.join(condition_phrases)}," if condition_phrases else ","
+
+    sentence = f"{timing_phrase_text.capitalize()} {event_label_text.lower()}{condition_clause} {action}."
+    if not spec.repeat_enabled:
+        sentence += " This only ever fires once per contact."
 
     return sentence
 
@@ -298,6 +315,8 @@ def _save_campaign_from_form(campaign):
     campaign.suggested_gift_id = gift_id or None
     campaign.price_max_cents = dollars_to_cents(request.form.get("price_max"))
     campaign.use_llm_gift_selection = bool(request.form.get("use_llm_gift_selection"))
+    campaign.add_note = bool(request.form.get("add_note"))
+    campaign.note_text = request.form.get("note_text", "").strip() or None
 
     campaign.use_llm_copy = bool(request.form.get("use_llm_copy"))
     campaign.message_template = request.form.get("message_template", "").strip() or None
