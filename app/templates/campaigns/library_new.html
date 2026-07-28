@@ -133,12 +133,12 @@
         <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if spec and spec.use_llm_copy else '' }}>
         Let the LLM write the message instead of a fixed template
       </label>
-      <div id="template-field" style="margin-top:10px;">
+      <div class="field" id="template-field" style="margin-top:10px;">
         <label>Message template</label>
         <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ spec.message_template if spec and spec.message_template else '' }}</textarea>
         <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
       </div>
-      <div id="llm-hint-field" style="margin-top:10px; display:none;">
+      <div class="field" id="llm-hint-field" style="margin-top:10px; display:none;">
         <label>What should the LLM say?</label>
         <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ spec.llm_prompt_hint if spec and spec.llm_prompt_hint else '' }}</textarea>
       </div>
