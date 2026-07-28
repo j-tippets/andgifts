@@ -132,12 +132,12 @@
         <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if recipe.use_llm_copy else '' }}>
         Let the LLM write the message instead of a fixed template
       </label>
-      <div id="template-field" style="margin-top:10px;">
+      <div class="field" id="template-field" style="margin-top:10px;">
         <label>Message template</label>
         <textarea name="message_template" rows="2">{{ recipe.message_template or '' }}</textarea>
         <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
       </div>
-      <div id="llm-hint-field" style="margin-top:10px;">
+      <div class="field" id="llm-hint-field" style="margin-top:10px;">
         <label>What should the LLM say?</label>
         <textarea name="llm_prompt_hint" rows="2">{{ recipe.llm_prompt_hint or '' }}</textarea>
       </div>
