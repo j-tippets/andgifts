@@ -122,6 +122,15 @@ class CampaignRecipe(db.Model):
     suggested_gift_id = db.Column(db.String(36), db.ForeignKey("gift_catalog_items.id"), nullable=True)
     price_max_cents = db.Column(db.Integer, nullable=True)  # gift budget cap, e.g. "$150 or less"
     use_llm_gift_selection = db.Column(db.Boolean, default=False, nullable=False)
+    # Whether a gift/gift-card action carries a note at all. Emails and
+    # texts already carry their own context and don't use this --
+    # only relevant when action_type == "gift". Defaults true so
+    # existing flows keep today's always-on-note behavior.
+    add_note = db.Column(db.Boolean, default=True, nullable=False)
+    # A fixed note (same {contact_name}/{event_label}/{event_date}
+    # placeholders as message_template below). Left blank, the LLM
+    # writes the note fresh each time -- same as today's behavior.
+    note_text = db.Column(db.Text, nullable=True)
 
     # For email/text/handwritten_note actions: either a static template
     # (supports {contact_name}, {event_label}, {event_date} placeholders,
@@ -221,6 +230,8 @@ class Campaign(db.Model):
     suggested_gift_id = db.Column(db.String(36), db.ForeignKey("gift_catalog_items.id"), nullable=True)
     price_max_cents = db.Column(db.Integer, nullable=True)
     use_llm_gift_selection = db.Column(db.Boolean, default=False, nullable=False)
+    add_note = db.Column(db.Boolean, default=True, nullable=False)
+    note_text = db.Column(db.Text, nullable=True)
     use_llm_copy = db.Column(db.Boolean, default=False, nullable=False)
     message_template = db.Column(db.Text, nullable=True)
     llm_prompt_hint = db.Column(db.Text, nullable=True)
@@ -260,6 +271,8 @@ class Campaign(db.Model):
             suggested_gift_id=recipe.suggested_gift_id,
             price_max_cents=recipe.price_max_cents,
             use_llm_gift_selection=recipe.use_llm_gift_selection,
+            add_note=recipe.add_note,
+            note_text=recipe.note_text,
             use_llm_copy=recipe.use_llm_copy,
             message_template=recipe.message_template,
             llm_prompt_hint=recipe.llm_prompt_hint,
@@ -294,6 +307,8 @@ class Campaign(db.Model):
             suggested_gift_id=master.suggested_gift_id,
             price_max_cents=master.price_max_cents,
             use_llm_gift_selection=master.use_llm_gift_selection,
+            add_note=master.add_note,
+            note_text=master.note_text,
             use_llm_copy=master.use_llm_copy,
             message_template=master.message_template,
             llm_prompt_hint=master.llm_prompt_hint,
@@ -317,7 +332,7 @@ def _timing_label(direction, amount, unit):
     stays a plain function over structured fields instead, so the same
     inputs always produce the same sentence."""
     if direction == "same_day":
-        return "on the day of"
+        return "the same day as"
     plural = "s" if amount != 1 else ""
     phrase = f"{amount} {unit}{plural}"
     return f"{phrase} after" if direction == "after" else f"{phrase} before"

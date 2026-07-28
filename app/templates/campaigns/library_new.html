@@ -95,6 +95,15 @@
       <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if spec and spec.use_llm_gift_selection else '' }}>
       Let the LLM pick the best gift (within the price cap above) instead of a fixed item
     </label>
+    <label class="checkbox-chip" style="margin-top:10px;">
+      <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if not spec or spec.add_note else '' }}>
+      Add a note to the gift or gift card
+    </label>
+    <div class="field" id="note-text-field" style="margin-top:10px;">
+      <label>Note text (leave blank to let the LLM write it)</label>
+      <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ spec.note_text if spec and spec.note_text else '' }}</textarea>
+      <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+    </div>
   </div>
 
   <div class="form-section">

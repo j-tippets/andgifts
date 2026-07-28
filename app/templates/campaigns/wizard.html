@@ -10,6 +10,11 @@
   <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Flows</a>
 </div>
 
+<div class="flow-sentence-bar">
+  <span class="flow-sentence-bar-label">Your flow, so far</span>
+  <span id="flow-sentence"></span>
+</div>
+
 <div class="wizard-steps">
   <div class="wizard-step active" data-step-dot="1">1</div>
   <span class="wizard-step-label" data-step-label="1">Event</span>
@@ -69,7 +74,7 @@
         </label>
         <label class="timing-direction-option">
           <input type="radio" name="timing_direction" value="same_day" {{ 'checked' if campaign and campaign.timing_direction == 'same_day' else '' }}>
-          On the day
+          The same day
         </label>
         <label class="timing-direction-option">
           <input type="radio" name="timing_direction" value="after" {{ 'checked' if not campaign or campaign.timing_direction == 'after' else '' }}>
@@ -179,6 +184,15 @@
             <option value="{{ g.id }}" {{ 'selected' if campaign and campaign.suggested_gift_id == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
           {% endfor %}
         </select>
+      </div>
+      <label class="checkbox-chip" style="margin-top:10px;">
+        <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if not campaign or campaign.add_note else '' }}>
+        Add a note to the gift or gift card
+      </label>
+      <div class="field" id="note-text-field" style="margin-top:10px;">
+        <label>Note text (leave blank to let the LLM write it)</label>
+        <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ campaign.note_text if campaign and campaign.note_text else '' }}</textarea>
+        <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
       </div>
     </div>
 
@@ -304,6 +318,8 @@
     var llmHintField = document.getElementById('llm-hint-field');
     var timingAmountRow = document.getElementById('timing-amount-row');
     var timingDirectionInputs = document.querySelectorAll('input[name="timing_direction"]');
+    var addNote = document.getElementById('add_note');
+    var noteTextField = document.getElementById('note-text-field');
 
     function refresh() {
       var checked = document.querySelector('input[name="action_type"]:checked');
@@ -313,6 +329,7 @@
       fixedGiftField.style.display = useLlmGift.checked ? 'none' : '';
       templateField.style.display = useLlmCopy.checked ? 'none' : '';
       llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
+      noteTextField.style.display = addNote.checked ? '' : 'none';
 
       var direction = document.querySelector('input[name="timing_direction"]:checked');
       timingAmountRow.style.display = (direction && direction.value === 'same_day') ? 'none' : 'flex';
@@ -321,7 +338,97 @@
     timingDirectionInputs.forEach(function (el) { el.addEventListener('change', refresh); });
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
+    addNote.addEventListener('change', refresh);
     refresh();
+
+    // Live sentence bar -- a client-side mirror of
+    // app/routes/campaigns.py::_describe_flow_sentence, so the phrasing
+    // stays in sync with the actual Review step. Deliberately reads
+    // straight off the DOM (selected option text, current input values)
+    // rather than duplicating event/condition label data in JS.
+    var TIMING_UNIT_WORDS = { day: 'day', week: 'week', month: 'month', year: 'year' };
+    var ACTION_LABELS = {
+      gift: 'send a gift', email: 'send an email', text: 'send a text', handwritten_note: 'send a handwritten note'
+    };
+
+    function selectedText(selectEl) {
+      return selectEl && selectEl.selectedIndex >= 0 ? selectEl.options[selectEl.selectedIndex].text : '';
+    }
+
+    function timingPhrase() {
+      var direction = document.querySelector('input[name="timing_direction"]:checked');
+      var dirVal = direction ? direction.value : 'after';
+      if (dirVal === 'same_day') return 'The same day as';
+      var amount = parseInt(document.querySelector('[name="timing_amount"]').value, 10) || 1;
+      var unit = document.querySelector('[name="timing_unit"]').value;
+      var word = (TIMING_UNIT_WORDS[unit] || unit) + (amount === 1 ? '' : 's');
+      var dirWord = dirVal === 'before' ? 'before' : 'after';
+      return amount + ' ' + word + ' ' + dirWord;
+    }
+
+    function conditionClause() {
+      var rows = document.querySelectorAll('#condition-rows .condition-row');
+      var phrases = [];
+      rows.forEach(function (row) {
+        var fieldSel = row.querySelector('.condition-field-select');
+        var opSel = row.querySelector('.condition-operator-select');
+        var valInput = row.querySelector('.condition-value-input');
+        if (!fieldSel || !fieldSel.value) return;
+        var fieldLabel = selectedText(fieldSel);
+        var opLabel = selectedText(opSel);
+        var value = valInput ? valInput.value : '';
+        phrases.push(value ? (fieldLabel + ' ' + opLabel + ' ' + value) : (fieldLabel + ' ' + opLabel));
+      });
+      return phrases.length ? (', if ' + phrases.join(' and ') + ',') : ',';
+    }
+
+    function actionPhrase() {
+      var checked = document.querySelector('input[name="action_type"]:checked');
+      var actionType = checked ? checked.value : 'gift';
+      var phrase;
+
+      if (actionType === 'gift') {
+        if (useLlmGift.checked) {
+          var price = document.querySelector('[name="price_max"]').value.trim();
+          phrase = 'send a gift (LLM-picked' + (price ? ', up to $' + price : '') + ')';
+        } else {
+          var giftSelect = document.querySelector('[name="suggested_gift_id"]');
+          phrase = (giftSelect && giftSelect.value) ? 'send ' + selectedText(giftSelect) : 'send a gift (none selected yet)';
+        }
+        if (addNote.checked) {
+          var noteText = document.querySelector('[name="note_text"]').value.trim();
+          phrase += noteText ? ' with a note ("' + noteText + '")' : ' with a note (LLM-written)';
+        }
+      } else {
+        phrase = ACTION_LABELS[actionType] || ('send ' + actionType);
+        if (useLlmCopy.checked) phrase += ', written by the LLM';
+      }
+      return phrase;
+    }
+
+    function updateSentence() {
+      var eventSelect = document.querySelector('select[name="event_type"]');
+      var eventLabel = selectedText(eventSelect).toLowerCase();
+      var timing = timingPhrase();
+      var timingCapitalized = timing.charAt(0).toUpperCase() + timing.slice(1);
+      var repeatCheckbox = document.querySelector('input[name="repeat_enabled"]');
+
+      var sentence = timingCapitalized + ' ' + eventLabel + conditionClause() + ' ' + actionPhrase() + '.';
+      if (repeatCheckbox && !repeatCheckbox.checked) {
+        sentence += ' This only ever fires once per contact.';
+      }
+      document.getElementById('flow-sentence').textContent = sentence;
+    }
+
+    var wizardForm = document.getElementById('wizard-form');
+    wizardForm.addEventListener('input', updateSentence);
+    wizardForm.addEventListener('change', updateSentence);
+    // Adding/removing a condition row happens on click, in
+    // condition-builder.js's own handler -- defer to the next tick so
+    // this reads the DOM after that handler has already run, regardless
+    // of which listener was attached first.
+    wizardForm.addEventListener('click', function () { setTimeout(updateSentence, 0); });
+    updateSentence();
 
     // The form spans all 5 panes at once but only one is visible at a
     // time, so native HTML5 validation (which the browser can't run on

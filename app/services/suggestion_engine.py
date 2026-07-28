@@ -254,7 +254,7 @@ def generate_campaign_suggestions_for_org(org, today=None):
                 if campaign.action_type in ("email", "text", "handwritten_note"):
                     message = _resolve_campaign_message(campaign, contact, event)
                 elif campaign.action_type == "gift" and gift_item:
-                    message = llm.generate_gift_note(contact, event, gift_item)
+                    message = _resolve_gift_note(campaign, contact, event, gift_item)
 
                 reason = _build_campaign_reason_text(campaign, contact, event, gift_item, gift_reasoning)
 
@@ -366,6 +366,22 @@ def _resolve_campaign_gift(campaign, contact, available_item_ids):
     return None, None
 
 
+def _resolve_gift_note(campaign, contact, event, gift_item):
+    """The note attached to a gift/gift-card action, or None if the
+    flow has notes turned off. A fixed note_text (same placeholder
+    convention as message_template) takes precedence; left blank, the
+    LLM writes the note fresh -- today's original behavior."""
+    if not campaign.add_note:
+        return None
+    if campaign.note_text:
+        return campaign.note_text.format(
+            contact_name=contact.household_name,
+            event_label=event.display_label(),
+            event_date=event.event_date.strftime("%b %-d, %Y"),
+        )
+    return llm.generate_gift_note(contact, event, gift_item)
+
+
 def _resolve_campaign_message(campaign, contact, event):
     if campaign.use_llm_copy:
         return llm.generate_message(campaign.llm_prompt_hint, contact, event)
@@ -449,7 +465,7 @@ def preview_flow_matches(spec, contacts, org, today=None, limit=20):
             if spec.action_type in ("email", "text", "handwritten_note"):
                 message = _resolve_campaign_message(spec, contact, event)
             elif spec.action_type == "gift" and gift_item:
-                message = llm.generate_gift_note(contact, event, gift_item)
+                message = _resolve_gift_note(spec, contact, event, gift_item)
 
             results.append({
                 "contact_name": contact.household_name,
