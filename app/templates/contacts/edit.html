@@ -117,6 +117,21 @@
   </fieldset>
   {% endif %}
 
+  {% if badges %}
+  <fieldset>
+    <legend>Badges</legend>
+    <div class="badge-checkbox-list">
+      {% for badge in badges %}
+        <label class="checkbox-chip">
+          <input type="checkbox" name="badge_ids" value="{{ badge.id }}" {{ 'checked' if badge.id in contact_badge_ids else '' }}>
+          {{ badge.label }}{% if badge.scope == 'personal' %} <span class="subdued">(personal)</span>{% endif %}
+        </label>
+      {% endfor %}
+    </div>
+    <p class="subdued" style="margin-top:8px;"><small><a href="{{ url_for('contacts.manage_badges') }}">Manage badges</a></small></p>
+  </fieldset>
+  {% endif %}
+
   {% if current_user.is_admin %}
   <fieldset>
     <legend>Assignment</legend>

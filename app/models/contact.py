@@ -57,6 +57,7 @@ class Contact(db.Model):
     custom_values = db.relationship(
         "CustomFieldValue", back_populates="contact", cascade="all, delete-orphan"
     )
+    badges = db.relationship("Badge", secondary="contact_badges", back_populates="contacts")
 
     def primary_person(self):
         return next((p for p in self.people if p.household_role == "head"), self.people[0] if self.people else None)
