@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Badges — Ag{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Settings</div>
+    <h1>Badges</h1>
+  </div>
+  <a href="{{ url_for('settings.index') }}" class="btn btn-ghost">&larr; Settings</a>
+</div>
+
+<h2>Global badges</h2>
+<p class="subdued">Available on every contact. Managed by &amp;Gifts, not editable here.</p>
+
+{% if global_badges %}
+  <div style="margin-bottom:32px;">
+    {% for badge in global_badges %}
+      <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="subdued" style="margin-bottom:32px;">No global badges yet.</p>
+{% endif %}
+
+<h2>My badges</h2>
+<p class="subdued">Only visible to you, on any contact you can see.</p>
+
+{% if my_badges %}
+  {% for badge in my_badges %}
+    <div class="team-row static-row">
+      <div>
+        <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
+      </div>
+      <form method="post" action="{{ url_for('contacts.delete_badge', badge_id=badge.id) }}"
+            onsubmit="return confirm('Remove your ' + {{ badge.label|tojson }} + ' badge from every contact? This cannot be undone.');">
+        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+      </form>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">You haven't added any personal badges yet.</p>
+{% endif %}
+
+<details style="margin-top:12px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add personal badge</summary>
+  <form method="post" action="{{ url_for('contacts.new_badge') }}" style="margin-top:14px;">
+    <div class="field-row">
+      <div class="field"><label>Badge name</label><input type="text" name="label" placeholder="e.g. Past Client Referral Source" required></div>
+      <div class="field"><label>Color (optional)</label><input type="text" name="color" placeholder="e.g. #c9a86a"></div>
+    </div>
+    <button type="submit" class="btn btn-primary">Add badge</button>
+  </form>
+</details>
+{% endblock %}

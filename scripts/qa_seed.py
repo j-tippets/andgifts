@@ -64,6 +64,7 @@ from app.models import (
     GiftCatalogItem, GiftTrigger,
     CampaignRecipe, Campaign, CampaignRule,
     SuggestedAction, ActionLog, ContactAuditLog, Order,
+    Badge,
 )
 from app.services.suggestion_engine import generate_suggestions_for_org, generate_campaign_suggestions_for_org
 from seed import STARTER_INTERESTS, STARTER_GIFTS_AND_TRIGGERS
@@ -109,6 +110,10 @@ def ensure_baseline_reference_data():
             db.session.add(Interest(name=name))
     db.session.flush()
 
+    if not Badge.query.filter_by(scope="global", label="VIP").first():
+        db.session.add(Badge(scope="global", org_id=None, owner_user_id=None, label="VIP", color="#c9a86a"))
+    db.session.flush()
+
     for event_type, interest_tag, gift_name, price_cents, desc, tags in STARTER_GIFTS_AND_TRIGGERS:
         gift = GiftCatalogItem.query.filter_by(name=gift_name, org_id=None).first()
         if not gift:
@@ -137,6 +142,7 @@ def wipe_existing_org():
     # getting the order right matters more than it being pretty.
     statements = [
         "DELETE FROM custom_field_values WHERE contact_id IN (SELECT id FROM contacts WHERE org_id = :org_id)",
+        "DELETE FROM contact_badges WHERE contact_id IN (SELECT id FROM contacts WHERE org_id = :org_id)",
         "DELETE FROM contact_methods WHERE person_id IN "
         "  (SELECT id FROM contact_people WHERE contact_id IN (SELECT id FROM contacts WHERE org_id = :org_id))",
         "DELETE FROM contact_people WHERE contact_id IN (SELECT id FROM contacts WHERE org_id = :org_id)",
@@ -152,6 +158,7 @@ def wipe_existing_org():
         "DELETE FROM campaign_recipes WHERE org_id = :org_id",
         "DELETE FROM custom_field_definitions WHERE org_id = :org_id",
         "DELETE FROM custom_event_types WHERE org_id = :org_id",
+        "DELETE FROM badges WHERE scope = 'personal' AND owner_user_id IN (SELECT id FROM users WHERE org_id = :org_id)",
         "DELETE FROM gift_triggers WHERE org_id = :org_id",
         "DELETE FROM org_catalog_selections WHERE org_id = :org_id",
         "DELETE FROM gift_catalog_items WHERE org_id = :org_id",

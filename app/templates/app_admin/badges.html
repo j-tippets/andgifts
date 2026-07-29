@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Global Badges — App Admin{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">App Admin</div>
+    <h1>Global Badges</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Visible and usable by every agency on &amp;Gifts -- e.g. VIP.</small></p>
+  </div>
+  <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
+</div>
+
+{% if badges %}
+  {% for badge in badges %}
+    <div class="team-row static-row">
+      <div>
+        <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
+      </div>
+      <form method="post" action="{{ url_for('app_admin.badge_delete', badge_id=badge.id) }}"
+            onsubmit="return confirm('Remove the ' + {{ badge.label|tojson }} + ' badge from every agency\'s contacts? This cannot be undone.');">
+        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+      </form>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">No global badges yet.</p>
+{% endif %}
+
+<details style="margin-top:12px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add global badge</summary>
+  <form method="post" action="{{ url_for('app_admin.badge_new') }}" style="margin-top:14px;">
+    <div class="field-row">
+      <div class="field"><label>Badge name</label><input type="text" name="label" placeholder="e.g. VIP" required></div>
+      <div class="field"><label>Color (optional)</label><input type="text" name="color" placeholder="e.g. #c9a86a"></div>
+    </div>
+    <button type="submit" class="btn btn-primary">Add badge</button>
+  </form>
+</details>
+{% endblock %}

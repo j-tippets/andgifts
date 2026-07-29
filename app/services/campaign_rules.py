@@ -33,6 +33,11 @@ BUILT_IN_FIELDS = {
         "value_type": "text",
         "operators": ["equals", "not_equals"],
     },
+    "has_badge": {
+        "label": "Contact has badge",
+        "value_type": "text",
+        "operators": ["equals", "not_equals"],
+    },
     "gift_cooldown_days": {
         "label": "Days since their last suggestion (any flow)",
         "value_type": "number",
@@ -116,6 +121,8 @@ def _actual_value(field_key, contact):
     "not handled here"."""
     if field_key == "interest_tag":
         return True, {i.name for i in contact.interests}
+    if field_key == "has_badge":
+        return True, {b.label for b in contact.badges}
     if field_key.startswith("custom:"):
         field_id = field_key.split(":", 1)[1]
         row = next((v for v in contact.custom_values if v.field_definition_id == field_id), None)

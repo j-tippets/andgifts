@@ -8,7 +8,7 @@ from app.models import (
     TimelineEvent, STANDARD_EVENT_TYPES, CustomEventType, slugify_event_key,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
-    GiftCatalogItem, Order,
+    GiftCatalogItem, Order, Badge,
 )
 from app.decorators import admin_required
 from app.services.stripe_client import get_stripe
@@ -221,6 +221,17 @@ def _visible_event_types():
     query = CustomEventType.query.filter_by(org_id=current_user.org_id)
     custom = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
     return standard + [(c.key, c.label) for c in custom] + [("custom", "Custom")]
+
+
+def _visible_badges():
+    """Every global badge plus the current agent's own personal ones --
+    same shape as _visible_custom_fields above."""
+    return Badge.visible_to(Badge.query, current_user).order_by(Badge.scope, Badge.label).all()
+
+
+def _save_contact_badges(contact, form, badges):
+    selected_ids = set(form.getlist("badge_ids"))
+    contact.badges = [b for b in badges if b.id in selected_ids]
 
 
 def _save_custom_field_values(contact, form, fields):
@@ -451,10 +462,12 @@ def edit_contact(contact_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     custom_fields = _visible_custom_fields()
+    badges = _visible_badges()
 
     if request.method == "GET":
         spouse = next((p for p in contact.people if p.household_role == "spouse"), None)
         custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
+        contact_badge_ids = {b.id for b in contact.badges}
         action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
         org_members = (
             User.query.filter_by(org_id=current_user.org_id, status="active")
@@ -470,6 +483,8 @@ def edit_contact(contact_id):
             spouse=spouse,
             custom_fields=custom_fields,
             custom_values=custom_values,
+            badges=badges,
+            contact_badge_ids=contact_badge_ids,
             action_log_count=action_log_count,
             org_members=org_members,
         )
@@ -539,6 +554,7 @@ def edit_contact(contact_id):
         db.session.delete(spouse)
 
     _save_custom_field_values(contact, request.form, custom_fields)
+    _save_contact_badges(contact, request.form, badges)
 
     changes = []
     if old_household_name != contact.household_name:
@@ -698,6 +714,52 @@ def delete_field(field_id):
     db.session.commit()
     flash(f"Removed the '{label}' field, along with its saved values on every contact.", "success")
     return redirect(url_for("contacts.manage_fields"))
+
+
+@contacts_bp.route("/badges")
+@login_required
+def manage_badges():
+    global_badges = Badge.query.filter_by(scope="global").order_by(Badge.label).all()
+    my_badges = Badge.query.filter_by(
+        scope="personal", owner_user_id=current_user.id
+    ).order_by(Badge.label).all()
+    return render_template(
+        "contacts/badges.html",
+        global_badges=global_badges,
+        my_badges=my_badges,
+    )
+
+
+@contacts_bp.route("/badges/new", methods=["POST"])
+@login_required
+def new_badge():
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the badge a name.", "error")
+        return redirect(url_for("contacts.manage_badges"))
+
+    badge = Badge(
+        scope="personal",
+        owner_user_id=current_user.id,
+        org_id=current_user.org_id,
+        label=label,
+        color=request.form.get("color", "").strip() or None,
+    )
+    db.session.add(badge)
+    db.session.commit()
+    flash(f"Added the '{badge.label}' badge.", "success")
+    return redirect(url_for("contacts.manage_badges"))
+
+
+@contacts_bp.route("/badges/<badge_id>/delete", methods=["POST"])
+@login_required
+def delete_badge(badge_id):
+    badge = Badge.query.filter_by(id=badge_id, scope="personal", owner_user_id=current_user.id).first_or_404()
+    label = badge.label
+    db.session.delete(badge)
+    db.session.commit()
+    flash(f"Removed the '{label}' badge from your contacts.", "success")
+    return redirect(url_for("contacts.manage_badges"))
 
 
 @contacts_bp.route("/event-types")

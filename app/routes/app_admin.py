@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 
 from app.extensions import db
-from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe
+from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe, Badge
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.decorators import platform_admin_required
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str, tags_from_form, lead_time_from_form
@@ -17,6 +17,7 @@ def dashboard():
         global_catalog_count=GiftCatalogItem.query.filter_by(org_id=None).count(),
         org_count=Org.query.count(),
         recipe_count=CampaignRecipe.query.filter_by(is_active=True, org_id=None).count(),
+        badge_count=Badge.query.filter_by(scope="global").count(),
     )
 
 
@@ -171,6 +172,47 @@ def org_edit(org_id):
 @platform_admin_required
 def billing():
     return render_template("app_admin/billing.html")
+
+
+# --- Global badges ---------------------------------------------------------
+
+@app_admin_bp.route("/badges")
+@platform_admin_required
+def badge_list():
+    badges = Badge.query.filter_by(scope="global").order_by(Badge.label).all()
+    return render_template("app_admin/badges.html", badges=badges)
+
+
+@app_admin_bp.route("/badges/new", methods=["POST"])
+@platform_admin_required
+def badge_new():
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the badge a name.", "error")
+        return redirect(url_for("app_admin.badge_list"))
+
+    badge = Badge(
+        scope="global",
+        org_id=None,
+        owner_user_id=None,
+        label=label,
+        color=request.form.get("color", "").strip() or None,
+    )
+    db.session.add(badge)
+    db.session.commit()
+    flash(f"Added the global '{badge.label}' badge -- every agency can now use it.", "success")
+    return redirect(url_for("app_admin.badge_list"))
+
+
+@app_admin_bp.route("/badges/<badge_id>/delete", methods=["POST"])
+@platform_admin_required
+def badge_delete(badge_id):
+    badge = Badge.query.filter_by(id=badge_id, scope="global").first_or_404()
+    label = badge.label
+    db.session.delete(badge)
+    db.session.commit()
+    flash(f"Removed the global '{label}' badge from every agency's contacts.", "success")
+    return redirect(url_for("app_admin.badge_list"))
 
 
 # --- Campaign recipe book ------------------------------------------------

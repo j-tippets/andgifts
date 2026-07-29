@@ -37,6 +37,9 @@
       {% elif contact.marketing_opt_out %}
         <span class="status-pill pill-marketing-opt-out">Marketing opt-out</span>
       {% endif %}
+      {% for badge in contact.badges %}
+        <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
+      {% endfor %}
 </div>
 
 {% if pending_actions %}
