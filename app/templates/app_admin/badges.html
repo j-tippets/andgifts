@@ -12,14 +12,26 @@
 
 {% if badges %}
   {% for badge in badges %}
-    <div class="team-row static-row">
-      <div>
+    <div class="team-row static-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
         <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
+        <div style="display:flex; gap:8px;">
+          <details>
+            <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
+            <form method="post" action="{{ url_for('app_admin.badge_edit', badge_id=badge.id) }}" style="margin-top:10px;">
+              <div class="field-row">
+                <div class="field"><label>Badge name</label><input type="text" name="label" value="{{ badge.label }}" required></div>
+                <div class="field"><label>Color</label><input type="color" name="color" value="{{ badge.color or '#c9a86a' }}"></div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-small">Save</button>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('app_admin.badge_delete', badge_id=badge.id) }}"
+                onsubmit="return confirm('Remove the ' + {{ badge.label|tojson }} + ' badge from every agency\'s contacts? This cannot be undone.');">
+            <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+          </form>
+        </div>
       </div>
-      <form method="post" action="{{ url_for('app_admin.badge_delete', badge_id=badge.id) }}"
-            onsubmit="return confirm('Remove the ' + {{ badge.label|tojson }} + ' badge from every agency\'s contacts? This cannot be undone.');">
-        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
-      </form>
     </div>
   {% endfor %}
 {% else %}
@@ -31,7 +43,7 @@
   <form method="post" action="{{ url_for('app_admin.badge_new') }}" style="margin-top:14px;">
     <div class="field-row">
       <div class="field"><label>Badge name</label><input type="text" name="label" placeholder="e.g. VIP" required></div>
-      <div class="field"><label>Color (optional)</label><input type="text" name="color" placeholder="e.g. #c9a86a"></div>
+      <div class="field"><label>Color</label><input type="color" name="color" value="#c9a86a"></div>
     </div>
     <button type="submit" class="btn btn-primary">Add badge</button>
   </form>

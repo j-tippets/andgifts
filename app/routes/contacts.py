@@ -254,6 +254,18 @@ def _save_custom_field_values(contact, form, fields):
             db.session.delete(value_row)
 
 
+@contacts_bp.route("/<contact_id>/badges", methods=["POST"])
+@login_required
+def update_contact_badges(contact_id):
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+    badges = _visible_badges()
+    _save_contact_badges(contact, request.form, badges)
+    db.session.commit()
+    flash("Updated badges.", "success")
+    return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
 @contacts_bp.route("/<contact_id>")
 @login_required
 def view_contact(contact_id):
@@ -301,6 +313,8 @@ def view_contact(contact_id):
         event_types=_visible_event_types(),
         custom_fields=_visible_custom_fields(),
         custom_values=custom_values,
+        badges=_visible_badges(),
+        contact_badge_ids={b.id for b in contact.badges},
         pending_actions=pending_actions,
         recent_activity=recent_activity,
         completed_by_event_id=completed_by_event_id,
@@ -748,6 +762,23 @@ def new_badge():
     db.session.add(badge)
     db.session.commit()
     flash(f"Added the '{badge.label}' badge.", "success")
+    return redirect(url_for("contacts.manage_badges"))
+
+
+@contacts_bp.route("/badges/<badge_id>/edit", methods=["POST"])
+@login_required
+def edit_badge(badge_id):
+    badge = Badge.query.filter_by(id=badge_id, scope="personal", owner_user_id=current_user.id).first_or_404()
+
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the badge a name.", "error")
+        return redirect(url_for("contacts.manage_badges"))
+
+    badge.label = label
+    badge.color = request.form.get("color", "").strip() or None
+    db.session.commit()
+    flash(f"Updated the '{badge.label}' badge. Every contact that already had it keeps it.", "success")
     return redirect(url_for("contacts.manage_badges"))
 
 

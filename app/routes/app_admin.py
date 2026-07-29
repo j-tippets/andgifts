@@ -204,6 +204,23 @@ def badge_new():
     return redirect(url_for("app_admin.badge_list"))
 
 
+@app_admin_bp.route("/badges/<badge_id>/edit", methods=["POST"])
+@platform_admin_required
+def badge_edit(badge_id):
+    badge = Badge.query.filter_by(id=badge_id, scope="global").first_or_404()
+
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the badge a name.", "error")
+        return redirect(url_for("app_admin.badge_list"))
+
+    badge.label = label
+    badge.color = request.form.get("color", "").strip() or None
+    db.session.commit()
+    flash(f"Updated the global '{badge.label}' badge. Every contact that already had it keeps it.", "success")
+    return redirect(url_for("app_admin.badge_list"))
+
+
 @app_admin_bp.route("/badges/<badge_id>/delete", methods=["POST"])
 @platform_admin_required
 def badge_delete(badge_id):
