@@ -1036,16 +1036,36 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .flow-stat-value { font-family: var(--font-rounded); font-weight: 700; font-size: 20px; color: var(--mint-ink); }
 .flow-stat-label { font-size: 11.5px; color: rgba(30,68,48,.7); margin-top: 2px; }
 
-/* ---- Timing direction picker (When step) ---- */
-.timing-direction-row { display: flex; gap: 8px; margin-bottom: 14px; }
+/* ---- Timing sentence row (Trigger step: "5 days after First Contact") ---- */
+.timing-sentence-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.timing-amount-row { display: flex; gap: 6px; align-items: center; }
+.timing-sentence-amount {
+  width: 56px; text-align: center; padding: 10px 6px; border-radius: 12px; border: 1.5px solid var(--line);
+  background: var(--paper-raised); font-family: var(--font-body); font-size: 14.5px;
+}
+.timing-sentence-select {
+  padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line);
+  background: var(--paper-raised); font-family: var(--font-body); font-size: 14.5px; cursor: pointer;
+}
+.timing-event-select { flex: 1; min-width: 180px; }
+.timing-direction-row { display: flex; gap: 6px; margin: 0; }
 .timing-direction-option {
-  flex: 1; text-align: center; padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line);
+  text-align: center; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line);
   background: var(--paper-raised); cursor: pointer; font-family: var(--font-rounded); font-weight: 700; font-size: 13.5px;
+  white-space: nowrap;
 }
 .timing-direction-option:has(input:checked) { border-color: var(--mint-ink); background: var(--mint); }
 .timing-direction-option input { position: absolute; opacity: 0; pointer-events: none; }
-.timing-amount-row { display: flex; gap: 10px; align-items: flex-start; }
-.timing-amount-row .field { flex: 1; }
+
+@media (max-width: 560px) {
+  .timing-sentence-row { flex-direction: column; align-items: stretch; }
+  .timing-amount-row { align-self: flex-start; }
+  .timing-direction-row { width: 100%; }
+  .timing-direction-option { flex: 1; }
+  .timing-event-select { width: 100%; }
+}
 
 /* ---- Safeguards card (Who step) ---- */
 .flow-sentence-bar {

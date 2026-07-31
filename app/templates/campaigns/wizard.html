@@ -44,55 +44,44 @@
     </div>
 
     <div class="form-section">
-      <h3 class="form-section-title">When relative to this event?</h3>
-      <div class="timing-direction-row">
-        <label class="timing-direction-option">
-          <input type="radio" name="timing_direction" value="before" {{ 'checked' if campaign and campaign.timing_direction == 'before' else '' }}>
-          Before
-        </label>
-        <label class="timing-direction-option">
-          <input type="radio" name="timing_direction" value="same_day" {{ 'checked' if campaign and campaign.timing_direction == 'same_day' else '' }}>
-          The same day
-        </label>
-        <label class="timing-direction-option">
-          <input type="radio" name="timing_direction" value="after" {{ 'checked' if not campaign or campaign.timing_direction == 'after' else '' }}>
-          After
-        </label>
-      </div>
-      <div class="timing-amount-row" id="timing-amount-row">
-        <div class="field">
-          <label>Amount</label>
-          <input type="text" name="timing_amount" value="{{ campaign.timing_amount if campaign else 1 }}">
-        </div>
-        <div class="field">
-          <label>Unit</label>
-          <select name="timing_unit">
-            <option value="day" {{ 'selected' if not campaign or campaign.timing_unit == 'day' else '' }}>Days</option>
-            <option value="week" {{ 'selected' if campaign and campaign.timing_unit == 'week' else '' }}>Weeks</option>
-            <option value="month" {{ 'selected' if campaign and campaign.timing_unit == 'month' else '' }}>Months</option>
-            <option value="year" {{ 'selected' if campaign and campaign.timing_unit == 'year' else '' }}>Years</option>
+      <h3 class="form-section-title">When should this happen?</h3>
+      <div class="timing-sentence-row">
+        <div class="timing-amount-row" id="timing-amount-row">
+          <input type="text" name="timing_amount" class="timing-sentence-amount" value="{{ campaign.timing_amount if campaign else 1 }}" aria-label="Amount">
+          <select name="timing_unit" class="timing-sentence-select" aria-label="Unit">
+            <option value="day" {{ 'selected' if not campaign or campaign.timing_unit == 'day' else '' }}>days</option>
+            <option value="week" {{ 'selected' if campaign and campaign.timing_unit == 'week' else '' }}>weeks</option>
+            <option value="month" {{ 'selected' if campaign and campaign.timing_unit == 'month' else '' }}>months</option>
+            <option value="year" {{ 'selected' if campaign and campaign.timing_unit == 'year' else '' }}>years</option>
           </select>
         </div>
+        <div class="timing-direction-row">
+          <label class="timing-direction-option">
+            <input type="radio" name="timing_direction" value="before" {{ 'checked' if campaign and campaign.timing_direction == 'before' else '' }}>
+            before
+          </label>
+          <label class="timing-direction-option">
+            <input type="radio" name="timing_direction" value="same_day" {{ 'checked' if campaign and campaign.timing_direction == 'same_day' else '' }}>
+            the same day as
+          </label>
+          <label class="timing-direction-option">
+            <input type="radio" name="timing_direction" value="after" {{ 'checked' if not campaign or campaign.timing_direction == 'after' else '' }}>
+            after
+          </label>
+        </div>
+        <select name="event_type" class="timing-sentence-select timing-event-select" required aria-label="Event">
+          {% for et, et_label in event_types %}
+            <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
+          {% endfor %}
+        </select>
       </div>
+      <p class="subdued" style="margin-top:10px;"><small>Choose the timing and the moment that starts this flow.</small></p>
 
       <label class="checkbox-chip" style="margin-top:14px;">
         <input type="checkbox" name="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }}>
         Repeat this every time the event recurs (e.g. every year)
       </label>
       <p class="subdued" style="margin-top:4px;"><small>Unchecked means this flow only ever fires once per contact, even if the event itself repeats.</small></p>
-    </div>
-
-    <div class="form-section">
-      <h3 class="form-section-title">How would you like to start?</h3>
-      <div class="field">
-        <label>Which event should trigger this?</label>
-        <select name="event_type" required>
-          {% for et, et_label in event_types %}
-            <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
-          {% endfor %}
-        </select>
-        <p class="subdued" style="margin-top:4px;"><small>Choose the moment that starts this flow.</small></p>
-      </div>
     </div>
 
     <div style="display:flex; justify-content:flex-end;">
