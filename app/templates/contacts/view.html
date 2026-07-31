@@ -42,14 +42,14 @@
       {% endfor %}
       {% if badges %}
         <details style="display:inline-block; vertical-align:middle;">
-          <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">+ Edit badges</summary>
+          <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">+ Add Badge</summary>
           <form method="post" action="{{ url_for('contacts.update_contact_badges', contact_id=contact.id) }}"
                 style="margin-top:10px; padding:14px; background:var(--paper-raised); border:1px solid var(--line); border-radius:8px;">
-            <div class="badge-checkbox-list">
+            <div class="badge-toggle-list">
               {% for badge in badges %}
-                <label class="checkbox-chip">
+                <label class="badge-toggle" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">
                   <input type="checkbox" name="badge_ids" value="{{ badge.id }}" {{ 'checked' if badge.id in contact_badge_ids else '' }}>
-                  {{ badge.label }}{% if badge.scope == 'personal' %} <span class="subdued">(personal)</span>{% endif %}
+                  {{ badge.label }}{% if badge.scope == 'personal' %} <span class="badge-toggle-scope">personal</span>{% endif %}
                 </label>
               {% endfor %}
             </div>
