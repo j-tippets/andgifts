@@ -16,7 +16,7 @@
   --gold-soft: #FADDA3;
   --line: rgba(42,26,69,0.12);
   --danger: #B8452F;
-  --font-display: "Caprasimo", serif;
+  --font-display: "Besley", serif;
   --font-body: "Inter", sans-serif;
   --font-rounded: "Baloo 2", sans-serif;
   --ease: cubic-bezier(.22,1,.36,1);
@@ -233,7 +233,7 @@ button { font-family: inherit; }
 }
 
 /* ---- Typography ---- */
-h1, h2, h3 { font-family: var(--font-display); font-weight: 600; margin: 0 0 6px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0 0 6px; }
 h1 { font-size: 32px; }
 h2 { font-size: 22px; }
 h3 { font-size: 17px; }
@@ -291,7 +291,7 @@ h3 { font-size: 17px; }
 .field-row { display: flex; gap: 16px; }
 .field-row .field { flex: 1; }
 fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
-legend { font-family: var(--font-display); font-weight: 600; padding: 0 8px; color: var(--evergreen); }
+legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; color: var(--evergreen); }
 .checkbox-grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .checkbox-chip { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 /* .field label sets display:block (for normal field labels) and, by descendant-selector
@@ -724,7 +724,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   transition: opacity .4s var(--ease); overflow: hidden; padding: 20px;
 }
 .empty-state-flip.show { opacity: 1; pointer-events: auto; }
-.empty-state-flip h3 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 10px 0 4px; color: var(--paper); }
+.empty-state-flip h3 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 10px 0 4px; color: var(--paper); }
 .empty-state-flip p { font-family: var(--font-rounded); font-weight: 600; font-size: 13px; opacity: .7; margin: 0; }
 .empty-badge {
   width: 52px; height: 52px; border-radius: 50%; background: var(--gold); color: var(--gold-ink);
@@ -966,7 +966,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   padding: 18px 20px; margin-bottom: 16px;
 }
 .form-section-title {
-  font-family: var(--font-display); font-weight: 600; font-size: 16px; color: var(--evergreen);
+  font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--evergreen);
   margin: 0 0 14px;
 }
 .form-section .field:last-child { margin-bottom: 0; }
@@ -991,7 +991,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   background: var(--mint); border-radius: 16px; padding: 18px 20px; margin-bottom: 20px;
 }
 .flow-sentence {
-  font-family: var(--font-display); font-weight: 600; font-size: 17px; line-height: 1.4;
+  font-family: var(--font-display); font-weight: 700; font-size: 17px; line-height: 1.4;
   color: var(--mint-ink); margin: 0 0 14px;
 }
 .flow-stats-row { display: flex; gap: 24px; flex-wrap: wrap; }
