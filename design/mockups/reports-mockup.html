@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>&Gifts — Reports mockup</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+  :root{
+    --surface-0:#f7f6f2; --surface-1:#eeece4; --surface-2:#ffffff;
+    --text-primary:#1c1c1a; --text-secondary:#5f5e5a; --text-muted:#888780;
+    --border:#e2e0d8; --border-strong:#b4b2a9; --border-accent:#378ADD;
+    --bg-accent:#E6F1FB; --text-accent:#185FA5;
+    --c-purple-bg:#EEEDFE; --c-purple-text:#3C3489;
+    --c-teal-bg:#E1F5EE; --c-teal-text:#085041;
+    --c-coral-bg:#FAECE7; --c-coral-text:#712B13;
+    --c-pink-bg:#FBEAF0; --c-pink-text:#72243E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;padding:2rem;background:var(--surface-0);color:var(--text-primary);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+       font-size:16px;line-height:1.5;}
+  #app{max-width:760px;margin:0 auto;}
+  button{font-family:inherit;font-size:13px;border:0.5px solid var(--border-strong);
+         background:var(--surface-2);border-radius:8px;cursor:pointer;color:var(--text-primary);}
+  button:hover{background:var(--surface-1);}
+  input[type=date]{font-family:inherit;font-size:13px;padding:6px 8px;border:0.5px solid var(--border-strong);
+         border-radius:8px;background:var(--surface-2);color:var(--text-primary);}
+</style>
+</head>
+<body>
+<h2 style="position:absolute;left:-9999px;">Interactive mockup of the &Gifts reports page, with a toggle between agent and admin scope, date range presets, activity cards, and badge/user snapshot cards using dummy data.</h2>
+<div id="app"></div>
+<script>
+function mulberry32(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i);h|=0;}return h;}
+
+const AGENTS = ["Priya Chandra","Marcus Webb","Dana Fuentes","Theo Nakamura","Aisha Bello"];
+const BADGES = [
+  {name:"VIP", bg:"var(--c-purple-bg)", text:"var(--c-purple-text)"},
+  {name:"Family friend", bg:"var(--c-teal-bg)", text:"var(--c-teal-text)"},
+  {name:"Past client", bg:"var(--c-coral-bg)", text:"var(--c-coral-text)"},
+  {name:"Referral source", bg:"var(--c-pink-bg)", text:"var(--c-pink-text)"},
+];
+const GIFTS = ["Coffee gift card","Housewarming basket","Wine bottle set","Candle trio","Fresh flowers"];
+const FLOWS = ["New listing follow-up","Closing anniversary","Birthday touch","Referral thank-you"];
+const FIRST = ["Jordan","Sam","Casey","Riley","Morgan","Alex","Taylor","Jamie","Drew","Skyler","Reese","Quinn"];
+const LAST = ["Park","Nguyen","Silva","Brooks","Kim","Osei","Reyes","Doyle","Novak","Farah"];
+
+const RANGES = [{label:"7d",days:7},{label:"30d",days:30},{label:"90d",days:90}];
+
+let state = { scope:"org", agent:null, rangeIdx:1, customOpen:false, customFrom:"", customTo:"", detail:null, wasAdmin:false, detailPage:0 };
+
+function effectiveDays(){
+  if(state.customOpen && state.customFrom && state.customTo){
+    const d = (new Date(state.customTo) - new Date(state.customFrom))/86400000;
+    return Math.max(1, Math.round(d));
+  }
+  return RANGES[state.rangeIdx].days;
+}
+
+function genAgentStats(agentName, days){
+  const rnd = mulberry32(hashStr(agentName+"|"+days));
+  const scale = days/30;
+  const peopleAdded = Math.round((4+rnd()*10)*scale);
+  const mk = (list,base)=> list.map(n=>({name:n,count:Math.round((rnd()*base+1)*scale)})).sort((a,b)=>b.count-a.count);
+  const gifts = mk(GIFTS,6);
+  const emails = mk(FLOWS.map((f,i)=>"To "+AGENTS[(((hashStr(f)+i)%AGENTS.length)+AGENTS.length)%AGENTS.length].split(" ")[0]+"'s contacts"),8);
+  const flows = mk(FLOWS,5);
+  const badgeCounts = BADGES.map(b=>({...b,count:Math.round((rnd()*20+3)*scale)}));
+  const totalUsers = Math.round((40+rnd()*60));
+  return {peopleAdded, gifts, emails, flows, badgeCounts, totalUsers,
+    total: gifts.reduce((s,x)=>s+x.count,0)+emails.reduce((s,x)=>s+x.count,0)+flows.reduce((s,x)=>s+x.count,0)+peopleAdded};
+}
+
+function sumStats(list){
+  const base = list[0];
+  const out = {peopleAdded:0, gifts:base.gifts.map(g=>({name:g.name,count:0})),
+    emails:base.emails.map(g=>({name:g.name,count:0})), flows:base.flows.map(g=>({name:g.name,count:0})),
+    badgeCounts:base.badgeCounts.map(b=>({...b,count:0})), totalUsers:0};
+  list.forEach(s=>{
+    out.peopleAdded+=s.peopleAdded; out.totalUsers+=s.totalUsers;
+    ["gifts","emails","flows"].forEach(k=> out[k].forEach((row,i)=> row.count+=s[k][i].count));
+    out.badgeCounts.forEach((b,i)=> b.count+=s.badgeCounts[i].count);
+  });
+  ["gifts","emails","flows"].forEach(k=> out[k].sort((a,b)=>b.count-a.count));
+  return out;
+}
+
+function genContactList(key, count){
+  const rnd = mulberry32(hashStr(key));
+  const out = [];
+  for(let i=0;i<count;i++){
+    const first = FIRST[Math.floor(rnd()*FIRST.length)];
+    const last = LAST[Math.floor(rnd()*LAST.length)];
+    const daysAgo = Math.floor(rnd()*effectiveDays())+1;
+    out.push({name:`${first} ${last}`, when:`${daysAgo}d ago`});
+  }
+  return out.sort((a,b)=> parseInt(a.when)-parseInt(b.when));
+}
+
+function rankedRows(rows, cardKey, max=4){
+  const top = rows.slice(0,max);
+  const highest = top[0]?.count||1;
+  return top.map(r=>`
+    <button onclick="openDetail('${cardKey}','${r.name.replace(/'/g,"\\'")}',${r.count})" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin:8px 0;background:none;border:none;padding:2px 0;cursor:pointer;">
+      <span style="font-size:13px;color:var(--text-secondary);width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</span>
+      <div style="flex:1;background:var(--surface-1);border-radius:4px;height:8px;overflow:hidden;">
+        <div style="width:${Math.max(6,r.count/highest*100)}%;height:100%;background:var(--border-strong);"></div>
+      </div>
+      <span style="font-size:13px;font-weight:500;width:28px;text-align:right;">${r.count}</span>
+    </button>`).join("");
+}
+
+function activityCard(icon,title,total,rows,cardKey){
+  return `
+  <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="ti ${icon}" style="font-size:18px;color:var(--text-secondary);" aria-hidden="true"></i>
+        <span style="font-size:14px;color:var(--text-secondary);">${title}</span>
+      </div>
+      <span style="font-size:20px;font-weight:500;">${total}</span>
+    </div>
+    <div style="margin-top:10px;">${rankedRows(rows, cardKey)}</div>
+  </div>`;
+}
+
+function badgeCard(badgeCounts){
+  const max = Math.max(...badgeCounts.map(b=>b.count));
+  return `
+  <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <i class="ti ti-award" style="font-size:18px;color:var(--text-secondary);" aria-hidden="true"></i>
+      <span style="font-size:14px;color:var(--text-secondary);">Users by badge (not mutually exclusive)</span>
+    </div>
+    ${badgeCounts.map(b=>`
+      <div style="display:flex;align-items:center;gap:10px;margin:8px 0;">
+        <span style="background:${b.bg};color:${b.text};font-size:12px;padding:2px 10px;border-radius:20px;width:110px;flex-shrink:0;text-align:center;box-sizing:border-box;">${b.name}</span>
+        <div style="flex:1;background:var(--surface-1);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="width:${Math.max(6,b.count/max*100)}%;height:100%;background:var(--border-strong);"></div>
+        </div>
+        <span style="font-size:13px;font-weight:500;width:28px;text-align:right;">${b.count}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
+function metricCard(label,value){
+  return `<div style="background:var(--surface-1);border-radius:8px;padding:1rem;">
+    <div style="font-size:13px;color:var(--text-secondary);">${label}</div>
+    <div style="font-size:24px;font-weight:500;margin-top:4px;">${value}</div>
+  </div>`;
+}
+
+function detailPanel(){
+  if(!state.detail) return "";
+  const {cardKey, rowName, count} = state.detail;
+  const allContacts = genContactList(cardKey+"|"+rowName+"|"+effectiveDays(), count);
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(allContacts.length/pageSize));
+  const page = Math.min(state.detailPage, totalPages-1);
+  const start = page*pageSize;
+  const pageContacts = allContacts.slice(start, start+pageSize);
+  return `
+  <div onclick="if(event.target===this)closeDetail()" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1.5rem;">
+    <div style="background:var(--surface-2);border-radius:12px;padding:1.25rem 1.5rem;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:15px;font-weight:500;">${rowName} — ${count} contact${count===1?"":"s"}</span>
+        <button onclick="closeDetail()" style="border:none;background:none;padding:4px;cursor:pointer;" aria-label="Close"><i class="ti ti-x" style="font-size:16px;" aria-hidden="true"></i></button>
+      </div>
+      ${pageContacts.map(c=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:0.5px solid var(--border);">
+          <span style="font-size:13px;">${c.name}</span>
+          <span style="font-size:12px;color:var(--text-muted);">${c.when}</span>
+        </div>`).join("")}
+      ${totalPages>1?`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:10px;border-top:0.5px solid var(--border);">
+        <button onclick="detailPage(-1)" ${page===0?"disabled":""} style="padding:5px 10px;${page===0?"opacity:0.4;cursor:default;":""}"><i class="ti ti-chevron-left" style="font-size:14px;" aria-hidden="true"></i></button>
+        <span style="font-size:12px;color:var(--text-muted);">${start+1}-${Math.min(start+pageSize,allContacts.length)} of ${allContacts.length}</span>
+        <button onclick="detailPage(1)" ${page===totalPages-1?"disabled":""} style="padding:5px 10px;${page===totalPages-1?"opacity:0.4;cursor:default;":""}"><i class="ti ti-chevron-right" style="font-size:14px;" aria-hidden="true"></i></button>
+      </div>`:""}
+    </div>
+  </div>`;
+}
+
+function render(){
+  const days = effectiveDays();
+  const app = document.getElementById("app");
+  const isAgentView = state.scope==="agent";
+  const agentName = state.agent || AGENTS[0];
+  const stats = isAgentView ? genAgentStats(agentName, days) : sumStats(AGENTS.map(a=>genAgentStats(a,days)));
+
+  let agentTableHtml = "";
+  if(!isAgentView){
+    const rows = AGENTS.map(a=>({name:a, ...genAgentStats(a,days)})).sort((a,b)=>b.total-a.total);
+    const max = rows[0].total||1;
+    agentTableHtml = `
+    <div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin-top:1rem;">
+      <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;">By agent — click to drill in</div>
+      ${rows.map(r=>`
+        <button onclick="setAgent('${r.name}')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin:6px 0;background:none;border:none;padding:6px 4px;border-radius:6px;cursor:pointer;">
+          <span style="font-size:13px;width:130px;flex-shrink:0;">${r.name}</span>
+          <div style="flex:1;background:var(--surface-1);border-radius:4px;height:8px;overflow:hidden;">
+            <div style="width:${Math.max(6,r.total/max*100)}%;height:100%;background:var(--border-strong);"></div>
+          </div>
+          <span style="font-size:13px;font-weight:500;width:32px;text-align:right;">${r.total}</span>
+          <i class="ti ti-chevron-right" style="font-size:16px;color:var(--text-muted);" aria-hidden="true"></i>
+        </button>`).join("")}
+    </div>`;
+  }
+
+  app.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:0.75rem;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${isAgentView && state.wasAdmin ? `<button onclick="backToOrg()" style="display:flex;align-items:center;gap:4px;padding:6px 12px;"><i class="ti ti-arrow-left" style="font-size:16px;" aria-hidden="true"></i>Agency</button>`:""}
+        <span style="font-size:18px;font-weight:500;">${isAgentView? agentName : "Agency overview"}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${RANGES.map((r,i)=>`<button onclick="setRange(${i})" style="padding:6px 12px;${!state.customOpen && i===state.rangeIdx?'background:var(--bg-accent);color:var(--text-accent);border-color:transparent;':''}">${r.label}</button>`).join("")}
+        <button onclick="toggleCustom()" style="padding:6px 12px;${state.customOpen?'background:var(--bg-accent);color:var(--text-accent);border-color:transparent;':''}">Custom</button>
+      </div>
+    </div>
+    ${state.customOpen?`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+      <input type="date" value="${state.customFrom}" onchange="setCustom('from',this.value)" style="width:150px;" />
+      <span style="font-size:13px;color:var(--text-muted);">to</span>
+      <input type="date" value="${state.customTo}" onchange="setCustom('to',this.value)" style="width:150px;" />
+    </div>`:""}
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.5rem;">
+      ${metricCard("Total users", stats.totalUsers)}
+      ${metricCard("People added", stats.peopleAdded)}
+      ${metricCard(isAgentView?"My total actions":"Agency total actions", isAgentView? stats.gifts.reduce((s,x)=>s+x.count,0)+stats.emails.reduce((s,x)=>s+x.count,0)+stats.flows.reduce((s,x)=>s+x.count,0)+stats.peopleAdded : AGENTS.reduce((s,a)=>s+genAgentStats(a,days).total,0))}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+      ${activityCard("ti-gift","Gifts given", stats.gifts.reduce((s,x)=>s+x.count,0), stats.gifts, "gifts")}
+      ${activityCard("ti-mail","Emails sent", stats.emails.reduce((s,x)=>s+x.count,0), stats.emails, "emails")}
+      ${activityCard("ti-git-fork","Flows triggered", stats.flows.reduce((s,x)=>s+x.count,0), stats.flows, "flows")}
+      ${badgeCard(stats.badgeCounts)}
+    </div>
+    ${detailPanel()}
+    ${!isAgentView ? agentTableHtml : ""}
+  `;
+}
+
+function setRange(i){ state.rangeIdx=i; state.customOpen=false; state.detail=null; render(); }
+function toggleCustom(){ state.customOpen=!state.customOpen; state.detail=null; render(); }
+function setCustom(which,val){ if(which==="from") state.customFrom=val; else state.customTo=val; state.detail=null; render(); }
+function setAgent(name){ state.wasAdmin=true; state.scope="agent"; state.agent=name; state.detail=null; render(); }
+function backToOrg(){ state.scope="org"; state.agent=null; state.detail=null; render(); }
+function openDetail(cardKey,rowName,count){ state.detail={cardKey,rowName,count}; state.detailPage=0; render(); }
+function closeDetail(){ state.detail=null; state.detailPage=0; render(); }
+function detailPage(delta){ state.detailPage=Math.max(0,state.detailPage+delta); render(); }
+
+render();
+</script>
+</body>
+</html>
