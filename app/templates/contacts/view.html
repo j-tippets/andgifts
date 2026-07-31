@@ -31,7 +31,10 @@
 </div>
 
 <div>
-    <span class="status-pill status-{{ contact.status }}">{{ contact.status|capitalize }}</span>
+    {# Status is now surfaced as a regular badge (New/Active/Past) instead of this
+       dedicated pill -- see migration f2a9c7e1b4d8. Leaving this here, commented out,
+       in case we want to bring the standalone status pill back later. #}
+    {# <span class="status-pill status-{{ contact.status }}">{{ contact.status|capitalize }}</span> #}
       {% if contact.do_not_contact %}
         <span class="status-pill pill-do-not-contact">Do Not Contact</span>
       {% elif contact.marketing_opt_out %}
