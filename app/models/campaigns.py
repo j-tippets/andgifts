@@ -112,6 +112,25 @@ class CampaignRecipe(db.Model):
     # contact" condition row -- see Campaign.repeat_enabled for the full
     # reasoning, since that's the copy that's actually live anywhere.
     repeat_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    # The flow's own repeat schedule, used when repeat_enabled is True.
+    # This is independent of whether the underlying event itself recurs
+    # (see TimelineEvent.is_recurring) -- it's what lets a one-time
+    # event like a closing date still produce an annual "closing
+    # anniversary" gift every recur_interval_amount/recur_interval_unit
+    # after the first trigger, not just once. For an event that already
+    # recurs on its own (a birthday), this schedule doesn't change how
+    # often the underlying event fires, but max_occurrences below still
+    # caps it. Defaults to "every 1 year", the most common case.
+    recur_interval_amount = db.Column(db.Integer, nullable=False, default=1)
+    recur_interval_unit = db.Column(
+        db.Enum(*TIMING_UNITS, name="campaign_timing_unit"),
+        nullable=False, default="year",
+    )
+    # Hard cap on how many times this flow will ever fire for the same
+    # contact, regardless of how many occurrences its schedule produces.
+    # NULL means unlimited (fires every time it qualifies, for as long
+    # as repeat_enabled stays on).
+    max_occurrences = db.Column(db.Integer, nullable=True)
 
     # --- Action ---
     action_type = db.Column(
@@ -159,6 +178,9 @@ class CampaignRecipe(db.Model):
 
     def timing_label(self):
         return _timing_label(self.timing_direction, self.timing_amount, self.timing_unit)
+
+    def repeat_summary(self):
+        return _repeat_summary(self.repeat_enabled, self.recur_interval_amount, self.recur_interval_unit, self.max_occurrences)
 
 
 class Campaign(db.Model):
@@ -222,6 +244,17 @@ class Campaign(db.Model):
     # it. True (the default) is today's existing behavior: it fires
     # again every time the event's next occurrence comes due.
     repeat_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    # See CampaignRecipe.recur_interval_amount/unit for the full
+    # reasoning -- this is the copy that's actually live. Together with
+    # timing_direction/amount/unit they read as a full sentence:
+    # "1 day after Closing, repeat every 1 year".
+    recur_interval_amount = db.Column(db.Integer, nullable=False, default=1)
+    recur_interval_unit = db.Column(
+        db.Enum(*TIMING_UNITS, name="live_campaign_timing_unit"),
+        nullable=False, default="year",
+    )
+    # NULL means unlimited. See CampaignRecipe.max_occurrences.
+    max_occurrences = db.Column(db.Integer, nullable=True)
 
     action_type = db.Column(
         db.Enum("gift", "email", "text", "handwritten_note", name="live_campaign_action_type"),
@@ -267,6 +300,9 @@ class Campaign(db.Model):
             timing_amount=recipe.timing_amount,
             timing_unit=recipe.timing_unit,
             repeat_enabled=recipe.repeat_enabled,
+            recur_interval_amount=recipe.recur_interval_amount,
+            recur_interval_unit=recipe.recur_interval_unit,
+            max_occurrences=recipe.max_occurrences,
             action_type=recipe.action_type,
             suggested_gift_id=recipe.suggested_gift_id,
             price_max_cents=recipe.price_max_cents,
@@ -303,6 +339,9 @@ class Campaign(db.Model):
             timing_amount=master.timing_amount,
             timing_unit=master.timing_unit,
             repeat_enabled=master.repeat_enabled,
+            recur_interval_amount=master.recur_interval_amount,
+            recur_interval_unit=master.recur_interval_unit,
+            max_occurrences=master.max_occurrences,
             action_type=master.action_type,
             suggested_gift_id=master.suggested_gift_id,
             price_max_cents=master.price_max_cents,
@@ -323,6 +362,9 @@ class Campaign(db.Model):
     def timing_label(self):
         return _timing_label(self.timing_direction, self.timing_amount, self.timing_unit)
 
+    def repeat_summary(self):
+        return _repeat_summary(self.repeat_enabled, self.recur_interval_amount, self.recur_interval_unit, self.max_occurrences)
+
 
 def _timing_label(direction, amount, unit):
     """Shared by Campaign and CampaignRecipe -- the deterministic,
@@ -336,3 +378,18 @@ def _timing_label(direction, amount, unit):
     plural = "s" if amount != 1 else ""
     phrase = f"{amount} {unit}{plural}"
     return f"{phrase} after" if direction == "after" else f"{phrase} before"
+
+
+def _repeat_summary(repeat_enabled, recur_interval_amount, recur_interval_unit, max_occurrences):
+    """Shared by Campaign and CampaignRecipe -- short plain-English
+    badge text for a flow's repeat schedule ('repeats every 1 year, max
+    3', 'repeats every 6 months', 'once per contact')."""
+    if not repeat_enabled:
+        return "once per contact"
+    amount = recur_interval_amount or 1
+    unit = recur_interval_unit or "year"
+    plural = "s" if amount != 1 else ""
+    summary = f"repeats every {amount} {unit}{plural}"
+    if max_occurrences:
+        summary += f", max {max_occurrences}"
+    return summary

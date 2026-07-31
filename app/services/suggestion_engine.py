@@ -228,78 +228,102 @@ def generate_campaign_suggestions_for_org(org, today=None):
         contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
 
         for contact in contacts:
+            # How many more times this campaign is allowed to fire for
+            # this contact, or None for unlimited. repeat_enabled=False
+            # collapses to "fire at most once, ever" (cap=1), same as
+            # before this feature existed; a numeric max_occurrences
+            # further caps a repeating flow. Computed once per contact
+            # (not per event/occurrence) since it's an existing count
+            # against the DB.
+            cap = _campaign_occurrence_cap(campaign)
+            occurrence_count = _campaign_occurrence_count_for_contact(campaign.id, contact.id) if cap is not None else None
+
             matching_events = [e for e in contact.timeline_events if e.event_type == campaign.event_type]
             for event in matching_events:
-                trigger_date = _campaign_trigger_date(
-                    event, campaign.timing_direction, campaign.timing_amount, campaign.timing_unit,
-                    today, window_end,
-                )
-                if trigger_date is None:
-                    continue
+                for trigger_date in _campaign_trigger_dates(event, campaign, today, window_end):
+                    if cap is not None and occurrence_count >= cap:
+                        break  # this contact has hit its cap -- no more occurrences for this campaign
 
-                if _campaign_suggestion_exists(org.id, campaign.id, contact.id, event.id, trigger_date):
-                    continue
+                    if _campaign_suggestion_exists(org.id, campaign.id, contact.id, event.id, trigger_date):
+                        continue
 
-                if not campaign.repeat_enabled and _campaign_already_fired_for_contact(campaign.id, contact.id):
-                    continue
+                    if not campaign_rules.evaluate_conditions(campaign, contact, org, today):
+                        continue
 
-                if not campaign_rules.evaluate_conditions(campaign, contact, org, today):
-                    continue
+                    gift_item, gift_reasoning = None, None
+                    if campaign.action_type == "gift":
+                        gift_item, gift_reasoning = _resolve_campaign_gift(campaign, contact, available_item_ids)
 
-                gift_item, gift_reasoning = None, None
-                if campaign.action_type == "gift":
-                    gift_item, gift_reasoning = _resolve_campaign_gift(campaign, contact, available_item_ids)
+                    message = None
+                    if campaign.action_type in ("email", "text", "handwritten_note"):
+                        message = _resolve_campaign_message(campaign, contact, event)
+                    elif campaign.action_type == "gift" and gift_item:
+                        message = _resolve_gift_note(campaign, contact, event, gift_item)
 
-                message = None
-                if campaign.action_type in ("email", "text", "handwritten_note"):
-                    message = _resolve_campaign_message(campaign, contact, event)
-                elif campaign.action_type == "gift" and gift_item:
-                    message = _resolve_gift_note(campaign, contact, event, gift_item)
+                    reason = _build_campaign_reason_text(campaign, contact, event, gift_item, gift_reasoning)
 
-                reason = _build_campaign_reason_text(campaign, contact, event, gift_item, gift_reasoning)
-
-                suggestion = SuggestedAction(
-                    org_id=org.id,
-                    contact_id=contact.id,
-                    triggering_event_id=event.id,
-                    source_campaign_id=campaign.id,
-                    action_type=campaign.action_type,
-                    suggested_gift_id=gift_item.id if gift_item else None,
-                    reason_text=reason,
-                    generated_message=message,
-                    target_date=trigger_date,
-                    status="pending",
-                )
-                db.session.add(suggestion)
-                db.session.flush()  # populate suggestion.id before logging the FK reference
-                _log_qualified(suggestion, contact)
-                created.append(suggestion)
+                    suggestion = SuggestedAction(
+                        org_id=org.id,
+                        contact_id=contact.id,
+                        triggering_event_id=event.id,
+                        source_campaign_id=campaign.id,
+                        action_type=campaign.action_type,
+                        suggested_gift_id=gift_item.id if gift_item else None,
+                        reason_text=reason,
+                        generated_message=message,
+                        target_date=trigger_date,
+                        status="pending",
+                    )
+                    db.session.add(suggestion)
+                    db.session.flush()  # populate suggestion.id before logging the FK reference
+                    _log_qualified(suggestion, contact)
+                    created.append(suggestion)
+                    if cap is not None:
+                        occurrence_count += 1
 
     if created:
         db.session.commit()
     return created
 
 
+def _campaign_occurrence_cap(campaign):
+    """The max number of suggestions this campaign should ever produce
+    for one contact, or None for unlimited. repeat_enabled=False means
+    'fire at most once, ever' regardless of what max_occurrences holds
+    (mirrors the pre-existing behavior); repeat_enabled=True defers to
+    max_occurrences (NULL there also means unlimited)."""
+    if not campaign.repeat_enabled:
+        return 1
+    return campaign.max_occurrences
+
+
+def _campaign_occurrence_count_for_contact(campaign_id, contact_id):
+    """How many suggestions this campaign has already generated for
+    this contact, of ANY status, regardless of which occurrence
+    triggered each one -- compared against _campaign_occurrence_cap to
+    decide whether it's allowed to fire again."""
+    return SuggestedAction.query.filter_by(
+        source_campaign_id=campaign_id, contact_id=contact_id,
+    ).count()
+
+
 def _campaign_trigger_date(event, direction, amount, unit, today, window_end):
-    """The date a campaign/recipe's action should fire on, or None if
-    that's outside [today, window_end]. Month/year units use calendar
-    arithmetic (relativedelta) so '1 year after' lands on the same
-    calendar date next year rather than +365 raw days -- important for
-    an annual closing anniversary to keep landing on the actual closing
-    date. Handles an offset that pushes a recurring event's occurrence
-    across a year boundary by checking last/this/next year's
-    occurrence, not just 'this year'."""
+    """The single, first-in-window trigger date for a campaign/recipe's
+    timing configuration -- used by the Preview step, which
+    deliberately only ever shows one upcoming occurrence per event (see
+    preview_flow_matches) and doesn't model a flow's own repeat
+    schedule. For the live generation path, see _campaign_trigger_dates
+    below, which layers repeat_enabled/recur_interval on top of this
+    same offset math.
+
+    Month/year units use calendar arithmetic (relativedelta) so '1 year
+    after' lands on the same calendar date next year rather than +365
+    raw days -- important for an annual closing anniversary to keep
+    landing on the actual closing date. Handles an offset that pushes a
+    recurring event's occurrence across a year boundary by checking
+    last/this/next year's occurrence, not just 'this year'."""
     def apply_offset(base_date):
-        if direction == "same_day":
-            return base_date
-        signed = amount if direction == "after" else -amount
-        if unit == "day":
-            return base_date + timedelta(days=signed)
-        if unit == "week":
-            return base_date + timedelta(weeks=signed)
-        if unit == "month":
-            return base_date + relativedelta(months=signed)
-        return base_date + relativedelta(years=signed)  # unit == "year"
+        return _apply_timing_offset(base_date, direction, amount, unit)
 
     if not event.is_recurring:
         trigger_date = apply_offset(event.event_date)
@@ -314,6 +338,109 @@ def _campaign_trigger_date(event, direction, amount, unit, today, window_end):
         if today <= trigger_date <= window_end:
             return trigger_date
     return None
+
+
+def _apply_timing_offset(base_date, direction, amount, unit):
+    if direction == "same_day":
+        return base_date
+    signed = amount if direction == "after" else -amount
+    if unit == "day":
+        return base_date + timedelta(days=signed)
+    if unit == "week":
+        return base_date + timedelta(weeks=signed)
+    if unit == "month":
+        return base_date + relativedelta(months=signed)
+    return base_date + relativedelta(years=signed)  # unit == "year"
+
+
+def _campaign_trigger_dates(event, campaign, today, window_end):
+    """All of this campaign's trigger dates for one event that fall in
+    [today, window_end] -- the live-generation counterpart to
+    _campaign_trigger_date above, which only ever returns one.
+
+    For an event type that already recurs on the calendar (a birthday,
+    an anniversary -- see TimelineEvent.is_recurring), this is just the
+    usual before/same-day/after offset applied to whichever yearly
+    occurrence(s) land in the window, same as before this feature
+    existed.
+
+    For a one-time event (e.g. a home closing), there's no natural
+    recurrence to ride on, so when repeat_enabled is on the campaign
+    supplies its OWN schedule: recur_interval_amount/recur_interval_unit
+    applied repeatedly from the first trigger date onward (default
+    every 1 year). This is what lets a one-time closing date still
+    produce an annual closing-anniversary gift. max_occurrences isn't
+    checked here -- that's a per-contact running count the caller
+    enforces across events, not something a single event's date list
+    can know about on its own."""
+    def apply_offset(base_date):
+        return _apply_timing_offset(base_date, campaign.timing_direction, campaign.timing_amount, campaign.timing_unit)
+
+    if event.is_recurring:
+        dates = []
+        for year_delta in (-1, 0, 1):
+            try:
+                base = event.event_date.replace(year=today.year + year_delta)
+            except ValueError:
+                base = event.event_date.replace(year=today.year + year_delta, day=28)  # Feb 29 -> Feb 28
+            trigger_date = apply_offset(base)
+            if today <= trigger_date <= window_end:
+                dates.append(trigger_date)
+        return dates
+
+    anchor = apply_offset(event.event_date)
+    if not campaign.repeat_enabled:
+        return [anchor] if today <= anchor <= window_end else []
+
+    interval_amount = campaign.recur_interval_amount or 1
+    interval_unit = campaign.recur_interval_unit or "year"
+    return _repeat_occurrences(anchor, interval_amount, interval_unit, today, window_end)
+
+
+def _repeat_occurrences(anchor, amount, unit, today, window_end):
+    """Occurrence dates (anchor, anchor + 1 interval, anchor + 2
+    intervals, ...) that fall within [today, window_end]. Jumps close
+    to 'today' first via direct arithmetic instead of walking forward
+    one interval at a time from the anchor, so an anchor from years ago
+    combined with a short interval (e.g. a closing date from 2019,
+    repeating every week) doesn't require thousands of loop iterations
+    -- only a small, bounded number of steps run once we're near the
+    window."""
+    if amount <= 0:
+        amount = 1
+
+    k = 0
+    if anchor < today:
+        if unit == "day":
+            elapsed = (today - anchor).days
+        elif unit == "week":
+            elapsed = (today - anchor).days // 7
+        elif unit == "month":
+            elapsed = (today.year - anchor.year) * 12 + (today.month - anchor.month)
+        else:  # year
+            elapsed = today.year - anchor.year
+        k = max(elapsed // amount - 1, 0)  # step back one interval to be safe around boundaries
+
+    dates = []
+    for _ in range(64):  # bounded walk -- the window is only LOOKAHEAD_DAYS wide
+        occurrence = _advance_date(anchor, amount, unit, k)
+        if occurrence > window_end:
+            break
+        if occurrence >= today:
+            dates.append(occurrence)
+        k += 1
+    return dates
+
+
+def _advance_date(anchor, amount, unit, k):
+    total = amount * k
+    if unit == "day":
+        return anchor + timedelta(days=total)
+    if unit == "week":
+        return anchor + timedelta(weeks=total)
+    if unit == "month":
+        return anchor + relativedelta(months=total)
+    return anchor + relativedelta(years=total)  # unit == "year"
 
 
 def _campaign_suggestion_exists(org_id, campaign_id, contact_id, event_id, target_date):
@@ -331,22 +458,6 @@ def _campaign_suggestion_exists(org_id, campaign_id, contact_id, event_id, targe
             contact_id=contact_id,
             triggering_event_id=event_id,
             target_date=target_date,
-        ).exists()
-    ).scalar()
-
-
-def _campaign_already_fired_for_contact(campaign_id, contact_id):
-    """True if this campaign has ever generated a suggestion for this
-    contact before, of ANY status, regardless of which occurrence
-    triggered it. Enforces Campaign.repeat_enabled == False ('fire at
-    most once per contact, ever') -- the dedup in
-    _campaign_suggestion_exists above only blocks the SAME (contact,
-    event, date) tuple, so without this check a recurring event's next
-    yearly occurrence would still qualify again even with repeat turned
-    off."""
-    return db.session.query(
-        SuggestedAction.query.filter_by(
-            source_campaign_id=campaign_id, contact_id=contact_id,
         ).exists()
     ).scalar()
 

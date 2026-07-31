@@ -68,8 +68,28 @@
     </div>
     <label class="checkbox-chip" style="margin-top:14px;">
       <input type="checkbox" name="repeat_enabled" {{ 'checked' if recipe.repeat_enabled else '' }}>
-      Repeat this every time the event recurs (e.g. every year)
+      Repeat this flow
     </label>
+    <div class="timing-amount-row" style="margin-top:10px;">
+      <div class="field">
+        <label>Repeat every</label>
+        <input type="text" name="recur_interval_amount" value="{{ recipe.recur_interval_amount }}">
+      </div>
+      <div class="field">
+        <label>Unit</label>
+        <select name="recur_interval_unit">
+          <option value="day" {{ 'selected' if recipe.recur_interval_unit == 'day' else '' }}>Days</option>
+          <option value="week" {{ 'selected' if recipe.recur_interval_unit == 'week' else '' }}>Weeks</option>
+          <option value="month" {{ 'selected' if recipe.recur_interval_unit == 'month' else '' }}>Months</option>
+          <option value="year" {{ 'selected' if recipe.recur_interval_unit == 'year' else '' }}>Years</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Max times (blank = unlimited)</label>
+        <input type="text" name="max_occurrences" value="{{ recipe.max_occurrences if recipe.max_occurrences else '' }}" placeholder="&infin;">
+      </div>
+    </div>
+    <p class="subdued" style="margin-top:4px;"><small>Unchecked means this flow only ever fires once per contact, even if the event itself repeats.</small></p>
   </div>
 
   <div class="form-section">

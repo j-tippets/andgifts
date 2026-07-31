@@ -47,7 +47,7 @@
             <span class="flow-when-then-icon flow-when-then-icon-time">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             </span>
-            <div class="flow-when-then-title">{{ c.timing_label()|capitalize }}{{ ' \u00b7 repeats' if c.repeat_enabled else ' \u00b7 once per contact' }}</div>
+            <div class="flow-when-then-title">{{ c.timing_label()|capitalize }} &middot; {{ c.repeat_summary() }}</div>
           </div>
           <div class="flow-when-then-card">
             <span class="flow-when-then-icon flow-when-then-icon-action">{{ type_icon(c.action_type) }}</span>

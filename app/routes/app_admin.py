@@ -258,6 +258,20 @@ def _save_recipe_from_form(recipe):
         recipe.timing_amount = 1
     recipe.timing_unit = request.form.get("timing_unit", "day")
     recipe.repeat_enabled = bool(request.form.get("repeat_enabled"))
+    try:
+        recipe.recur_interval_amount = max(1, int(request.form.get("recur_interval_amount", "1")))
+    except ValueError:
+        recipe.recur_interval_amount = 1
+    recipe.recur_interval_unit = request.form.get("recur_interval_unit", "year")
+
+    max_occurrences_raw = request.form.get("max_occurrences", "").strip()
+    if max_occurrences_raw:
+        try:
+            recipe.max_occurrences = max(1, int(max_occurrences_raw))
+        except ValueError:
+            recipe.max_occurrences = None
+    else:
+        recipe.max_occurrences = None
 
     price_max = dollars_to_cents(request.form.get("price_max"))
     recipe.price_max_cents = price_max

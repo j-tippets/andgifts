@@ -78,10 +78,29 @@
       <p class="subdued" style="margin-top:10px;"><small>Choose the timing and the moment that starts this flow.</small></p>
 
       <label class="checkbox-chip" style="margin-top:14px;">
-        <input type="checkbox" name="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }}>
-        Repeat this every time the event recurs (e.g. every year)
+        <input type="checkbox" name="repeat_enabled" id="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }}>
+        Repeat this flow
       </label>
-      <p class="subdued" style="margin-top:4px;"><small>Unchecked means this flow only ever fires once per contact, even if the event itself repeats.</small></p>
+
+      <div id="repeat-fields" style="margin-top:10px;">
+        <div class="timing-sentence-row">
+          <span class="subdued" style="font-size:14.5px;">every</span>
+          <input type="text" name="recur_interval_amount" class="timing-sentence-amount" value="{{ campaign.recur_interval_amount if campaign else 1 }}" aria-label="Repeat amount">
+          <select name="recur_interval_unit" class="timing-sentence-select" aria-label="Repeat unit">
+            <option value="day" {{ 'selected' if campaign and campaign.recur_interval_unit == 'day' else '' }}>day(s)</option>
+            <option value="week" {{ 'selected' if campaign and campaign.recur_interval_unit == 'week' else '' }}>week(s)</option>
+            <option value="month" {{ 'selected' if campaign and campaign.recur_interval_unit == 'month' else '' }}>month(s)</option>
+            <option value="year" {{ 'selected' if not campaign or campaign.recur_interval_unit == 'year' else '' }}>year(s)</option>
+          </select>
+        </div>
+
+        <div class="timing-sentence-row" id="max-occurrences-field" style="margin-top:10px;">
+          <span class="subdued" style="font-size:14.5px;">run this a maximum of</span>
+          <input type="text" name="max_occurrences" class="timing-sentence-amount" value="{{ campaign.max_occurrences if campaign and campaign.max_occurrences else '' }}" placeholder="&infin;" aria-label="Max occurrences">
+          <span class="subdued" style="font-size:14.5px;">times</span>
+        </div>
+        <p class="subdued" style="margin-top:4px;"><small>Leave the maximum blank to run every time this flow qualifies, with no limit.</small></p>
+      </div>
     </div>
 
     <div style="display:flex; justify-content:flex-end;">
@@ -299,6 +318,8 @@
     var timingDirectionInputs = document.querySelectorAll('input[name="timing_direction"]');
     var addNote = document.getElementById('add_note');
     var noteTextField = document.getElementById('note-text-field');
+    var repeatEnabled = document.getElementById('repeat_enabled');
+    var repeatFields = document.getElementById('repeat-fields');
 
     function refresh() {
       var checked = document.querySelector('input[name="action_type"]:checked');
@@ -309,6 +330,7 @@
       templateField.style.display = useLlmCopy.checked ? 'none' : '';
       llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
       noteTextField.style.display = addNote.checked ? '' : 'none';
+      repeatFields.style.display = repeatEnabled.checked ? '' : 'none';
 
       var direction = document.querySelector('input[name="timing_direction"]:checked');
       timingAmountRow.style.display = (direction && direction.value === 'same_day') ? 'none' : 'flex';
@@ -318,6 +340,7 @@
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
     addNote.addEventListener('change', refresh);
+    repeatEnabled.addEventListener('change', refresh);
     refresh();
 
     // Live sentence bar -- a client-side mirror of
@@ -385,17 +408,32 @@
       return phrase;
     }
 
+    function repeatClause() {
+      var repeatCheckbox = document.querySelector('input[name="repeat_enabled"]');
+      if (!repeatCheckbox || !repeatCheckbox.checked) {
+        return ' This only ever fires once per contact.';
+      }
+      var amount = parseInt(document.querySelector('[name="recur_interval_amount"]').value, 10) || 1;
+      var unit = document.querySelector('[name="recur_interval_unit"]').value;
+      var word = (TIMING_UNIT_WORDS[unit] || unit) + (amount === 1 ? '' : 's');
+      var clause = ' Repeat this every ' + amount + ' ' + word + '.';
+
+      var maxOccurrencesInput = document.querySelector('[name="max_occurrences"]');
+      var maxOccurrences = maxOccurrencesInput ? parseInt(maxOccurrencesInput.value, 10) : NaN;
+      if (maxOccurrences > 0) {
+        clause += ' Run this a maximum of ' + maxOccurrences + (maxOccurrences === 1 ? ' time.' : ' times.');
+      }
+      return clause;
+    }
+
     function updateSentence() {
       var eventSelect = document.querySelector('select[name="event_type"]');
       var eventLabel = selectedText(eventSelect).toLowerCase();
       var timing = timingPhrase();
       var timingCapitalized = timing.charAt(0).toUpperCase() + timing.slice(1);
-      var repeatCheckbox = document.querySelector('input[name="repeat_enabled"]');
 
       var sentence = timingCapitalized + ' ' + eventLabel + conditionClause() + ' ' + actionPhrase() + '.';
-      if (repeatCheckbox && !repeatCheckbox.checked) {
-        sentence += ' This only ever fires once per contact.';
-      }
+      sentence += repeatClause();
       document.getElementById('flow-sentence').textContent = sentence;
     }
 

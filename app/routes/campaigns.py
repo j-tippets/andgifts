@@ -134,6 +134,17 @@ def _build_flow_spec_from_form(default_name="Untitled preview"):
     except ValueError:
         timing_amount = 1
 
+    try:
+        recur_interval_amount = max(1, int(request.form.get("recur_interval_amount", "1")))
+    except ValueError:
+        recur_interval_amount = 1
+
+    max_occurrences_raw = request.form.get("max_occurrences", "").strip()
+    try:
+        max_occurrences = max(1, int(max_occurrences_raw)) if max_occurrences_raw else None
+    except ValueError:
+        max_occurrences = None
+
     return SimpleNamespace(
         name=request.form.get("name", "").strip() or default_name,
         event_type=request.form.get("event_type"),
@@ -141,6 +152,9 @@ def _build_flow_spec_from_form(default_name="Untitled preview"):
         timing_amount=timing_amount,
         timing_unit=request.form.get("timing_unit", "day"),
         repeat_enabled=bool(request.form.get("repeat_enabled")),
+        recur_interval_amount=recur_interval_amount,
+        recur_interval_unit=request.form.get("recur_interval_unit", "year"),
+        max_occurrences=max_occurrences,
         rules=_conditions_from_form(CampaignRule, current_user.org),
         price_max_cents=dollars_to_cents(request.form.get("price_max")),
         use_llm_gift_selection=bool(request.form.get("use_llm_gift_selection")),
@@ -216,7 +230,15 @@ def _describe_flow_sentence(spec, org):
     condition_clause = f", if {' and '.join(condition_phrases)}," if condition_phrases else ","
 
     sentence = f"{timing_phrase_text.capitalize()} {event_label_text.lower()}{condition_clause} {action}."
-    if not spec.repeat_enabled:
+    if spec.repeat_enabled:
+        interval_amount = getattr(spec, "recur_interval_amount", None) or 1
+        interval_unit = getattr(spec, "recur_interval_unit", None) or "year"
+        unit_word = interval_unit + ("s" if interval_amount != 1 else "")
+        sentence += f" Repeat this every {interval_amount} {unit_word}."
+        max_occurrences = getattr(spec, "max_occurrences", None)
+        if max_occurrences:
+            sentence += f" Run this a maximum of {max_occurrences} time{'s' if max_occurrences != 1 else ''}."
+    else:
         sentence += " This only ever fires once per contact."
 
     return sentence
@@ -293,7 +315,7 @@ def _conditions_from_form(rule_cls, org):
 
 
 def _timing_from_form(target):
-    """Reads the Event/Timing steps' fields onto target (a Campaign,
+    """Reads the Trigger step's fields onto target (a Campaign,
     CampaignRecipe, or the SimpleNamespace preview spec) in place."""
     target.event_type = request.form.get("event_type")
     target.timing_direction = request.form.get("timing_direction", "after")
@@ -303,6 +325,20 @@ def _timing_from_form(target):
         target.timing_amount = 1
     target.timing_unit = request.form.get("timing_unit", "day")
     target.repeat_enabled = bool(request.form.get("repeat_enabled"))
+    try:
+        target.recur_interval_amount = max(1, int(request.form.get("recur_interval_amount", "1")))
+    except ValueError:
+        target.recur_interval_amount = 1
+    target.recur_interval_unit = request.form.get("recur_interval_unit", "year")
+
+    max_occurrences_raw = request.form.get("max_occurrences", "").strip()
+    if max_occurrences_raw:
+        try:
+            target.max_occurrences = max(1, int(max_occurrences_raw))
+        except ValueError:
+            target.max_occurrences = None
+    else:
+        target.max_occurrences = None
 
 
 def _save_campaign_from_form(campaign):
