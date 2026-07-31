@@ -17,19 +17,16 @@
 
 <div class="wizard-steps">
   <div class="wizard-step active" data-step-dot="1">1</div>
-  <span class="wizard-step-label" data-step-label="1">Event</span>
+  <span class="wizard-step-label" data-step-label="1">Trigger</span>
   <div class="wizard-step-line"></div>
   <div class="wizard-step" data-step-dot="2">2</div>
-  <span class="wizard-step-label" data-step-label="2">When</span>
+  <span class="wizard-step-label" data-step-label="2">Who</span>
   <div class="wizard-step-line"></div>
   <div class="wizard-step" data-step-dot="3">3</div>
-  <span class="wizard-step-label" data-step-label="3">Who</span>
+  <span class="wizard-step-label" data-step-label="3">What</span>
   <div class="wizard-step-line"></div>
   <div class="wizard-step" data-step-dot="4">4</div>
-  <span class="wizard-step-label" data-step-label="4">What</span>
-  <div class="wizard-step-line"></div>
-  <div class="wizard-step" data-step-dot="5">5</div>
-  <span class="wizard-step-label" data-step-label="5">Review</span>
+  <span class="wizard-step-label" data-step-label="4">Review</span>
 </div>
 
 <form method="POST" id="wizard-form" novalidate>
@@ -46,25 +43,6 @@
       </div>
     </div>
 
-    <div class="form-section">
-      <h3 class="form-section-title">How would you like to start?</h3>
-      <div class="field">
-        <label>When should this happen?</label>
-        <select name="event_type" required>
-          {% for et, et_label in event_types %}
-            <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
-          {% endfor %}
-        </select>
-        <p class="subdued" style="margin-top:4px;"><small>Choose the moment that starts this flow.</small></p>
-      </div>
-    </div>
-
-    <div style="display:flex; justify-content:flex-end;">
-      <button type="button" class="btn btn-primary" onclick="wizardGo(2)">Next &rarr;</button>
-    </div>
-  </div>
-
-  <div class="wizard-pane" data-pane="2">
     <div class="form-section">
       <h3 class="form-section-title">When relative to this event?</h3>
       <div class="timing-direction-row">
@@ -104,13 +82,25 @@
       <p class="subdued" style="margin-top:4px;"><small>Unchecked means this flow only ever fires once per contact, even if the event itself repeats.</small></p>
     </div>
 
-    <div style="display:flex; justify-content:space-between;">
-      <button type="button" class="btn btn-ghost" onclick="wizardGo(1)">&larr; Back</button>
-      <button type="button" class="btn btn-primary" onclick="wizardGo(3)">Next &rarr;</button>
+    <div class="form-section">
+      <h3 class="form-section-title">How would you like to start?</h3>
+      <div class="field">
+        <label>Which event should trigger this?</label>
+        <select name="event_type" required>
+          {% for et, et_label in event_types %}
+            <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
+          {% endfor %}
+        </select>
+        <p class="subdued" style="margin-top:4px;"><small>Choose the moment that starts this flow.</small></p>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end;">
+      <button type="button" class="btn btn-primary" onclick="wizardGo(2)">Next &rarr;</button>
     </div>
   </div>
 
-  <div class="wizard-pane" data-pane="3">
+  <div class="wizard-pane" data-pane="2">
     <div class="form-section">
       <h3 class="form-section-title">Who should receive this?</h3>
       <div class="safeguards-card">
@@ -126,12 +116,12 @@
     </div>
 
     <div style="display:flex; justify-content:space-between;">
-      <button type="button" class="btn btn-ghost" onclick="wizardGo(2)">&larr; Back</button>
-      <button type="button" class="btn btn-primary" onclick="wizardGo(4)">Next &rarr;</button>
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(1)">&larr; Back</button>
+      <button type="button" class="btn btn-primary" onclick="wizardGo(3)">Next &rarr;</button>
     </div>
   </div>
 
-  <div class="wizard-pane" data-pane="4">
+  <div class="wizard-pane" data-pane="3">
     <div class="form-section">
       <h3 class="form-section-title">What should &amp;Gifts do?</h3>
       <div class="access-method">
@@ -213,12 +203,12 @@
     </div>
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
-      <button type="button" class="btn btn-ghost" onclick="wizardGo(3)">&larr; Back</button>
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(2)">&larr; Back</button>
       <button type="submit" name="action" value="preview" class="btn btn-primary">Continue to review &rarr;</button>
     </div>
   </div>
 
-  <div class="wizard-pane" data-pane="5">
+  <div class="wizard-pane" data-pane="4">
     <div class="form-section">
       <h3 class="form-section-title">Review your flow</h3>
       {% include "campaigns/_preview_results.html" %}
@@ -228,7 +218,7 @@
     </div>
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
-      <button type="button" class="btn btn-ghost" onclick="wizardGo(4)">&larr; Back</button>
+      <button type="button" class="btn btn-ghost" onclick="wizardGo(3)">&larr; Back</button>
       <button type="submit" name="action" value="save" class="btn btn-primary">{{ 'Save changes' if campaign else 'Turn on automation' }}</button>
     </div>
   </div>
@@ -294,7 +284,7 @@
 <script src="{{ url_for('static', filename='js/condition-builder.js') }}" defer></script>
 <script>
   (function () {
-    var TOTAL_STEPS = 5;
+    var TOTAL_STEPS = 4;
     function wizardGoImpl(n) {
       for (var i = 1; i <= TOTAL_STEPS; i++) {
         var pane = document.querySelector('[data-pane="' + i + '"]');
@@ -430,7 +420,7 @@
     wizardForm.addEventListener('click', function () { setTimeout(updateSentence, 0); });
     updateSentence();
 
-    // The form spans all 5 panes at once but only one is visible at a
+    // The form spans all 4 panes at once but only one is visible at a
     // time, so native HTML5 validation (which the browser can't run on
     // a hidden pane's required fields -- see the "not focusable"
     // console warning) can't be trusted here. novalidate is set on the
@@ -447,10 +437,10 @@
     });
 
     {% if preview_results is defined %}
-    // A preview/review submission came from step 4 -- land back on the
+    // A preview/review submission came from step 3 -- land back on the
     // Review step instead of resetting to step 1, so the results sit
     // next to the form that produced them.
-    wizardGoImpl(5);
+    wizardGoImpl(4);
     {% endif %}
   })();
 </script>
