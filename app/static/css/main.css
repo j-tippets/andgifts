@@ -347,9 +347,21 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
   border-radius: 20px;
   font-weight: 600;
   background: var(--gold-soft);
-  color: #8A6A1F;
+  color: var(--ink);
   margin-right: 6px;
   margin-bottom: 4px;
+}
+.badge-color-swatches { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.badge-color-swatch {
+  width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line);
+  cursor: pointer; position: relative; display: block;
+}
+.badge-color-swatch input {
+  position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer;
+}
+.badge-color-swatch:has(input:checked) {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
 }
 .badge-checkbox-list {
   display: flex;

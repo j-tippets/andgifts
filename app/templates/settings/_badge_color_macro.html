@@ -1,0 +1,10 @@
+{% macro badge_color_swatches(selected) %}
+  {% set swatches = ['#FADDA3','#D0E9D9','#FBD6C9','#F7D9E5','#E4DAF0','#D6E4F5','#DCEFD2','#D3EEEA','#FCE8D6','#FCF3C7','#E8E4DA','#DDE1F5'] %}
+  <div class="badge-color-swatches">
+    {% for hex in swatches %}
+      <label class="badge-color-swatch" style="background:{{ hex }};">
+        <input type="radio" name="color" value="{{ hex }}" {% if (selected or swatches[0])|lower == hex|lower %}checked{% endif %}>
+      </label>
+    {% endfor %}
+  </div>
+{% endmacro %}
