@@ -118,6 +118,76 @@ def _log_qualified(suggestion, contact):
     ))
 
 
+def _log_superseded(action, contact, winning_event):
+    """Records that a pending suggestion was auto-expired because a
+    higher-priority event (see EVENT_TYPE_PRIORITY) showed up for the
+    same contact -- distinct wording from _log_expired, which covers a
+    suggestion aging out unactioned rather than being outranked.
+    Deliberately reuses the existing "action_expired" audit action and
+    "expired" status rather than introducing a new one -- from the
+    dashboard's point of view both are "this suggestion is gone and
+    nobody approved it", just for a different reason, and the summary
+    text is what actually distinguishes them for anyone reading
+    Recent activity."""
+    kind = action.action_type.replace("_", " ")
+    winning_label = winning_event.display_label()
+    if action.action_type == "gift" and action.suggested_gift_id:
+        gift = GiftCatalogItem.query.get(action.suggested_gift_id)
+        summary = (
+            f"Suggested gift \u2014 {gift.name} \u2014 for {contact.household_name} was "
+            f"superseded by {winning_label}, a higher-priority milestone, and auto-expired."
+            if gift else
+            f"Suggested gift for {contact.household_name} was superseded by {winning_label}, "
+            f"a higher-priority milestone, and auto-expired."
+        )
+    else:
+        summary = (
+            f"Suggested {kind} for {contact.household_name} was superseded by {winning_label}, "
+            f"a higher-priority milestone, and auto-expired."
+        )
+
+    db.session.add(ContactAuditLog(
+        org_id=action.org_id,
+        contact_id=contact.id,
+        contact_name_snapshot=contact.household_name,
+        actor_user_id=None,
+        actor_name_snapshot="System",
+        action="action_expired",
+        summary=summary,
+        suggested_action_id=action.id,
+    ))
+
+
+def _expire_superseded_suggestions(contact, winning_event, org):
+    """Any still-pending suggestion for this contact tied to a different
+    timeline event than this run's winner (see _winning_event_for_contact)
+    is for a milestone that's since been outranked -- expire it rather
+    than leaving it to sit alongside the suggestion that actually matters
+    now. This is what handles the case _winning_event_for_contact alone
+    doesn't: a lower-priority suggestion that was already created and is
+    still pending from an earlier run, before the higher-priority event
+    existed or qualified.
+
+    Scoped to pending only -- anything already approved/sent/skipped/
+    expired is left untouched. A suggestion whose triggering event was
+    hard-deleted (triggering_event_id NULL -- see delete_timeline_event)
+    is left alone too: that's its event being gone, not being outranked,
+    and the agent should still get to decide what happens to it.
+    """
+    stale = SuggestedAction.query.filter(
+        SuggestedAction.org_id == org.id,
+        SuggestedAction.contact_id == contact.id,
+        SuggestedAction.status == "pending",
+        SuggestedAction.triggering_event_id.isnot(None),
+        SuggestedAction.triggering_event_id != winning_event.id,
+    ).all()
+    for action in stale:
+        action.status = "expired"
+        action.resolved_at = datetime.utcnow()
+        _log_superseded(action, contact, winning_event)
+    return stale
+
+
 def generate_suggestions_for_org(org, today=None):
     today = today or date.today()
     window_end = today + timedelta(days=LOOKAHEAD_DAYS)
@@ -130,6 +200,9 @@ def generate_suggestions_for_org(org, today=None):
         event = _winning_event_for_contact(contact, today, window_end)
         if event is None:
             continue
+
+        _expire_superseded_suggestions(contact, event, org)
+
         occurrence_date = _next_occurrence(event, today, window_end)
 
         if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
@@ -159,8 +232,10 @@ def generate_suggestions_for_org(org, today=None):
         _log_qualified(suggestion, event.contact)
         created.append(suggestion)
 
-    if created:
-        db.session.commit()
+    # Always commit, not just "if created": _expire_superseded_suggestions
+    # above can flip existing pending rows to expired even in a run where
+    # nothing new gets created for this contact.
+    db.session.commit()
     return created
 
 
@@ -272,7 +347,10 @@ def generate_campaign_suggestions_for_org(org, today=None):
 
     def winning_event_for(contact):
         if contact.id not in winning_event_cache:
-            winning_event_cache[contact.id] = _winning_event_for_contact(contact, today, window_end)
+            event = _winning_event_for_contact(contact, today, window_end)
+            if event is not None:
+                _expire_superseded_suggestions(contact, event, org)
+            winning_event_cache[contact.id] = event
         return winning_event_cache[contact.id]
 
     created = []
@@ -347,8 +425,9 @@ def generate_campaign_suggestions_for_org(org, today=None):
                     if cap is not None:
                         occurrence_count += 1
 
-    if created:
-        db.session.commit()
+    # Always commit, not just "if created": see the matching comment in
+    # generate_suggestions_for_org.
+    db.session.commit()
     return created
 
 
