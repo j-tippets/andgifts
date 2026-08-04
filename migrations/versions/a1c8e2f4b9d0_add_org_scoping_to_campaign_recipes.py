@@ -32,7 +32,6 @@ def _find_fk_name(inspector, table, referred_table, constrained_column):
 def upgrade():
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    old_fk_name = _find_fk_name(inspector, "campaigns", "campaign_recipes", "source_recipe_id")
 
     with op.batch_alter_table('campaign_recipes', schema=None) as batch_op:
         # NULL = global flow (platform-authored, shown to every agency).
@@ -49,7 +48,21 @@ def upgrade():
     # copied fields; they just lose the "copied from" breadcrumb rather
     # than blocking the delete.
     with op.batch_alter_table('campaigns', schema=None) as batch_op:
-        batch_op.drop_constraint(old_fk_name, type_='foreignkey')
+        if bind.dialect.name != 'sqlite':
+            # The original campaigns.source_recipe_id FK (see 6bd07f50048e)
+            # was created without an explicit name, so MySQL auto-named it
+            # (e.g. campaigns_ibfk_3) -- looked up here rather than guessed,
+            # since the exact suffix isn't reliable to hardcode.
+            #
+            # SQLite has no equivalent auto-naming: an inline FK created
+            # without a name comes back from inspection as name=None, so
+            # there's nothing to look up or pass to drop_constraint (which
+            # requires a real name in batch mode). Leaving the old unnamed
+            # FK in place on SQLite is harmless -- it's redundant with the
+            # new named one below, both constrain the same column against
+            # the same target -- so it's only dropped on MySQL.
+            old_fk_name = _find_fk_name(inspector, "campaigns", "campaign_recipes", "source_recipe_id")
+            batch_op.drop_constraint(old_fk_name, type_='foreignkey')
         batch_op.create_foreign_key(
             'fk_campaigns_source_recipe', 'campaign_recipes', ['source_recipe_id'], ['id'],
             ondelete='SET NULL',

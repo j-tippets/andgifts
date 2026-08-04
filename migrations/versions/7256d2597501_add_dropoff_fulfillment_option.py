@@ -23,13 +23,18 @@ def upgrade():
     op.add_column('orgs', sa.Column('office_address', sa.String(length=255), nullable=True))
 
     op.add_column('orders', sa.Column('dropoff_location', sa.String(length=255), nullable=True))
-    op.alter_column(
-        'orders',
-        'fulfillment_method',
-        existing_type=sa.Enum('shipping', 'pickup', name='order_fulfillment_method'),
-        type_=sa.Enum('shipping', 'pickup', 'dropoff', name='order_fulfillment_method'),
-        existing_nullable=False,
-    )
+    # Widening an Enum needs batch mode: on MySQL this still just becomes a
+    # plain ALTER TABLE ... MODIFY COLUMN, but a bare op.alter_column (no
+    # batch) emits a raw "ALTER TABLE ... ALTER COLUMN ... TYPE ..." which
+    # SQLite has never supported -- batch mode recreates the table instead,
+    # which SQLite can do.
+    with op.batch_alter_table('orders', schema=None) as batch_op:
+        batch_op.alter_column(
+            'fulfillment_method',
+            existing_type=sa.Enum('shipping', 'pickup', name='order_fulfillment_method'),
+            type_=sa.Enum('shipping', 'pickup', 'dropoff', name='order_fulfillment_method'),
+            existing_nullable=False,
+        )
 
 
 def downgrade():
@@ -39,13 +44,13 @@ def downgrade():
     conn.execute(sa.text(
         "UPDATE orders SET fulfillment_method = 'pickup' WHERE fulfillment_method = 'dropoff'"
     ))
-    op.alter_column(
-        'orders',
-        'fulfillment_method',
-        existing_type=sa.Enum('shipping', 'pickup', 'dropoff', name='order_fulfillment_method'),
-        type_=sa.Enum('shipping', 'pickup', name='order_fulfillment_method'),
-        existing_nullable=False,
-    )
+    with op.batch_alter_table('orders', schema=None) as batch_op:
+        batch_op.alter_column(
+            'fulfillment_method',
+            existing_type=sa.Enum('shipping', 'pickup', 'dropoff', name='order_fulfillment_method'),
+            type_=sa.Enum('shipping', 'pickup', name='order_fulfillment_method'),
+            existing_nullable=False,
+        )
     op.drop_column('orders', 'dropoff_location')
 
     op.drop_column('orgs', 'office_address')
