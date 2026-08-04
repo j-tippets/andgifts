@@ -914,3 +914,33 @@ def edit_timeline_event(contact_id, event_id):
     db.session.commit()
     flash("Timeline event updated.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
+@contacts_bp.route("/<contact_id>/timeline/<event_id>/delete", methods=["POST"])
+@login_required
+def delete_timeline_event(contact_id, event_id):
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+    event = TimelineEvent.query.filter_by(id=event_id, contact_id=contact.id).first_or_404()
+
+    label = event.display_label()
+    event_date = event.event_date.isoformat()
+
+    # Any SuggestedAction (pending or historical) that this event triggered
+    # points back at it via triggering_event_id. Detach rather than block or
+    # cascade: the suggestion/gift/audit history stays intact, it just loses
+    # the "why" link back to an event that no longer exists.
+    linked_actions = SuggestedAction.query.filter_by(triggering_event_id=event.id).all()
+    for action in linked_actions:
+        action.triggering_event_id = None
+
+    db.session.delete(event)
+    _log_contact_activity(
+        contact, "timeline_deleted",
+        f"Deleted timeline event: {label} on {event_date}."
+        + (f" ({len(linked_actions)} linked suggestion(s) kept, no longer linked to this event.)"
+           if linked_actions else ""),
+    )
+    db.session.commit()
+    flash("Timeline event deleted.", "success")
+    return redirect(url_for("contacts.view_contact", contact_id=contact.id))

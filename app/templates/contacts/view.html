@@ -214,6 +214,11 @@
             url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
             event_types, event=event, submit_label='Save changes', button_class='btn-primary btn-small'
           ) }}
+          <form method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=event.id) }}"
+                style="margin-top:8px;"
+                onsubmit="return confirm('Delete this timeline event? This can\'t be undone.');">
+            <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete event</button>
+          </form>
         </details>
       </div>
     {% else %}
