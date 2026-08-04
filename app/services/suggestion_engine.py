@@ -26,13 +26,65 @@ from dateutil.relativedelta import relativedelta
 
 from app.extensions import db
 from app.models import (
-    TimelineEvent, SuggestedAction, GiftTrigger, GiftCatalogItem, Contact,
+    SuggestedAction, GiftTrigger, GiftCatalogItem, Contact,
     Campaign, User, ContactAuditLog, EXPIRATION_GRACE_DAYS,
 )
 from app.services import llm
 from app.services import campaign_rules
 
 LOOKAHEAD_DAYS = 14
+
+# --- Cross-event priority --------------------------------------------
+#
+# When a contact has more than one timeline event qualifying in the same
+# window (e.g. the first_contact event auto-seeded on creation, plus a
+# closing date backfilled the same day), only the single most significant
+# one should ever generate a suggestion -- see _winning_event_for_contact,
+# used by both generation paths below. Higher number = more significant.
+#
+# first_contact sits at the bottom on purpose: it's auto-seeded on every
+# new contact as bookkeeping, not a milestone an agent chose to track, so
+# it should never outrank an actual transaction or personal milestone.
+EVENT_TYPE_PRIORITY = {
+    "closing": 100,
+    "offer_made": 90,
+    "showing": 80,
+    "wedding_anniversary": 70,
+    "one_year_anniversary": 65,
+    "six_month_anniversary": 60,
+    "birthday": 50,
+    "custom": 40,
+    "first_contact": 10,
+}
+# Org/agent-defined milestones (CustomEventType.key) aren't in the dict
+# above -- they're arbitrary slugs, not one of STANDARD_EVENT_TYPES -- so
+# they fall back to this tier: meaningful enough that an agency chose to
+# track it, but not assumed to outrank an actual transaction milestone.
+DEFAULT_EVENT_TYPE_PRIORITY = 40
+
+
+def _event_type_priority(event_type):
+    return EVENT_TYPE_PRIORITY.get(event_type, DEFAULT_EVENT_TYPE_PRIORITY)
+
+
+def _winning_event_for_contact(contact, today, window_end):
+    """Among this contact's timeline events with a qualifying occurrence
+    in [today, window_end] (see _next_occurrence), returns the single
+    highest-priority one -- or None if nothing qualifies.
+
+    Ties (equal priority) go to whichever occurrence is sooner, then to
+    whichever event was created first, so the pick is stable and
+    repeatable across runs rather than depending on query ordering.
+    """
+    best, best_key = None, None
+    for event in contact.timeline_events:
+        occurrence_date = _next_occurrence(event, today, window_end)
+        if occurrence_date is None:
+            continue
+        key = (-_event_type_priority(event.event_type), occurrence_date, event.created_at or datetime.min)
+        if best_key is None or key < best_key:
+            best, best_key = event, key
+    return best
 
 
 def _log_qualified(suggestion, contact):
@@ -71,19 +123,14 @@ def generate_suggestions_for_org(org, today=None):
     window_end = today + timedelta(days=LOOKAHEAD_DAYS)
     available_item_ids = {i.id for i in org.available_catalog_items()}
 
-    events = (
-        TimelineEvent.query
-        .join(TimelineEvent.contact)
-        .filter_by(org_id=org.id)
-        .filter(Contact.do_not_contact.is_(False))
-        .all()
-    )
+    contacts = Contact.query.filter_by(org_id=org.id).filter(Contact.do_not_contact.is_(False)).all()
 
     created = []
-    for event in events:
-        occurrence_date = _next_occurrence(event, today, window_end)
-        if occurrence_date is None:
+    for contact in contacts:
+        event = _winning_event_for_contact(contact, today, window_end)
+        if event is None:
             continue
+        occurrence_date = _next_occurrence(event, today, window_end)
 
         if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
             continue
@@ -217,6 +264,17 @@ def generate_campaign_suggestions_for_org(org, today=None):
         Campaign.owner_user_id.isnot(None),
     ).all()
 
+    # Computed once per contact, not per campaign -- it doesn't depend on
+    # which campaign is currently being evaluated. See
+    # _winning_event_for_contact for why only one event per contact is
+    # ever allowed to generate a suggestion in a given run.
+    winning_event_cache = {}
+
+    def winning_event_for(contact):
+        if contact.id not in winning_event_cache:
+            winning_event_cache[contact.id] = _winning_event_for_contact(contact, today, window_end)
+        return winning_event_cache[contact.id]
+
     created = []
     for campaign in campaigns:
         owner = User.query.get(campaign.owner_user_id)
@@ -228,6 +286,14 @@ def generate_campaign_suggestions_for_org(org, today=None):
         contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
 
         for contact in contacts:
+            winning_event = winning_event_for(contact)
+            if winning_event is None or winning_event.event_type != campaign.event_type:
+                # This contact's single most significant event this cycle
+                # belongs to some other milestone -- this campaign sits
+                # out the run for them entirely, rather than firing off a
+                # lower-priority event of its own event_type.
+                continue
+
             # How many more times this campaign is allowed to fire for
             # this contact, or None for unlimited. repeat_enabled=False
             # collapses to "fire at most once, ever" (cap=1), same as
@@ -238,7 +304,7 @@ def generate_campaign_suggestions_for_org(org, today=None):
             cap = _campaign_occurrence_cap(campaign)
             occurrence_count = _campaign_occurrence_count_for_contact(campaign.id, contact.id) if cap is not None else None
 
-            matching_events = [e for e in contact.timeline_events if e.event_type == campaign.event_type]
+            matching_events = [winning_event]
             for event in matching_events:
                 for trigger_date in _campaign_trigger_dates(event, campaign, today, window_end):
                     if cap is not None and occurrence_count >= cap:
