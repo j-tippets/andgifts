@@ -29,10 +29,13 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,   # avoids stale-connection errors on managed DBs
         "pool_recycle": 280,
+    }
+    if SQLALCHEMY_DATABASE_URI.startswith("mysql"):
         # DO managed MySQL requires SSL. PyMySQL (not mysqlclient) expects
         # SSL config passed here via connect_args, not as a URI query param.
-        "connect_args": {"ssl": {"ssl": {}}},
-    }
+        # sqlite3.connect() has no 'ssl' kwarg, so this must stay gated to
+        # the mysql dialect or local dev (LOCAL_SQLITE_URI) breaks.
+        SQLALCHEMY_ENGINE_OPTIONS["connect_args"] = {"ssl": {"ssl": {}}}
 
     # --- Sessions / auth ---
     PERMANENT_SESSION_LIFETIME = timedelta(days=14)
