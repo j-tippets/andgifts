@@ -635,6 +635,15 @@ def delete_contact(contact_id):
     # FK constraint error.
     if action_log_count:
         ActionLog.query.filter_by(contact_id=contact.id).delete()
+
+    # ContactAuditLog.suggested_action_id is also a FK to suggested_actions.id
+    # (added later, for the delete/undelete-suggestion Undo button, then
+    # reused by qualified/expired/superseded audit entries) -- same problem
+    # as ActionLog above, just missed when that FK was added. Detach it here
+    # rather than deleting the audit rows: they're kept (see the contact_id
+    # detachment below), just losing the direct link to a suggestion that's
+    # about to stop existing.
+    ContactAuditLog.query.filter_by(contact_id=contact.id).update({"suggested_action_id": None})
     SuggestedAction.query.filter_by(contact_id=contact.id).delete()
 
     name = contact.household_name
