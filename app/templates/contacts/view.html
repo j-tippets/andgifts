@@ -64,6 +64,7 @@
 
 {% if pending_actions %}
   {% from "dashboard/_type_icon.html" import type_icon %}
+  {% from "dashboard/_gift_timing.html" import gift_timing_badge %}
   <h2 style="margin-top:28px; margin-bottom:0;">Upcoming Actions</h2>
   {% for a in pending_actions %}
     <div class="contact-card" style="margin-top:20px;">
@@ -91,6 +92,7 @@
                 {% if a.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(a.suggested_gift.price_cents / 100) }}</div>{% endif %}
               </div>
             </div>
+            {{ gift_timing_badge(a.gift_timing) }}
           </div>
         {% endif %}
 
