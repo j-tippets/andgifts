@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime
 from flask_login import UserMixin
@@ -7,6 +8,15 @@ from app.extensions import db
 
 def gen_uuid():
     return str(uuid.uuid4())
+
+
+def slugify_sender_local_part(name):
+    """Turn an org name into an email local-part: lowercase, alnum only,
+    no separator (matches the 'NorthStarRealty' style, not
+    'north_star_realty'). Falls back to 'agency' for names that are
+    entirely punctuation/emoji."""
+    slug = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    return slug or "agency"
 
 
 class Org(db.Model):
@@ -50,8 +60,48 @@ class Org(db.Model):
     dropoff_enabled = db.Column(db.Boolean, default=False, nullable=False)
     office_address = db.Column(db.String(255), nullable=True)
 
+    # --- Outbound sender identity ---
+    # One From address per org on our domain-authenticated sending
+    # domain (see SENDGRID_SENDING_DOMAIN config) -- e.g.
+    # "northstarrealty" -> northstarrealty@mail.andgifts.app. No
+    # per-agent verification needed since the whole domain is
+    # authenticated once; the individual agent's real email goes in
+    # Reply-To instead (see send_flow_action_email), so client replies
+    # still reach the agent even though the From address is shared
+    # across the org. Auto-generated at org creation (see
+    # generate_sender_local_part); admin-editable afterward in
+    # settings, so it must stay globally unique across all orgs.
+    sender_local_part = db.Column(db.String(64), unique=True, nullable=True)
+
     users = db.relationship("User", back_populates="org", cascade="all, delete-orphan")
     contacts = db.relationship("Contact", back_populates="org", cascade="all, delete-orphan")
+
+    @staticmethod
+    def generate_sender_local_part(name):
+        """Slugifies `name` into a candidate local-part and appends a
+        short numeric suffix if it collides with an existing org --
+        two brokerages can easily share a name. Call within the same
+        transaction as the Org insert (after flush, so this org's own
+        id doesn't collide with itself)."""
+        base = slugify_sender_local_part(name)
+        candidate = base
+        suffix = 1
+        while Org.query.filter_by(sender_local_part=candidate).first():
+            suffix += 1
+            candidate = f"{base}{suffix}"
+        return candidate
+
+    def sender_from(self):
+        """(email, name) to use as the From on flow-action emails for
+        any agent in this org. Falls back to the generic notifications
+        address if this org somehow has no local-part set yet (e.g.
+        an org created before this feature existed and not yet
+        backfilled)."""
+        from flask import current_app
+        domain = current_app.config.get("SENDGRID_SENDING_DOMAIN")
+        if not self.sender_local_part or not domain:
+            return None, None
+        return f"{self.sender_local_part}@{domain}", self.name
 
     def contact_count(self):
         return len(self.contacts)
@@ -157,26 +207,6 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_at = db.Column(db.DateTime, nullable=True)
 
-    # --- Outbound sender identity (SendGrid Single Sender Verification) ---
-    # Lets an agent's flow-action emails go out "from" their own address
-    # (e.g. bwoodmark@redpinehomes.com) instead of the generic
-    # notifications@andgifts.app, so it doesn't look like spam to their
-    # clients. sendgrid_sender_id is SendGrid's own numeric identity id --
-    # keep it even after verification so we can call resend/delete against
-    # the same identity if the agent changes their sender email later
-    # (a changed email means creating a new SendGrid identity, not editing
-    # this one in place, since the new address needs its own verification
-    # email). sender_verified mirrors the email_verified pattern above:
-    # False from the moment a sender is requested until SendGrid confirms
-    # the agent clicked the link in their inbox -- there's no verification
-    # webhook for this (see send_flow_action_email), so status is only
-    # ever refreshed by an explicit check (settings page load or the
-    # "recheck" button), not pushed to us.
-    sender_email = db.Column(db.String(255), nullable=True)
-    sender_name = db.Column(db.String(255), nullable=True)
-    sendgrid_sender_id = db.Column(db.Integer, nullable=True)
-    sender_verified = db.Column(db.Boolean, default=False, nullable=False)
-
     org = db.relationship("Org", back_populates="users")
     invited_by = db.relationship("User", remote_side=[id], foreign_keys=[invited_by_user_id])
 
@@ -195,18 +225,6 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self):
         return self.role == "admin"
-
-    @property
-    def has_verified_sender(self):
-        return bool(self.sender_verified and self.sender_email)
-
-    def outbound_from(self):
-        """(email, name) to send flow-action emails from. Falls back to
-        the generic notifications address until this agent has a
-        verified sender on file -- see send_flow_action_email."""
-        if self.has_verified_sender:
-            return self.sender_email, (self.sender_name or self.full_name)
-        return None, None
 
     # Flask-Login: don't let pending (no-password-yet) or disabled users log
     # in, and don't let a self-registered user in until they've clicked

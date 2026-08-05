@@ -56,6 +56,12 @@ class Config:
     STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
     SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "notifications@andgifts.app")
+    # Domain-authenticated sending domain (SendGrid Domain Authentication +
+    # matching DNS records) used for org-level flow-action email senders --
+    # see Org.sender_from. Distinct from SENDGRID_FROM_EMAIL above, which
+    # stays the fallback for non-flow transactional email (verification,
+    # password reset, invites, receipts).
+    SENDGRID_SENDING_DOMAIN = os.environ.get("SENDGRID_SENDING_DOMAIN", "mail.andgifts.app")
     # Inbox that receives Support form submissions (see routes/support.py).
     SUPPORT_INBOX_EMAIL = os.environ.get("SUPPORT_INBOX_EMAIL", "support@andgifts.app")
     TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")

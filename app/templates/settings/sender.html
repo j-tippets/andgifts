@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Sender email — Ag{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+  <div class="eyebrow">{{ org.name }}</div>
+  <h1>Sender email</h1>
+</div>
+
+<p class="subdued">Emails your flows send to contacts &mdash; on behalf of any agent in {{ org.name }} &mdash; come from this address. Replies still go straight to whichever agent sent it, not to this shared inbox.</p>
+
+{% if domain %}
+  <fieldset>
+    <legend>Current sender</legend>
+    <p>
+      <strong>
+        {% if org.sender_local_part %}{{ org.sender_local_part }}@{{ domain }}{% else %}(not set){% endif %}
+      </strong>
+    </p>
+  </fieldset>
+
+  <form method="post">
+    <fieldset>
+      <legend>{{ 'Change it' if org.sender_local_part else 'Set it up' }}</legend>
+      <div class="field">
+        <label>Name for the address</label>
+        <input type="text" name="sender_local_part" value="{{ org.sender_local_part or '' }}" placeholder="{{ org.name }}">
+        <p class="subdued" style="margin-top:6px;"><small>Letters and numbers only &mdash; spaces and punctuation get stripped. Preview: <code id="sender-preview">{{ (org.sender_local_part or '') }}@{{ domain }}</code></small></p>
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </fieldset>
+  </form>
+
+  <script>
+    (function () {
+      var input = document.querySelector('input[name="sender_local_part"]');
+      var preview = document.getElementById('sender-preview');
+      var domain = {{ domain|tojson }};
+      input.addEventListener('input', function () {
+        var slug = input.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+        preview.textContent = (slug || '') + '@' + domain;
+      });
+    })();
+  </script>
+{% else %}
+  <p class="subdued">No sending domain is configured yet for this environment.</p>
+{% endif %}
+{% endblock %}

@@ -19,14 +19,16 @@ def _client():
         return None
 
 
-def send_email(to_email, subject, html_content, from_email=None, from_name=None):
+def send_email(to_email, subject, html_content, from_email=None, from_name=None, reply_to=None, reply_to_name=None):
     """Returns True if the email was handed off to SendGrid successfully,
     False otherwise. Never raises -- callers don't need to wrap this in
     try/except.
 
-    from_email/from_name let a caller send as a specific verified sender
+    from_email/from_name let a caller send as a specific org sender
     (see send_flow_action_email); when omitted, falls back to the
-    generic notifications@andgifts.app address as before."""
+    generic notifications@andgifts.app address as before.
+    reply_to/reply_to_name are independent of from_email -- they control
+    where a client's "Reply" actually lands, not what shows as sender."""
     if not to_email:
         return False
 
@@ -38,7 +40,7 @@ def send_email(to_email, subject, html_content, from_email=None, from_name=None)
         return False
 
     try:
-        from sendgrid.helpers.mail import Mail, From
+        from sendgrid.helpers.mail import Mail, From, ReplyTo
         default_from = current_app.config.get("SENDGRID_FROM_EMAIL") or "notifications@andgifts.app"
         sender = From(from_email, from_name) if from_email else default_from
         message = Mail(
@@ -47,6 +49,8 @@ def send_email(to_email, subject, html_content, from_email=None, from_name=None)
             subject=subject,
             html_content=html_content,
         )
+        if reply_to:
+            message.reply_to = ReplyTo(reply_to, reply_to_name)
         client.send(message)
         return True
     except Exception as e:
@@ -105,10 +109,11 @@ def send_flow_action_email(action, sender_name, sender_user=None):
     email on file, or the SendGrid send itself failing) so it can be
     stored on the ActionLog and shown in the reports.
 
-    If sender_user has a verified sender identity on file (see
-    User.outbound_from), the email goes out from their own address so
-    it doesn't look like spam to their client; otherwise it falls back
-    to the generic notifications@andgifts.app address."""
+    From is the sending org's shared address on our domain-authenticated
+    sending domain (see Org.sender_from) -- no per-agent verification
+    needed. Reply-To is sender_user's own account email, so a client
+    hitting "Reply" still reaches the actual agent even though the
+    visible From address is shared org-wide."""
     to_email = action.contact.primary_email()
     if not to_email:
         return False, "No email address on file for this contact."
@@ -122,8 +127,13 @@ def send_flow_action_email(action, sender_name, sender_user=None):
     """
     subject = f"A note from {sender_name}"
 
-    from_email, from_name = sender_user.outbound_from() if sender_user else (None, None)
-    delivered = send_email(to_email, subject, html, from_email=from_email, from_name=from_name)
+    from_email, from_name = sender_user.org.sender_from() if sender_user and sender_user.org else (None, None)
+    reply_to, reply_to_name = (sender_user.email, sender_name) if sender_user else (None, None)
+    delivered = send_email(
+        to_email, subject, html,
+        from_email=from_email, from_name=from_name,
+        reply_to=reply_to, reply_to_name=reply_to_name,
+    )
     if not delivered:
         if not current_app.config.get("SENDGRID_API_KEY"):
             return False, "SendGrid isn't configured for this environment."

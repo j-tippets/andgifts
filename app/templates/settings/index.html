@@ -32,6 +32,11 @@
       <strong>Team</strong>
       <span class="subdued"><small>Invite agents, manage roles and access.</small></span>
     </a>
+
+    <a href="{{ url_for('settings.sender_identity') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Sender email</strong>
+      <span class="subdued"><small>The address flow emails send from on behalf of your agents.</small></span>
+    </a>
   {% endif %}
 </div>
 {% endblock %}

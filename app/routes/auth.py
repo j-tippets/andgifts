@@ -34,6 +34,11 @@ def register():
         org = Org(name=request.form.get("org_name", "My Business"), tier="free")
         db.session.add(org)
         db.session.flush()  # get org.id before creating user
+        # Auto-generate the shared sender local-part now, so flow-action
+        # emails work from day one with no separate setup step -- see
+        # Org.generate_sender_local_part / settings.sender_identity for
+        # where an admin can change it later.
+        org.sender_local_part = Org.generate_sender_local_part(org.name)
 
         user = User(
             org_id=org.id,
