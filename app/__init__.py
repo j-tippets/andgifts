@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from config import config_by_name
-from app.extensions import db, migrate, login_manager
+from app.extensions import db, migrate, login_manager, limiter
 
 
 def create_app(config_name=None):
@@ -12,6 +12,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    limiter.init_app(app)
 
     # Import models so Flask-Migrate can see them for autogenerate
     from app import models  # noqa: F401
@@ -20,6 +21,17 @@ def create_app(config_name=None):
     def load_user(user_id):
         from app.models import User
         return User.query.get(user_id)
+
+    @app.errorhandler(429)
+    def rate_limit_exceeded(e):
+        # Matches the app's existing flash+redirect convention rather
+        # than introducing a standalone error-page template (there
+        # isn't one for any other status code either). request.referrer
+        # falls back to login since a rate-limited request is always on
+        # an auth-adjacent, unauthenticated route.
+        from flask import request, redirect, url_for, flash
+        flash("Too many attempts. Please wait a bit and try again.", "error")
+        return redirect(request.referrer or url_for("auth.login"))
 
     # Blueprints
     from app.routes.auth import auth_bp

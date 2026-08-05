@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import User, Org
 from app.services.email import send_verification_email, send_password_reset_email
 
@@ -24,6 +24,7 @@ def _send_verification(user):
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
 def register():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
@@ -82,6 +83,7 @@ def verify_email(token):
 
 
 @auth_bp.route("/resend-verification", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
 def resend_verification():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
@@ -98,6 +100,7 @@ def resend_verification():
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute;50 per hour")
 def login():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
@@ -126,6 +129,7 @@ def login():
 
 
 @auth_bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
 def forgot_password():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
