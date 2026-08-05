@@ -89,12 +89,26 @@ def set_sender_identity():
     verification click regardless of what the old one's status was."""
     email = request.form.get("sender_email", "").strip().lower()
     name = request.form.get("sender_display_name", "").strip() or current_user.full_name
+    address = request.form.get("sender_address", "").strip()
+    city = request.form.get("sender_city", "").strip()
+    state = request.form.get("sender_state", "").strip()
+    zip_code = request.form.get("sender_zip", "").strip()
+    country = request.form.get("sender_country", "").strip() or "United States"
 
     if not email:
         flash("Enter an email address to verify.", "error")
         return redirect(url_for("profile.edit_profile"))
 
-    sendgrid_id = create_sender_identity(email, name)
+    if not address or not city or not zip_code:
+        flash(
+            "SendGrid requires a physical mailing address on file for every sender "
+            "(this is a CAN-SPAM requirement, not something we're adding) -- "
+            "fill in address, city, and ZIP.",
+            "error",
+        )
+        return redirect(url_for("profile.edit_profile"))
+
+    sendgrid_id = create_sender_identity(email, name, address, city, state, zip_code, country)
     if not sendgrid_id:
         flash(
             "Couldn't start verification with SendGrid. Check the app logs, or try again in a moment.",

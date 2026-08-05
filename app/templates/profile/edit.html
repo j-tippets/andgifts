@@ -119,6 +119,16 @@
       <div class="field"><label>Email to send from</label><input type="email" name="sender_email" placeholder="you@youragency.com"></div>
       <div class="field"><label>Display name</label><input type="text" name="sender_display_name" placeholder="{{ current_user.full_name }}"></div>
     </div>
+    <p class="subdued" style="margin-bottom:4px;"><small>SendGrid requires a physical mailing address on every sender (a CAN-SPAM requirement, not something we're adding) -- use your brokerage's office address.</small></p>
+    <div class="field">
+      <label>Street address</label>
+      <input type="text" name="sender_address" placeholder="123 Main St">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>City</label><input type="text" name="sender_city"></div>
+      <div class="field"><label>State</label><input type="text" name="sender_state" maxlength="2" placeholder="UT"></div>
+      <div class="field"><label>ZIP</label><input type="text" name="sender_zip"></div>
+    </div>
     <button type="submit" class="btn btn-primary">{{ 'Update sender email' if current_user.sender_email else 'Verify this email' }}</button>
   </form>
 </fieldset>

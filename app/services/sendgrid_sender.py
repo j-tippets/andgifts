@@ -24,12 +24,17 @@ def _headers():
     return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
 
-def create_sender_identity(email, display_name):
+def create_sender_identity(email, display_name, address, city, state, zip_code, country="United States"):
     """Registers a new Sender Identity with SendGrid, which triggers
     SendGrid to email the agent a confirmation link. Returns the new
     sendgrid_sender_id (int) on success, or None on failure -- callers
     should flash a friendly error and leave the user's sender fields
-    untouched when this returns None."""
+    untouched when this returns None.
+
+    address/city/country (state and zip are also enforced in practice)
+    are required by SendGrid despite being marked optional in their API
+    schema docs -- CAN-SPAM requires a real physical address on every
+    sender identity, not just a from-email."""
     headers = _headers()
     if not headers:
         current_app.logger.warning("SendGrid not configured; skipping sender identity creation for %s", email)
@@ -41,6 +46,11 @@ def create_sender_identity(email, display_name):
         "from_name": display_name or email,
         "reply_to": email,
         "reply_to_name": display_name or email,
+        "address": address,
+        "city": city,
+        "state": state,
+        "zip": zip_code,
+        "country": country,
     }
     try:
         resp = requests.post(API_BASE, headers=headers, json=payload, timeout=10)
