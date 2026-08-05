@@ -19,10 +19,14 @@ def _client():
         return None
 
 
-def send_email(to_email, subject, html_content):
+def send_email(to_email, subject, html_content, from_email=None, from_name=None):
     """Returns True if the email was handed off to SendGrid successfully,
     False otherwise. Never raises -- callers don't need to wrap this in
-    try/except."""
+    try/except.
+
+    from_email/from_name let a caller send as a specific verified sender
+    (see send_flow_action_email); when omitted, falls back to the
+    generic notifications@andgifts.app address as before."""
     if not to_email:
         return False
 
@@ -34,10 +38,11 @@ def send_email(to_email, subject, html_content):
         return False
 
     try:
-        from sendgrid.helpers.mail import Mail
-        from_email = current_app.config.get("SENDGRID_FROM_EMAIL") or "notifications@andgifts.app"
+        from sendgrid.helpers.mail import Mail, From
+        default_from = current_app.config.get("SENDGRID_FROM_EMAIL") or "notifications@andgifts.app"
+        sender = From(from_email, from_name) if from_email else default_from
         message = Mail(
-            from_email=from_email,
+            from_email=sender,
             to_emails=to_email,
             subject=subject,
             html_content=html_content,
@@ -93,12 +98,17 @@ def send_team_invite_email(user, invite_link, inviter_name):
     return send_email(user.email, f"You're invited to join {user.org.name} on &Gifts", html)
 
 
-def send_flow_action_email(action, sender_name):
+def send_flow_action_email(action, sender_name, sender_user=None):
     """Sends an approved flow 'email' action's message to the contact.
     Returns (delivered, error_message) -- error_message is None on
     success, and set to a short human-readable reason on failure (no
     email on file, or the SendGrid send itself failing) so it can be
-    stored on the ActionLog and shown in the reports."""
+    stored on the ActionLog and shown in the reports.
+
+    If sender_user has a verified sender identity on file (see
+    User.outbound_from), the email goes out from their own address so
+    it doesn't look like spam to their client; otherwise it falls back
+    to the generic notifications@andgifts.app address."""
     to_email = action.contact.primary_email()
     if not to_email:
         return False, "No email address on file for this contact."
@@ -112,7 +122,8 @@ def send_flow_action_email(action, sender_name):
     """
     subject = f"A note from {sender_name}"
 
-    delivered = send_email(to_email, subject, html)
+    from_email, from_name = sender_user.outbound_from() if sender_user else (None, None)
+    delivered = send_email(to_email, subject, html, from_email=from_email, from_name=from_name)
     if not delivered:
         if not current_app.config.get("SENDGRID_API_KEY"):
             return False, "SendGrid isn't configured for this environment."

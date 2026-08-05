@@ -4,6 +4,9 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import User
 from app.services.storage import upload_avatar, delete_avatar, StorageError
+from app.services.sendgrid_sender import (
+    create_sender_identity, get_sender_status, resend_verification,
+)
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -19,6 +22,17 @@ def edit_profile():
     those stay admin-only via the /team routes.
     """
     if request.method == "GET":
+        # Passive poll: there's no verification webhook (see
+        # app/services/sendgrid_sender.py), so a still-pending sender
+        # identity gets its status refreshed here on every page load,
+        # in addition to the manual "recheck" button below. Best-effort
+        # -- if SendGrid can't be reached, the page just shows whatever
+        # status is already on file.
+        if current_user.sendgrid_sender_id and not current_user.sender_verified:
+            status = get_sender_status(current_user.sendgrid_sender_id)
+            if status is True:
+                current_user.sender_verified = True
+                db.session.commit()
         return render_template("profile/edit.html")
 
     current_user.first_name = request.form.get("first_name", "").strip()
@@ -63,4 +77,74 @@ def edit_profile():
 
     db.session.commit()
     flash("Your profile has been updated.", "success")
+    return redirect(url_for("profile.edit_profile"))
+
+
+@profile_bp.route("/sender", methods=["POST"])
+@login_required
+def set_sender_identity():
+    """Registers (or replaces) this agent's outbound sender identity with
+    SendGrid. A changed email is always a brand-new SendGrid identity --
+    not an edit to the old one -- since the new address needs its own
+    verification click regardless of what the old one's status was."""
+    email = request.form.get("sender_email", "").strip().lower()
+    name = request.form.get("sender_display_name", "").strip() or current_user.full_name
+
+    if not email:
+        flash("Enter an email address to verify.", "error")
+        return redirect(url_for("profile.edit_profile"))
+
+    sendgrid_id = create_sender_identity(email, name)
+    if not sendgrid_id:
+        flash(
+            "Couldn't start verification with SendGrid. Check the app logs, or try again in a moment.",
+            "error",
+        )
+        return redirect(url_for("profile.edit_profile"))
+
+    current_user.sender_email = email
+    current_user.sender_name = name
+    current_user.sendgrid_sender_id = sendgrid_id
+    current_user.sender_verified = False
+    db.session.commit()
+
+    flash(f"Check {email} for a confirmation link from SendGrid.", "success")
+    return redirect(url_for("profile.edit_profile"))
+
+
+@profile_bp.route("/sender/recheck", methods=["POST"])
+@login_required
+def recheck_sender_identity():
+    """Manual fallback to the passive poll on GET /profile -- lets an
+    agent confirm verification immediately after clicking the email
+    link, without waiting for their next page load."""
+    if not current_user.sendgrid_sender_id:
+        flash("No sender verification in progress.", "error")
+        return redirect(url_for("profile.edit_profile"))
+
+    status = get_sender_status(current_user.sendgrid_sender_id)
+    if status is True:
+        current_user.sender_verified = True
+        db.session.commit()
+        flash("Your sender email is verified.", "success")
+    elif status is False:
+        flash("Still pending -- click the confirmation link SendGrid emailed you.", "info")
+    else:
+        flash("Couldn't check status with SendGrid right now. Try again shortly.", "error")
+    return redirect(url_for("profile.edit_profile"))
+
+
+@profile_bp.route("/sender/resend", methods=["POST"])
+@login_required
+def resend_sender_verification():
+    """Re-triggers SendGrid's confirmation email, for an agent who lost
+    the original or let it expire."""
+    if not current_user.sendgrid_sender_id:
+        flash("No sender verification in progress.", "error")
+        return redirect(url_for("profile.edit_profile"))
+
+    if resend_verification(current_user.sendgrid_sender_id):
+        flash(f"Verification email resent to {current_user.sender_email}.", "success")
+    else:
+        flash("Couldn't resend the verification email. Try again shortly.", "error")
     return redirect(url_for("profile.edit_profile"))

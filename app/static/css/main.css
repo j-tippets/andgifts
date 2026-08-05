@@ -527,6 +527,7 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
   vertical-align: middle;
 }
 .badge-success { background: var(--mint); color: var(--mint-ink); }
+.badge-pending { background: var(--gold-soft); color: var(--gold-ink); }
 
 .catalog-caret { display:inline-block; transition: transform 0.15s ease; color: #9A9686; }
 details[open] > summary .catalog-caret { transform: rotate(90deg); }

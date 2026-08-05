@@ -157,6 +157,26 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_at = db.Column(db.DateTime, nullable=True)
 
+    # --- Outbound sender identity (SendGrid Single Sender Verification) ---
+    # Lets an agent's flow-action emails go out "from" their own address
+    # (e.g. bwoodmark@redpinehomes.com) instead of the generic
+    # notifications@andgifts.app, so it doesn't look like spam to their
+    # clients. sendgrid_sender_id is SendGrid's own numeric identity id --
+    # keep it even after verification so we can call resend/delete against
+    # the same identity if the agent changes their sender email later
+    # (a changed email means creating a new SendGrid identity, not editing
+    # this one in place, since the new address needs its own verification
+    # email). sender_verified mirrors the email_verified pattern above:
+    # False from the moment a sender is requested until SendGrid confirms
+    # the agent clicked the link in their inbox -- there's no verification
+    # webhook for this (see send_flow_action_email), so status is only
+    # ever refreshed by an explicit check (settings page load or the
+    # "recheck" button), not pushed to us.
+    sender_email = db.Column(db.String(255), nullable=True)
+    sender_name = db.Column(db.String(255), nullable=True)
+    sendgrid_sender_id = db.Column(db.Integer, nullable=True)
+    sender_verified = db.Column(db.Boolean, default=False, nullable=False)
+
     org = db.relationship("Org", back_populates="users")
     invited_by = db.relationship("User", remote_side=[id], foreign_keys=[invited_by_user_id])
 
@@ -175,6 +195,18 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self):
         return self.role == "admin"
+
+    @property
+    def has_verified_sender(self):
+        return bool(self.sender_verified and self.sender_email)
+
+    def outbound_from(self):
+        """(email, name) to send flow-action emails from. Falls back to
+        the generic notifications address until this agent has a
+        verified sender on file -- see send_flow_action_email."""
+        if self.has_verified_sender:
+            return self.sender_email, (self.sender_name or self.full_name)
+        return None, None
 
     # Flask-Login: don't let pending (no-password-yet) or disabled users log
     # in, and don't let a self-registered user in until they've clicked

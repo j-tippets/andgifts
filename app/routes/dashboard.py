@@ -68,7 +68,7 @@ def approve_action(action_id):
     delivery_status = None
     delivery_error = None
     if action.action_type == "email":
-        delivered, error = send_flow_action_email(action, current_user.full_name)
+        delivered, error = send_flow_action_email(action, current_user.full_name, sender_user=current_user)
         delivery_status = "sent" if delivered else "failed"
         delivery_error = error
 
