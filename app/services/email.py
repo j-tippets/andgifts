@@ -54,7 +54,23 @@ def send_email(to_email, subject, html_content, from_email=None, from_name=None,
         client.send(message)
         return True
     except Exception as e:
-        current_app.logger.error("SendGrid send failed to %s: %s", to_email, e)
+        # sendgrid-python raises python_http_client's HTTPError for any
+        # non-2xx response. Its str() is just the status line -- the
+        # actually useful part (which sender/domain/reason SendGrid
+        # rejected) is in .body, so surface that explicitly rather than
+        # leaving it to a bare "%s" of the exception.
+        body = getattr(e, "body", None)
+        if body:
+            try:
+                body = body.decode("utf-8")
+            except AttributeError:
+                pass
+            current_app.logger.error(
+                "SendGrid send failed to %s (status %s): %s",
+                to_email, getattr(e, "status_code", "?"), body,
+            )
+        else:
+            current_app.logger.error("SendGrid send failed to %s: %s", to_email, e)
         return False
 
 

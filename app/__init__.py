@@ -58,6 +58,9 @@ def create_app(config_name=None):
     app.register_blueprint(settings_bp)
     app.register_blueprint(support_bp)
 
+    from app.cli import register_cli
+    register_cli(app)
+
     @app.route("/")
     def home():
         from flask import render_template, redirect, url_for
