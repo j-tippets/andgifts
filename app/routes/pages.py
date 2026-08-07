@@ -36,3 +36,19 @@ def refund_policy():
 @pages_bp.route("/about")
 def about():
     return render_template("pages/about.html", updated_date=UPDATED_DATE)
+
+
+@pages_bp.route("/pricing")
+def pricing():
+    from flask import current_app
+    # Merge PRICING_DISPLAY (marketing copy) with TIER_LIMITS (the actual
+    # enforced numbers) so the page always shows real limits -- can't drift
+    # out of sync with what Org.can_send_email_now etc. actually enforce,
+    # since there's nothing here to hand-copy wrong.
+    tier_limits = current_app.config["TIER_LIMITS"]
+    pricing_display = current_app.config["PRICING_DISPLAY"]
+    tiers = []
+    for tier_key in ("free", "starter", "pro", "team"):
+        merged = {**pricing_display[tier_key], **tier_limits[tier_key], "tier_key": tier_key}
+        tiers.append(merged)
+    return render_template("pages/pricing.html", tiers=tiers)

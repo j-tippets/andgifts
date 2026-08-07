@@ -107,6 +107,31 @@ class Config:
         "team": {"contacts": None, "seats": None, "ai_dashboard": True, "email_monthly_cap": None, "sms_monthly_cap": None, "contact_cooldown_days": 5},
     }
 
+    # --- Public pricing page display (marketing copy only -- NOT wired to
+    # Stripe or enforcement yet; that's the next step). price_cents is
+    # display-only for now; TIER_LIMITS above remains the single source of
+    # truth for what each tier actually gets. Keeping both in one place
+    # (config.py) so the numbers can't silently drift apart when someone
+    # tunes one and forgets the other.
+    PRICING_DISPLAY = {
+        "free": {
+            "display_name": "Free", "price_cents": 0, "price_suffix": "/mo",
+            "tagline": "Try it out", "cta_label": "Start free", "highlight": False,
+        },
+        "starter": {
+            "display_name": "Solo", "price_cents": 1500, "price_suffix": "/mo",
+            "tagline": "For solo agents", "cta_label": "Get Solo", "highlight": False,
+        },
+        "pro": {
+            "display_name": "Pro", "price_cents": 1200, "price_suffix": "/seat/mo",
+            "tagline": "For small teams (up to 5 seats)", "cta_label": "Get Pro", "highlight": True,
+        },
+        "team": {
+            "display_name": "Team", "price_cents": None, "price_suffix": "",
+            "tagline": "For brokerages", "cta_label": "Contact us", "highlight": False,
+        },
+    }
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

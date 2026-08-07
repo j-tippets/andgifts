@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Pricing — &amp;Gifts{% endblock %}
+
+{% macro price_cards() %}
+<div style="max-width:1040px; margin:0 auto; padding:48px 24px 80px;">
+  <p style="margin-bottom:16px;">
+    <a href="{{ url_for('home') }}" class="subdued">&larr; &amp;Gifts</a>
+  </p>
+  <div style="text-align:center; margin-bottom:40px;">
+    <h1 style="margin-bottom:8px;">Simple, seat-based pricing</h1>
+    <p class="subdued">The subscription stays low -- gifts are where the real value is. No feature is locked behind a plan; every tier gets email, handwritten notes, and gifting. Plans differ by how many contacts and monthly sends you get.</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px;">
+    {% for t in tiers %}
+    <div style="background:var(--paper-raised); border:2px solid {{ 'var(--coral)' if t.highlight else 'var(--line)' }}; border-radius:14px; padding:28px 22px; display:flex; flex-direction:column; position:relative;">
+      {% if t.highlight %}
+        <span style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--coral); color:#fff; font-family:var(--font-rounded); font-size:12px; font-weight:700; padding:4px 14px; border-radius:999px;">Most popular</span>
+      {% endif %}
+      <h2 style="margin-bottom:4px;">{{ t.display_name }}</h2>
+      <p class="subdued" style="margin-bottom:16px;">{{ t.tagline }}</p>
+      <div style="margin-bottom:20px;">
+        {% if t.price_cents is none %}
+          <span style="font-family:var(--font-display); font-size:32px; font-weight:700;">Custom</span>
+        {% elif t.price_cents == 0 %}
+          <span style="font-family:var(--font-display); font-size:32px; font-weight:700;">$0</span>
+        {% else %}
+          <span style="font-family:var(--font-display); font-size:32px; font-weight:700;">${{ '%.0f'|format(t.price_cents / 100) }}</span>
+          <span class="subdued">{{ t.price_suffix }}</span>
+        {% endif %}
+      </div>
+      <ul style="list-style:none; padding:0; margin:0 0 24px; flex-grow:1; font-size:14px; line-height:2;">
+        <li>&#10003; {{ t.seats or 'Unlimited' }} seat{{ 's' if t.seats != 1 }}</li>
+        <li>&#10003; {{ '{:,}'.format(t.contacts) if t.contacts else 'Unlimited' }} contacts</li>
+        <li>&#10003; {{ '{:,}'.format(t.email_monthly_cap) if t.email_monthly_cap else 'Unlimited' }} emails/mo</li>
+        <li>&#10003; Gifts, email &amp; handwritten notes included</li>
+      </ul>
+      {% if t.tier_key == 'team' %}
+        <a href="{{ url_for('pages.about') }}" class="btn btn-ghost" style="width:100%; justify-content:center;">{{ t.cta_label }}</a>
+      {% else %}
+        <a href="{{ url_for('auth.register') }}" class="btn {{ 'btn-primary' if t.highlight else 'btn-ghost' }}" style="width:100%; justify-content:center;">{{ t.cta_label }}</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <p class="subdued" style="text-align:center; margin-top:32px; font-size:12px;">
+    Signing up currently starts you on the Free plan -- paid plan checkout is coming soon.
+  </p>
+</div>
+{% endmacro %}
+
+{% block content %}{{ price_cards() }}{% endblock %}
+{% block auth_content %}{{ price_cards() }}{% endblock %}
