@@ -74,17 +74,84 @@ def send_email(to_email, subject, html_content, from_email=None, from_name=None,
         return False
 
 
+def _button(url, label):
+    """Shared CTA button styling -- coral fill, rounded, used across every
+    templated email so buttons look identical no matter which one fires."""
+    return (
+        f'<a href="{url}" style="display:inline-block; background:#F77055; '
+        f'color:#ffffff; text-decoration:none; padding:12px 28px; '
+        f'border-radius:8px; font-family:\'Baloo 2\', Arial, sans-serif; '
+        f'font-weight:700; font-size:15px;">{label}</a>'
+    )
+
+
+def _wrap_email(body_html, preheader=""):
+    """Wraps templated inner content in the shared &Gifts branded shell:
+    header wordmark, cream card on a soft page background, standard
+    footer. Every send_*_email function below builds its content and
+    passes it through here, so brand styling lives in exactly one place.
+
+    Uses a table-based layout (not flex/grid) because that's what
+    actually renders consistently across Outlook desktop, Gmail, and
+    Apple Mail -- modern CSS layout support is inconsistent across email
+    clients in a way it isn't for browsers.
+
+    preheader is the short snippet inbox previews show next to the
+    subject line (Gmail/Outlook list view) -- without one, clients fall
+    back to grabbing the first visible text, which is usually an
+    unhelpful "Hi ," or a stray heading. Hidden from the rendered body,
+    visible only in the inbox list.
+    """
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>&amp;Gifts</title>
+</head>
+<body style="margin:0; padding:0; background:#f8f6f6; font-family:'Inter', Arial, sans-serif;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0;">{preheader}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f6f6;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" style="max-width:480px;" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              <span style="font-family:'Baloo 2', Arial, sans-serif; font-size:28px; font-weight:700;">
+                <span style="color:#F77055;">&amp;</span><span style="color:#2A1A45;">Gifts</span>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#fbf5f1; border-radius:16px; padding:32px 28px;">
+              {body_html}
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:24px 16px 0; font-family:'Inter', Arial, sans-serif; font-size:12px; color:#6B6459; line-height:1.6;">
+              &amp;Gifts &middot; a Wyld Totems LLC product<br>
+              <!-- TODO(jeremiah): add a mailing address here -- most spam filters and CAN-SPAM
+                   both expect a physical postal address in the footer of commercial email. -->
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
 def send_verification_email(user, verify_link):
     """Sent right after self-registration. The account can't log in
     (see User.is_active) until this link is clicked."""
-    html = f"""
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color:#2A1A45;">Confirm your email</h2>
-      <p>Hi {user.first_name or 'there'} &mdash; one more step before you can sign in to &amp;Gifts.</p>
-      <p><a href="{verify_link}" style="display:inline-block; background:#F77055; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold;">Verify my email</a></p>
-      <p style="color:#6B6459; font-size:13px;">This link expires in 48 hours. If you didn't create an &amp;Gifts account, you can ignore this email.</p>
-    </div>
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">Confirm your email</h2>
+      <p style="margin:0 0 20px; color:#2A1A45; font-size:15px; line-height:1.6;">Hi {user.first_name or 'there'} &mdash; one more step before you can sign in to &amp;Gifts.</p>
+      <p style="margin:0 0 20px;">{_button(verify_link, 'Verify my email')}</p>
+      <p style="margin:0; color:#6B6459; font-size:13px;">This link expires in 48 hours. If you didn't create an &amp;Gifts account, you can ignore this email.</p>
     """
+    html = _wrap_email(body, preheader="One more step before you can sign in to &Gifts.")
     return send_email(user.email, "Confirm your &Gifts account", html)
 
 
@@ -92,14 +159,13 @@ def send_password_reset_email(user, reset_link):
     """Sent from the 'forgot password' flow. Safe to call for any user --
     the calling route is responsible for not leaking whether an account
     exists (see auth.forgot_password)."""
-    html = f"""
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color:#2A1A45;">Reset your password</h2>
-      <p>We got a request to reset the password on your &amp;Gifts account.</p>
-      <p><a href="{reset_link}" style="display:inline-block; background:#F77055; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold;">Choose a new password</a></p>
-      <p style="color:#6B6459; font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email -- your password won't change.</p>
-    </div>
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">Reset your password</h2>
+      <p style="margin:0 0 20px; color:#2A1A45; font-size:15px; line-height:1.6;">We got a request to reset the password on your &amp;Gifts account.</p>
+      <p style="margin:0 0 20px;">{_button(reset_link, 'Choose a new password')}</p>
+      <p style="margin:0; color:#6B6459; font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email -- your password won't change.</p>
     """
+    html = _wrap_email(body, preheader="Reset the password on your &Gifts account.")
     return send_email(user.email, "Reset your &Gifts password", html)
 
 
@@ -107,14 +173,13 @@ def send_team_invite_email(user, invite_link, inviter_name):
     """Sent when an admin invites a new agent by email (as opposed to
     setting a temp password directly). The account stays in 'pending'
     status until this link is clicked and a password is set."""
-    html = f"""
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color:#2A1A45;">You're invited to &amp;Gifts</h2>
-      <p>{inviter_name} invited you to join {user.org.name} on &amp;Gifts.</p>
-      <p><a href="{invite_link}" style="display:inline-block; background:#F77055; color:#fff; text-decoration:none; padding:10px 20px; border-radius:6px; font-weight:bold;">Accept invite &amp; set your password</a></p>
-      <p style="color:#6B6459; font-size:13px;">This link expires in 7 days.</p>
-    </div>
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">You're invited to &amp;Gifts</h2>
+      <p style="margin:0 0 20px; color:#2A1A45; font-size:15px; line-height:1.6;">{inviter_name} invited you to join {user.org.name} on &amp;Gifts.</p>
+      <p style="margin:0 0 20px;">{_button(invite_link, 'Accept invite &amp; set your password')}</p>
+      <p style="margin:0; color:#6B6459; font-size:13px;">This link expires in 7 days.</p>
     """
+    html = _wrap_email(body, preheader=f"{inviter_name} invited you to join {user.org.name} on &Gifts.")
     return send_email(user.email, f"You're invited to join {user.org.name} on &Gifts", html)
 
 
@@ -195,20 +260,19 @@ def send_order_confirmation(order):
     else:
         fulfillment_line = "Shipping to the address collected at checkout."
 
-    html = f"""
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color:#2A1A45;">Order confirmed</h2>
-      <p>Your gift order for <strong>{order.contact.household_name}</strong> is confirmed.</p>
-      <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
-        <tr><td style="padding:6px 0; color:#6B6459;">Gift</td><td style="text-align:right;">{order.gift_name_snapshot}</td></tr>
-        <tr><td style="padding:6px 0; color:#6B6459;">Gift price</td><td style="text-align:right;">${order.gift_price_cents / 100:.2f}</td></tr>
-        <tr><td style="padding:6px 0; color:#6B6459;">Shipping</td><td style="text-align:right;">${(order.shipping_cost_cents or 0) / 100:.2f}</td></tr>
-        <tr style="font-weight:bold; border-top:1px solid #eee;"><td style="padding:6px 0;">Total</td><td style="text-align:right;">${order.total_cents / 100:.2f}</td></tr>
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">Order confirmed</h2>
+      <p style="margin:0 0 16px; color:#2A1A45; font-size:15px; line-height:1.6;">Your gift order for <strong>{order.contact.household_name}</strong> is confirmed.</p>
+      <table role="presentation" style="width:100%; border-collapse: collapse; margin: 0 0 16px;">
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Gift</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.gift_name_snapshot}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Gift price</td><td style="text-align:right; font-size:14px; color:#2A1A45;">${order.gift_price_cents / 100:.2f}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Shipping</td><td style="text-align:right; font-size:14px; color:#2A1A45;">${(order.shipping_cost_cents or 0) / 100:.2f}</td></tr>
+        <tr style="font-weight:bold; border-top:1px solid rgba(42,26,69,0.12);"><td style="padding:6px 0; font-size:14px; color:#2A1A45;">Total</td><td style="text-align:right; font-size:14px; color:#2A1A45;">${order.total_cents / 100:.2f}</td></tr>
       </table>
-      <p>{fulfillment_line}</p>
-      <p style="color:#6B6459; font-size:13px;">Order ID: {order.id}</p>
-    </div>
+      <p style="margin:0 0 16px; color:#2A1A45; font-size:15px;">{fulfillment_line}</p>
+      <p style="margin:0; color:#6B6459; font-size:13px;">Order ID: {order.id}</p>
     """
+    html = _wrap_email(body, preheader=f"Your gift order for {order.contact.household_name} is confirmed.")
 
     return send_email(
         order.ordered_by.email,
