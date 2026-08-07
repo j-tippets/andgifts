@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Billing — Settings{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">Settings</div>
+    <h1>Billing</h1>
+  </div>
+  <a href="{{ url_for('settings.index') }}" class="btn btn-ghost">&larr; Settings</a>
+</div>
+
+<div style="max-width:560px;">
+  <div style="background:var(--paper-raised); border:1px solid var(--line); border-radius:14px; padding:24px; margin-bottom:20px;">
+    <div class="eyebrow">Current plan</div>
+    <h2 style="margin-bottom:4px;">{{ current_tier.display_name }}</h2>
+    {% if current_tier.price_cents is none %}
+      <p class="subdued" style="margin-bottom:16px;">Custom pricing</p>
+    {% elif current_tier.price_cents == 0 %}
+      <p class="subdued" style="margin-bottom:16px;">Free</p>
+    {% else %}
+      <p class="subdued" style="margin-bottom:16px;">${{ '%.0f'|format(current_tier.price_cents / 100) }}{{ current_tier.price_suffix }}</p>
+    {% endif %}
+
+    <ul style="list-style:none; padding:0; margin:0; font-size:14px; line-height:2;">
+      <li>Contacts: {{ contact_count }} / {{ '{:,}'.format(current_tier.contacts) if current_tier.contacts else 'Unlimited' }}</li>
+      <li>Seats: {{ seat_count }} / {{ current_tier.seats if current_tier.seats else 'Unlimited' }}</li>
+      <li>Emails this month: {{ email_sends_this_month }} / {{ '{:,}'.format(current_tier.email_monthly_cap) if current_tier.email_monthly_cap else 'Unlimited' }}</li>
+    </ul>
+  </div>
+
+  {% if org.stripe_subscription_id %}
+    <a href="{{ url_for('billing.portal') }}" class="btn btn-primary" style="width:100%; justify-content:center; margin-bottom:8px;">Manage billing</a>
+    <p class="subdued" style="font-size:12px;">Change plans, update your card, view invoices, or cancel &mdash; handled securely by Stripe.</p>
+  {% elif org.billing_type != 'card' %}
+    <p class="subdued">Your account is on invoiced billing. Contact us to make changes to your plan.</p>
+  {% else %}
+    <p class="subdued" style="margin-bottom:12px;">Upgrade to unlock more contacts and monthly sends:</p>
+    {% for t in other_self_serve_tiers %}
+      <form method="POST" action="{{ url_for('billing.checkout', tier=t.tier_key) }}" style="margin-bottom:8px;">
+        <button type="submit" class="btn btn-ghost" style="width:100%; justify-content:space-between;">
+          <span>{{ t.display_name }}</span>
+          <span class="subdued">
+            {% if t.price_cents %}${{ '%.0f'|format(t.price_cents / 100) }}{{ t.price_suffix }}{% endif %}
+          </span>
+        </button>
+      </form>
+    {% endfor %}
+    <p class="subdued" style="font-size:12px; margin-top:8px;">Need more seats or a custom deal? <a href="{{ url_for('pages.about') }}">Contact us</a> about Team pricing.</p>
+  {% endif %}
+</div>
+{% endblock %}

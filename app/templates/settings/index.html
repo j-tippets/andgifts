@@ -37,6 +37,11 @@
       <strong>Sender email</strong>
       <span class="subdued"><small>The address flow emails send from on behalf of your agents.</small></span>
     </a>
+
+    <a href="{{ url_for('settings.billing') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Billing</strong>
+      <span class="subdued"><small>Your plan, usage, and payment details.</small></span>
+    </a>
   {% endif %}
 </div>
 {% endblock %}

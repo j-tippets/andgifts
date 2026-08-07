@@ -152,6 +152,11 @@ class Org(db.Model):
             .first()
         ) is not None
 
+    def email_sends_this_month(self):
+        """Public wrapper around _sends_this_month for use outside this
+        model (e.g. settings/billing.html showing usage-vs-limit)."""
+        return self._sends_this_month("email")
+
     def can_send_email_now(self, contact_id):
         """Returns (allowed, reason). reason is None when allowed, else a
         short human-readable string suitable for showing the agent

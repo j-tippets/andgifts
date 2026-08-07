@@ -51,3 +51,33 @@ def sender_identity():
 
     domain = current_app.config.get("SENDGRID_SENDING_DOMAIN")
     return render_template("settings/sender.html", org=org, domain=domain)
+
+
+@settings_bp.route("/billing")
+@admin_required
+def billing():
+    """Plan + usage overview, and the entry point into either starting a
+    subscription (Free -> paid, via billing.checkout) or managing an
+    existing one (via billing.portal, Stripe-hosted). See
+    routes/billing.py for why upgrade and manage-existing are two
+    different code paths."""
+    org = current_user.org
+    pricing_display = current_app.config["PRICING_DISPLAY"]
+    tier_limits = current_app.config["TIER_LIMITS"]
+
+    current_tier = {**pricing_display[org.tier], **tier_limits[org.tier]}
+    other_self_serve_tiers = [
+        {**pricing_display[t], **tier_limits[t], "tier_key": t}
+        for t in ("starter", "pro")
+        if t != org.tier
+    ]
+
+    return render_template(
+        "settings/billing.html",
+        org=org,
+        current_tier=current_tier,
+        other_self_serve_tiers=other_self_serve_tiers,
+        contact_count=org.contact_count(),
+        seat_count=org.seat_count(),
+        email_sends_this_month=org.email_sends_this_month(),
+    )

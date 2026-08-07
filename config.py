@@ -54,6 +54,20 @@ class Config:
     # --- Third-party services (populated later) ---
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
     STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
+    # Stripe Price IDs for self-serve subscription checkout -- one per
+    # paid tier. These are NOT set by default; create the matching
+    # Product/Price in the Stripe Dashboard (mode=recurring) for
+    # "starter" ($15/mo flat) and "pro" ($12/seat/mo, per-unit pricing
+    # with quantity = seat count), then set these env vars to the
+    # resulting price IDs (price_...). "free" and "team" intentionally
+    # have no entry: free has nothing to check out for, and team is
+    # custom/invoiced -- see Org.billing_type -- not self-serve.
+    STRIPE_PRICE_IDS = {
+        "starter": os.environ.get("STRIPE_PRICE_ID_STARTER", ""),
+        "pro": os.environ.get("STRIPE_PRICE_ID_PRO", ""),
+    }
+
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
     # Both the default From address and the org-level sending domain
     # below live on the SAME authenticated domain (mail.andgifts.app) on
