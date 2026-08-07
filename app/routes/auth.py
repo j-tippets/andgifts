@@ -65,21 +65,31 @@ def register():
     return render_template("auth/register.html")
 
 
-@auth_bp.route("/verify/<token>")
+@auth_bp.route("/verify/<token>", methods=["GET", "POST"])
 def verify_email(token):
     user = User.query.filter_by(email_verify_token=token).first()
     if not user or not user.email_verify_expires_at or user.email_verify_expires_at < datetime.utcnow():
         flash("That verification link is invalid or has expired. Request a new one below.", "error")
         return redirect(url_for("auth.resend_verification"))
 
-    user.email_verified = True
-    user.email_verify_token = None
-    user.email_verify_expires_at = None
-    db.session.commit()
+    # Only confirm on POST (an actual human clicking the button below) --
+    # NOT on GET. Outlook/Microsoft Defender's "Safe Links" automatically
+    # visits every link in an email at delivery time to scan it for
+    # malware, before a person ever sees the inbox. That automated visit
+    # was hitting this route as a plain GET and silently burning the
+    # one-time token, so the real click minutes later always found it
+    # already used. A bot doing an automated GET won't submit a form.
+    if request.method == "POST":
+        user.email_verified = True
+        user.email_verify_token = None
+        user.email_verify_expires_at = None
+        db.session.commit()
 
-    login_user(user)
-    flash(f"Welcome to {user.org.name}!", "success")
-    return redirect(url_for("dashboard.index"))
+        login_user(user)
+        flash(f"Welcome to {user.org.name}!", "success")
+        return redirect(url_for("dashboard.index"))
+
+    return render_template("auth/verify_email.html", token=token)
 
 
 @auth_bp.route("/resend-verification", methods=["GET", "POST"])
