@@ -45,6 +45,7 @@ def create_app(config_name=None):
     from app.routes.orders import orders_bp
     from app.routes.settings import settings_bp
     from app.routes.support import support_bp
+    from app.routes.pages import pages_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(contacts_bp)
@@ -57,6 +58,7 @@ def create_app(config_name=None):
     app.register_blueprint(orders_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(support_bp)
+    app.register_blueprint(pages_bp)
 
     from app.cli import register_cli
     register_cli(app)

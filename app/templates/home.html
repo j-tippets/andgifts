@@ -7,4 +7,11 @@
   <a href="{{ url_for('auth.login') }}" class="btn btn-primary" style="width:100%; justify-content:center; margin-bottom:10px;">Log in</a>
   <a href="{{ url_for('auth.register') }}" class="btn btn-ghost" style="width:100%; justify-content:center;">Create an account</a>
 </div>
+<p class="subdued" style="text-align:center; font-size:12px;">
+  <a href="{{ url_for('pages.about') }}">About</a> &middot;
+  <a href="{{ url_for('pages.privacy') }}">Privacy</a> &middot;
+  <a href="{{ url_for('pages.terms') }}">Terms</a> &middot;
+  <a href="{{ url_for('pages.cookies') }}">Cookies</a> &middot;
+  <a href="{{ url_for('pages.refund_policy') }}">Refunds</a>
+</p>
 {% endblock %}

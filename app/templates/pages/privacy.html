@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "pages/_legal_page.html" as legal %}
+{% block title %}Privacy Policy — &amp;Gifts{% endblock %}
+
+{% set body %}
+  <p><em>This is placeholder text. Replace with your actual privacy policy before launch -- this page is linked from account settings, app store listings, and account deletion, all of which expect real content.</em></p>
+
+  <h2>What we collect</h2>
+  <p>&amp;Gifts collects account information (name, email, organization), contact and gift-giving data you enter about your clients, and basic usage data needed to operate the service.</p>
+
+  <h2>How we use it</h2>
+  <p>We use your data to operate &amp;Gifts, communicate with you about your account, and improve the product. We do not sell your data.</p>
+
+  <h2>Data sharing</h2>
+  <p>We share data with service providers who help us run &amp;Gifts (e.g. hosting, email delivery, payment processing), and only as needed to provide the service.</p>
+
+  <h2>Your choices</h2>
+  <p>You can access, update, or delete your account data from Settings at any time. Deleting your account removes your data per our retention policy.</p>
+
+  <h2>Contact us</h2>
+  <p>Questions about this policy? Reach us via the <a href="{{ url_for('pages.about') }}">Contact page</a>.</p>
+{% endset %}
+
+{% block content %}{{ legal.legal_page("Privacy Policy", updated_date, body) }}{% endblock %}
+{% block auth_content %}{{ legal.legal_page("Privacy Policy", updated_date, body) }}{% endblock %}

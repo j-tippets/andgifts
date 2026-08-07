@@ -1,0 +1,19 @@
+{# Shared shell for the placeholder legal/support pages (privacy, terms,
+   cookies, refund policy, about). These are public routes but should
+   still render correctly with the full app chrome if the visitor
+   happens to be logged in when they click a footer link -- so every
+   concrete page template calls this macro from BOTH its `content` and
+   `auth_content` blocks (base.html only ever renders one of the two,
+   depending on current_user.is_authenticated). #}
+{% macro legal_page(page_title, updated_date, body) %}
+<div style="max-width:680px; margin:0 auto; padding:40px 24px 80px;">
+  <p style="margin-bottom:24px;">
+    <a href="{{ url_for('home') }}" class="subdued">&larr; &amp;Gifts</a>
+  </p>
+  <h1>{{ page_title }}</h1>
+  <p class="subdued" style="margin-bottom:32px;">Last updated: {{ updated_date }}</p>
+  <div style="line-height:1.7; color:var(--ink);">
+    {{ body }}
+  </div>
+</div>
+{% endmacro %}

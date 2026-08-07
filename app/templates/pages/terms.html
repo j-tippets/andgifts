@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "pages/_legal_page.html" as legal %}
+{% block title %}Terms &amp; Conditions — &amp;Gifts{% endblock %}
+
+{% set body %}
+  <p><em>This is placeholder text. Replace with your actual terms of service before launch -- ideally reviewed by a lawyer, especially given the payment and subscription flows involved.</em></p>
+
+  <h2>Using &amp;Gifts</h2>
+  <p>By creating an account, you agree to use &amp;Gifts for its intended purpose: managing client relationships and gift-giving as a real estate professional or agency.</p>
+
+  <h2>Your account</h2>
+  <p>You're responsible for keeping your login credentials secure and for activity that happens under your account.</p>
+
+  <h2>Subscriptions &amp; payment</h2>
+  <p>&amp;Gifts subscription fees and gift order charges are billed as described at checkout. Placeholder -- add specifics on billing cycles, cancellation, and refund eligibility (see also our <a href="{{ url_for('pages.refund_policy') }}">Refund Policy</a>).</p>
+
+  <h2>Acceptable use</h2>
+  <p>Don't use &amp;Gifts to send unsolicited or abusive messages to contacts, or in any way that violates applicable law.</p>
+
+  <h2>Changes to these terms</h2>
+  <p>We may update these terms from time to time. Continued use of &amp;Gifts after changes means you accept the updated terms.</p>
+
+  <h2>Contact us</h2>
+  <p>Questions about these terms? Reach us via the <a href="{{ url_for('pages.about') }}">Contact page</a>.</p>
+{% endset %}
+
+{% block content %}{{ legal.legal_page("Terms & Conditions", updated_date, body) }}{% endblock %}
+{% block auth_content %}{{ legal.legal_page("Terms & Conditions", updated_date, body) }}{% endblock %}

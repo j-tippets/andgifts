@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "pages/_legal_page.html" as legal %}
+{% block title %}Refund Policy — &amp;Gifts{% endblock %}
+
+{% set body %}
+  <p><em>This is placeholder text. Replace with your actual refund/cancellation policy before launch -- needs real numbers for subscription cancellation windows and gift-order refund eligibility.</em></p>
+
+  <h2>Subscription cancellation</h2>
+  <p>You can cancel your &amp;Gifts subscription at any time from Settings. Placeholder -- specify whether cancellation is immediate or takes effect at the end of the current billing period, and whether partial refunds apply.</p>
+
+  <h2>Gift orders</h2>
+  <p>Gift orders placed through &amp;Gifts are fulfilled by our gift curation partner. Placeholder -- specify the refund/replacement policy for orders that arrive damaged, wrong, or don't ship in time.</p>
+
+  <h2>How to request a refund</h2>
+  <p>Reach out via the <a href="{{ url_for('pages.about') }}">Contact page</a> with your order ID or account email, and we'll take a look.</p>
+{% endset %}
+
+{% block content %}{{ legal.legal_page("Refund Policy", updated_date, body) }}{% endblock %}
+{% block auth_content %}{{ legal.legal_page("Refund Policy", updated_date, body) }}{% endblock %}

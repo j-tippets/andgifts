@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "pages/_legal_page.html" as legal %}
+{% block title %}About &amp; Contact — &amp;Gifts{% endblock %}
+
+{% set body %}
+  <p><em>This is placeholder text. Replace with real company/contact copy before launch.</em></p>
+
+  <h2>About &amp;Gifts</h2>
+  <p>&amp;Gifts helps real estate agents build stronger client relationships through timely, thoughtful gifting -- triggered by the moments that matter, like closings and anniversaries.</p>
+  <p>&amp;Gifts is a product of Wyld Totems LLC.</p>
+
+  <h2>Get in touch</h2>
+  <p>Have a question, found a bug, or just want to say hi? Email us at <a href="mailto:support@andgifts.app">support@andgifts.app</a>.</p>
+  <p>Already have an account? You can also reach us directly from <a href="{{ url_for('support.contact') }}">Support</a> once you're logged in.</p>
+{% endset %}
+
+{% block content %}{{ legal.legal_page("About & Contact", updated_date, body) }}{% endblock %}
+{% block auth_content %}{{ legal.legal_page("About & Contact", updated_date, body) }}{% endblock %}
