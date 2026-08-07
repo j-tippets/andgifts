@@ -83,11 +83,28 @@ class Config:
     )
 
     # --- Tier limits (single source of truth for enforcement) ---
+    # "email"/"sms" booleans intentionally removed (2026-08) -- channel
+    # access is universal across every tier now, matching the actual
+    # product philosophy: the subscription's job is retention/contact
+    # capacity, gifts (and their DHRB/WDF margin) carry the revenue, and
+    # gating relationship-building tools by tier worked against that.
+    # Nothing in the codebase read those two keys, so removing them is
+    # safe -- confirmed via grep before deleting.
+    #
+    # email_monthly_cap / contact_cooldown_days are new: not about
+    # revenue, about cost + deliverability. Email is nearly free
+    # marginally to us so it's the one channel with no natural ceiling
+    # an agent would hit on their own -- these stop "100 contacts,
+    # emailed a million times" without reintroducing per-tier feature
+    # gating. Enforced in Org.can_send_email_now(). sms_monthly_cap is
+    # here for when text sending actually gets wired up to a real send
+    # (still manual today -- see dashboard.approve_action) so the limit
+    # exists in config ahead of the code that will enforce it.
     TIER_LIMITS = {
-        "free": {"contacts": 25, "seats": 1, "email": False, "sms": False, "ai_dashboard": False},
-        "starter": {"contacts": 100, "seats": 1, "email": True, "sms": False, "ai_dashboard": False},
-        "pro": {"contacts": 1000, "seats": 5, "email": True, "sms": True, "ai_dashboard": True},
-        "team": {"contacts": None, "seats": None, "email": True, "sms": True, "ai_dashboard": True},
+        "free": {"contacts": 25, "seats": 1, "ai_dashboard": False, "email_monthly_cap": 100, "sms_monthly_cap": 25, "contact_cooldown_days": 5},
+        "starter": {"contacts": 100, "seats": 1, "ai_dashboard": False, "email_monthly_cap": 300, "sms_monthly_cap": 50, "contact_cooldown_days": 5},
+        "pro": {"contacts": 1000, "seats": 5, "ai_dashboard": True, "email_monthly_cap": 1000, "sms_monthly_cap": 200, "contact_cooldown_days": 5},
+        "team": {"contacts": None, "seats": None, "ai_dashboard": True, "email_monthly_cap": None, "sms_monthly_cap": None, "contact_cooldown_days": 5},
     }
 
 

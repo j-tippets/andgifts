@@ -127,7 +127,7 @@ class ActionLog(db.Model):
     # "email" is the first channel with a real send behind it (SendGrid);
     # 'sent' / 'failed' record whether that actually went out, with the
     # reason in delivery_error when it didn't.
-    delivery_status = db.Column(db.Enum("sent", "failed", name="action_log_delivery_status"), nullable=True)
+    delivery_status = db.Column(db.Enum("sent", "failed", "blocked", name="action_log_delivery_status"), nullable=True)
     delivery_error = db.Column(db.Text, nullable=True)
 
     # Which agent actually approved this -- used for the "who did what"

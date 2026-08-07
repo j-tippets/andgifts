@@ -97,6 +97,8 @@
               <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Emailed</span>
             {% elif entry.delivery_status == 'failed' %}
               <span class="status-pill pill-do-not-contact">Not sent &mdash; {{ entry.delivery_error }}</span>
+            {% elif entry.delivery_status == 'blocked' %}
+              <span class="status-pill" style="background:var(--gold-soft); color:var(--gold-ink);">Not sent (plan limit) &mdash; {{ entry.delivery_error }}</span>
             {% endif %}
             {% if entry.cost_cents %}<div class="subdued">${{ '%.2f'|format(entry.cost_cents / 100) }}</div>{% endif %}
           </div>

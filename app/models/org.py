@@ -117,6 +117,56 @@ class Org(db.Model):
     def feature_enabled(self, key):
         return bool(self.limit_for(key))
 
+    # --- Send limits (email/sms) ---
+    # Cost + deliverability protection, not a revenue lever -- see the
+    # comment above TIER_LIMITS in config.py for why these exist and
+    # why they're separate from the (removed) per-tier channel gating.
+    def _sends_this_month(self, action_type):
+        from datetime import datetime as dt
+        from app.models import ActionLog
+        month_start = dt.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return (
+            ActionLog.query
+            .filter_by(org_id=self.id, action_type=action_type, delivery_status="sent")
+            .filter(ActionLog.sent_at >= month_start)
+            .count()
+        )
+
+    def _contact_sent_to_recently(self, contact_id, cooldown_days):
+        """True if this contact received ANY automated email/text within
+        the cooldown window, regardless of which channel -- the point is
+        protecting the person from being over-contacted, not rationing
+        each channel separately. A cooldown of 0/None disables the check
+        (team tier default; also lets a future per-org override of 0
+        mean 'no cooldown' cleanly)."""
+        if not cooldown_days:
+            return False
+        from datetime import datetime as dt, timedelta
+        from app.models import ActionLog
+        cutoff = dt.utcnow() - timedelta(days=cooldown_days)
+        return (
+            ActionLog.query
+            .filter_by(org_id=self.id, contact_id=contact_id, delivery_status="sent")
+            .filter(ActionLog.action_type.in_(("email", "text")))
+            .filter(ActionLog.sent_at >= cutoff)
+            .first()
+        ) is not None
+
+    def can_send_email_now(self, contact_id):
+        """Returns (allowed, reason). reason is None when allowed, else a
+        short human-readable string suitable for showing the agent
+        directly (surfaced via ActionLog.delivery_error / a flash
+        message) -- see dashboard.approve_action."""
+        cooldown_days = self.limit_for("contact_cooldown_days")
+        if self._contact_sent_to_recently(contact_id, cooldown_days):
+            return False, f"This contact was already emailed or texted within the last {cooldown_days} days."
+
+        cap = self.limit_for("email_monthly_cap")
+        if cap is not None and self._sends_this_month("email") >= cap:
+            return False, f"Monthly email limit reached for this plan ({cap}/month)."
+
+        return True, None
+
     # --- Fulfillment: free office drop-off ---
     def can_offer_dropoff(self):
         """Pro/team tier is required in addition to the admin toggle -- an

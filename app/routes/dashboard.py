@@ -64,13 +64,22 @@ def approve_action(action_id):
     # manual for now). A failed send does NOT block the approval or roll
     # anything back: the agent's decision to approve stands, we just
     # record that it didn't go out automatically so it surfaces in the
-    # reports and they know to follow up by hand.
+    # reports and they know to follow up by hand. A blocked send (plan
+    # limit hit) follows the exact same approve-but-don't-send pattern --
+    # see Org.can_send_email_now for why this is a monthly cap +
+    # per-contact cooldown rather than a per-tier channel gate.
     delivery_status = None
     delivery_error = None
     if action.action_type == "email":
-        delivered, error = send_flow_action_email(action, current_user.full_name, sender_user=current_user)
-        delivery_status = "sent" if delivered else "failed"
-        delivery_error = error
+        allowed, block_reason = org.can_send_email_now(action.contact_id)
+        if allowed:
+            delivered, error = send_flow_action_email(action, current_user.full_name, sender_user=current_user)
+            delivery_status = "sent" if delivered else "failed"
+            delivery_error = error
+        else:
+            delivery_status = "blocked"
+            delivery_error = block_reason
+            flash(f"Approved, but not sent automatically: {block_reason}", "error")
 
     # MVP: log it immediately. Real send (email/SMS/gift fulfillment API call)
     # gets wired in as its own service once channels are built.
@@ -88,6 +97,8 @@ def approve_action(action_id):
     audit_summary = _action_summary_for_log(action, "Approved")
     if delivery_status == "failed":
         audit_summary += f" Email did not send automatically: {delivery_error}"
+    elif delivery_status == "blocked":
+        audit_summary += f" Email not sent (plan limit): {delivery_error}"
 
     db.session.add(ContactAuditLog(
         org_id=action.org_id,
