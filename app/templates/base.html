@@ -140,7 +140,30 @@
     // site directly) -- this only matters for browser/PWA installs.
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js');
+        navigator.serviceWorker.register('/sw.js').then(function (reg) {
+          // By spec, browsers only re-check sw.js for changes about once
+          // every 24 hours on normal navigation -- so after a deploy,
+          // a returning visitor's browser can keep running the OLD
+          // service worker (and its OLD cached css/js/fonts) for up to
+          // a day even though it navigates normally. Forcing a check on
+          // every page load means a deploy is picked up on the very
+          // next visit instead of silently waiting out that window.
+          reg.update();
+        });
+
+        // sw.js's activate handler already calls skipWaiting() +
+        // clients.claim(), so a new version takes over without waiting
+        // for every tab to close -- but the page that's ALREADY loaded
+        // is still running on the assets it fetched under the old
+        // worker. Reload once when that handoff happens so the new
+        // css/js actually takes effect immediately, instead of the user
+        // needing to know a hard refresh is what fixes it.
+        var reloadedForUpdate = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (reloadedForUpdate) return;
+          reloadedForUpdate = true;
+          window.location.reload();
+        });
       });
     }
   </script>
