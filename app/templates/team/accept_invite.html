@@ -1,11 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Join {{ user.org.name }}{% endblock %}
 {% block auth_content %}
-<h1>Join {{ user.org.name }} on &Gifts</h1>
-<p>You've been invited as {{ user.email }}. Set a password to finish setting up your account.</p>
-<form method="post">
-  <label>Password <input type="password" name="password" required></label>
-  <label>Confirm password <input type="password" name="confirm_password" required></label>
-  <button type="submit">Set password &amp; sign in</button>
-</form>
+<div style="max-width:380px; margin:80px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+  <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
+    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
+  </div>
+  <h1 style="margin-bottom:8px;">Join {{ user.org.name }} on &amp;Gifts</h1>
+  <p class="subdued" style="margin-bottom:20px;">You've been invited as {{ user.email }}. Set a password to finish setting up your account.</p>
+  <form method="POST">
+    <div class="field">
+      <label>Password</label>
+      <input type="password" name="password" required autofocus>
+    </div>
+    <div class="field">
+      <label>Confirm password</label>
+      <input type="password" name="confirm_password" required>
+    </div>
+    <button class="btn btn-primary" type="submit" style="width:100%;">Set password &amp; sign in</button>
+  </form>
+</div>
 {% endblock %}
