@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from app.extensions import db
 from app.models import (
     Contact, ContactPerson, ContactMethod,
-    TimelineEvent, STANDARD_EVENT_TYPES, CustomEventType, slugify_event_key,
+    TimelineEvent, STANDARD_EVENT_TYPES, CustomEventType, slugify_event_key, MilestonePriority,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
     GiftCatalogItem, Order, Badge,
@@ -811,12 +811,69 @@ def manage_event_types():
     my_types = CustomEventType.query.filter_by(
         org_id=current_user.org_id, scope="personal", owner_user_id=current_user.id
     ).order_by(CustomEventType.label).all()
+
+    # Every milestone type this agent can currently use, for the
+    # drag-and-drop priority list -- built-ins, org-wide, and their own
+    # personal ones. Doesn't include other agents' personal milestones,
+    # since this agent's contacts can never actually surface those.
+    all_types = {t: t.replace("_", " ").title() for t in STANDARD_EVENT_TYPES if t != "custom"}
+    for t in org_types:
+        all_types[t.key] = t.label
+    for t in my_types:
+        all_types[t.key] = t.label
+
+    ranked = (
+        MilestonePriority.query.filter_by(user_id=current_user.id)
+        .order_by(MilestonePriority.priority.desc())
+        .all()
+    )
+    ranked_keys = [r.event_type for r in ranked]
+    # Anything the agent hasn't ranked yet (never customized, or a
+    # milestone added since they last saved) is appended after their
+    # ranked ones, in a stable default order -- so the list always shows
+    # every usable type, even before the agent has touched this page.
+    unranked_keys = [k for k in all_types if k not in ranked_keys]
+    priority_order = [
+        {"key": k, "label": all_types[k]}
+        for k in ranked_keys + unranked_keys
+        if k in all_types  # drop stale ranked rows for a since-removed milestone
+    ]
+
     return render_template(
         "contacts/event_types.html",
         org_types=org_types,
         my_types=my_types,
         standard_event_types=[t for t in STANDARD_EVENT_TYPES if t != "custom"],
+        priority_order=priority_order,
+        has_custom_priority=bool(ranked_keys),
     )
+
+
+@contacts_bp.route("/event-types/priority", methods=["POST"])
+@login_required
+def save_milestone_priority():
+    """Persists the agent's full drag-and-drop order in one shot -- top
+    of the list gets the highest priority number, counting down. Always
+    replaces this agent's entire MilestonePriority set rather than
+    patching individual rows, since a full reorder is what the UI
+    actually produces and it keeps the "gaps are meaningless, only
+    relative order matters" invariant simple."""
+    ordered_keys = request.form.getlist("order")
+    if not ordered_keys:
+        flash("Nothing to save.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    MilestonePriority.query.filter_by(user_id=current_user.id).delete()
+    total = len(ordered_keys)
+    for i, key in enumerate(ordered_keys):
+        db.session.add(MilestonePriority(
+            user_id=current_user.id,
+            event_type=key,
+            priority=total - i,
+        ))
+    db.session.commit()
+    flash("Milestone priority order saved.", "success")
+    return redirect(url_for("contacts.manage_event_types"))
 
 
 @contacts_bp.route("/event-types/new", methods=["POST"])

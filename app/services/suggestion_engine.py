@@ -40,37 +40,23 @@ LOOKAHEAD_DAYS = 14
 # window (e.g. the first_contact event auto-seeded on creation, plus a
 # closing date backfilled the same day), only the single most significant
 # one should ever generate a suggestion -- see _winning_event_for_contact,
-# used by both generation paths below. Higher number = more significant.
+# used by both generation paths below.
 #
-# first_contact sits at the bottom on purpose: it's auto-seeded on every
-# new contact as bookkeeping, not a milestone an agent chose to track, so
-# it should never outrank an actual transaction or personal milestone.
-EVENT_TYPE_PRIORITY = {
-    "closing": 100,
-    "offer_made": 90,
-    "showing": 80,
-    "wedding_anniversary": 70,
-    "one_year_anniversary": 65,
-    "six_month_anniversary": 60,
-    "birthday": 50,
-    "custom": 40,
-    "first_contact": 10,
-}
-# Org/agent-defined milestones (CustomEventType.key) aren't in the dict
-# above -- they're arbitrary slugs, not one of STANDARD_EVENT_TYPES -- so
-# they fall back to this tier: meaningful enough that an agency chose to
-# track it, but not assumed to outrank an actual transaction milestone.
-DEFAULT_EVENT_TYPE_PRIORITY = 40
-
-
-def _event_type_priority(event_type):
-    return EVENT_TYPE_PRIORITY.get(event_type, DEFAULT_EVENT_TYPE_PRIORITY)
+# Priority is entirely agent-owned (see MilestonePriority) -- there's no
+# built-in ranking baked into the app anymore. Whichever agent owns the
+# contact (Contact.owner_user_id) is whose ranking applies; an unassigned
+# contact has no owner to consult, so everything ties at the default
+# tier and ties break on date/creation order alone.
+def _event_type_priority(owner, event_type):
+    from app.models import MilestonePriority
+    return MilestonePriority.priority_for(owner, event_type)
 
 
 def _winning_event_for_contact(contact, today, window_end):
     """Among this contact's timeline events with a qualifying occurrence
     in [today, window_end] (see _next_occurrence), returns the single
-    highest-priority one -- or None if nothing qualifies.
+    highest-priority one (per the contact owner's own ranking -- see
+    _event_type_priority) -- or None if nothing qualifies.
 
     Ties (equal priority) go to whichever occurrence is sooner, then to
     whichever event was created first, so the pick is stable and
@@ -81,7 +67,7 @@ def _winning_event_for_contact(contact, today, window_end):
         occurrence_date = _next_occurrence(event, today, window_end)
         if occurrence_date is None:
             continue
-        key = (-_event_type_priority(event.event_type), occurrence_date, event.created_at or datetime.min)
+        key = (-_event_type_priority(contact.owner, event.event_type), occurrence_date, event.created_at or datetime.min)
         if best_key is None or key < best_key:
             best, best_key = event, key
     return best

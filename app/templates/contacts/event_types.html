@@ -9,7 +9,93 @@
   <a href="{{ url_for('settings.index') }}" class="btn btn-ghost">&larr; Settings</a>
 </div>
 
-<h2>Built-in milestones</h2>
+<h2>Your priority order</h2>
+<p class="subdued">
+  When a contact qualifies for more than one milestone on the same day, whichever is higher in this list wins.
+  This is just yours &mdash; other agents can order theirs differently.
+  {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
+</p>
+
+<form method="POST" action="{{ url_for('contacts.save_milestone_priority') }}" id="priority-form">
+  <div id="priority-list" style="margin-bottom:12px;">
+    {% for item in priority_order %}
+      <div class="team-row priority-item" draggable="true" data-key="{{ item.key }}" style="cursor:grab;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="subdued" aria-hidden="true">&#8942;&#8942;</span>
+          <strong>{{ item.label }}</strong>
+        </div>
+        <div style="display:flex; gap:4px;">
+          <button type="button" class="btn btn-ghost btn-small priority-up" aria-label="Move {{ item.label }} up">&uarr;</button>
+          <button type="button" class="btn btn-ghost btn-small priority-down" aria-label="Move {{ item.label }} down">&darr;</button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="submit" class="btn btn-primary btn-small">Save order</button>
+</form>
+
+<script>
+  (function () {
+    var list = document.getElementById('priority-list');
+    var form = document.getElementById('priority-form');
+    var dragEl = null;
+
+    function getDragAfterElement(container, y) {
+      var items = Array.prototype.slice.call(container.querySelectorAll('.priority-item:not(.dragging)'));
+      return items.reduce(function (closest, child) {
+        var box = child.getBoundingClientRect();
+        var offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        }
+        return closest;
+      }, { offset: -Infinity }).element;
+    }
+
+    list.querySelectorAll('.priority-item').forEach(function (item) {
+      item.addEventListener('dragstart', function () {
+        dragEl = item;
+        item.classList.add('dragging');
+      });
+      item.addEventListener('dragend', function () {
+        item.classList.remove('dragging');
+      });
+
+      item.querySelector('.priority-up').addEventListener('click', function () {
+        var prev = item.previousElementSibling;
+        if (prev) list.insertBefore(item, prev);
+      });
+      item.querySelector('.priority-down').addEventListener('click', function () {
+        var next = item.nextElementSibling;
+        if (next) list.insertBefore(next, item);
+      });
+    });
+
+    list.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      if (!dragEl) return;
+      var after = getDragAfterElement(list, e.clientY);
+      if (after == null) {
+        list.appendChild(dragEl);
+      } else {
+        list.insertBefore(dragEl, after);
+      }
+    });
+
+    form.addEventListener('submit', function () {
+      form.querySelectorAll('input[name="order"]').forEach(function (el) { el.remove(); });
+      list.querySelectorAll('.priority-item').forEach(function (item) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'order';
+        input.value = item.dataset.key;
+        form.appendChild(input);
+      });
+    });
+  })();
+</script>
+
+<h2 style="margin-top:32px;">Built-in milestones</h2>
 <p class="subdued">Every agency starts with these &mdash; can't be renamed or removed.</p>
 {% for t in standard_event_types %}
   <div class="team-row static-row">
