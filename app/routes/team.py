@@ -9,7 +9,7 @@ from app.models import User, ContactAuditLog
 from app.models.contact import Contact
 from app.decorators import admin_required
 from app.services.storage import upload_avatar, delete_avatar, StorageError
-from app.services.email import send_team_invite_email
+from app.services.email import send_team_invite_email, send_account_created_email
 
 team_bp = Blueprint("team", __name__, url_prefix="/team")
 
@@ -74,11 +74,23 @@ def new_member():
         user.status = "active"
         db.session.add(user)
         db.session.commit()
-        flash(
-            f"Account created for {email}. Temporary password: {temp_password} "
-            f"(share this with them directly -- it won't be shown again).",
-            "success",
-        )
+
+        login_link = url_for("auth.login", _external=True)
+        delivered = send_account_created_email(user, current_user.full_name, login_link)
+        if delivered:
+            flash(
+                f"Account created for {email}. Temporary password: {temp_password} "
+                f"(share this with them directly -- it won't be shown again). "
+                f"We've also emailed them to let them know their account is ready.",
+                "success",
+            )
+        else:
+            flash(
+                f"Account created for {email}. Temporary password: {temp_password} "
+                f"(share this with them directly -- it won't be shown again). "
+                f"Heads up: the ready-to-sign-in email didn't send, so they won't know to log in unless you tell them.",
+                "success",
+            )
     else:
         # Email-invite path: account exists in "pending" state until the
         # agent clicks the link and sets their own password.

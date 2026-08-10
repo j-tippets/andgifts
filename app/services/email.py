@@ -183,6 +183,25 @@ def send_team_invite_email(user, invite_link, inviter_name):
     return send_email(user.email, f"You're invited to join {user.org.name} on &Gifts", html)
 
 
+def send_account_created_email(user, inviter_name, login_link):
+    """Sent when an admin creates an agent's account directly with a
+    temp password (as opposed to the email-invite flow above). The
+    account is already active by the time this sends -- this is just a
+    heads-up, not a required step. Deliberately does NOT include the
+    temp password itself; that's shown to the admin once (see
+    team.new_member) and expected to be shared out-of-band, so this
+    email doesn't become a second, harder-to-revoke copy of it sitting
+    in an inbox."""
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">Your &amp;Gifts account is ready</h2>
+      <p style="margin:0 0 20px; color:#2A1A45; font-size:15px; line-height:1.6;">{inviter_name} set you up with an account for {user.org.name} on &amp;Gifts. Ask {inviter_name} for your temporary password to sign in.</p>
+      <p style="margin:0 0 20px;">{_button(login_link, 'Sign in')}</p>
+      <p style="margin:0; color:#6B6459; font-size:13px;">You can change your password once you're signed in.</p>
+    """
+    html = _wrap_email(body, preheader=f"{inviter_name} set you up with an &Gifts account for {user.org.name}.")
+    return send_email(user.email, f"Your &Gifts account for {user.org.name} is ready", html)
+
+
 def send_flow_action_email(action, sender_name, sender_user=None):
     """Sends an approved flow 'email' action's message to the contact.
     Returns (delivered, error_message) -- error_message is None on
