@@ -5,12 +5,56 @@
   <div>
     <div class="eyebrow">App Admin</div>
     <h1>Activity</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Signups, upgrades, and downgrades, most recent first. Last 200 events.</small></p>
+    <p class="subdued" style="margin-top:4px;"><small>Signups, upgrades, and downgrades, most recent first.</small></p>
   </div>
   <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
 </div>
 
+<form method="get" style="background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px;">
+  <div class="field-row">
+    <div class="field">
+      <label for="q">Search org name</label>
+      <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. North Star Realty">
+    </div>
+    <div class="field">
+      <label for="event_type">Event</label>
+      <select id="event_type" name="event_type">
+        <option value="" {{ 'selected' if not event_type }}>All events</option>
+        <option value="signup" {{ 'selected' if event_type == 'signup' }}>Signup</option>
+        <option value="upgrade" {{ 'selected' if event_type == 'upgrade' }}>Upgrade</option>
+        <option value="downgrade" {{ 'selected' if event_type == 'downgrade' }}>Downgrade</option>
+      </select>
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label for="start_date">From</label>
+      <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+    </div>
+    <div class="field">
+      <label for="end_date">To</label>
+      <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+    </div>
+    <div class="field">
+      <label for="per_page">Results per page</label>
+      <select id="per_page" name="per_page">
+        {% for n in per_page_options %}
+          <option value="{{ n }}" {{ 'selected' if per_page == n }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; margin-top:4px;">
+    <button type="submit" class="btn btn-primary btn-small">Apply filters</button>
+    {% if q or event_type or start_date or end_date %}
+      <a href="{{ url_for('app_admin.activity_list') }}" class="btn btn-ghost btn-small">Clear</a>
+    {% endif %}
+  </div>
+</form>
+
 {% if events %}
+  <p class="subdued" style="margin-bottom:12px;"><small>{{ pagination.total }} result{{ 's' if pagination.total != 1 }}</small></p>
+
   {% for e in events %}
     <div class="contact-row" style="{% if e.org_id %}cursor:pointer;{% endif %}"
       {% if e.org_id %}onclick="window.location='{{ url_for('app_admin.org_edit', org_id=e.org_id) }}'"{% endif %}>
@@ -33,10 +77,27 @@
       <span class="subdued">{{ e.created_at.strftime('%b %-d, %Y %-I:%M %p') }}</span>
     </div>
   {% endfor %}
+
+  {% if pagination.pages > 1 %}
+    {% set base_args = {'q': q, 'event_type': event_type, 'start_date': start_date, 'end_date': end_date, 'per_page': per_page} %}
+    <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:20px;">
+      {% if pagination.has_prev %}
+        <a href="{{ url_for('app_admin.activity_list', page=pagination.prev_num, **base_args) }}" class="btn btn-ghost btn-small">&larr; Newer</a>
+      {% else %}
+        <span class="btn btn-ghost btn-small" style="opacity:.4; pointer-events:none;">&larr; Newer</span>
+      {% endif %}
+      <span class="subdued"><small>Page {{ pagination.page }} of {{ pagination.pages }}</small></span>
+      {% if pagination.has_next %}
+        <a href="{{ url_for('app_admin.activity_list', page=pagination.next_num, **base_args) }}" class="btn btn-ghost btn-small">Older &rarr;</a>
+      {% else %}
+        <span class="btn btn-ghost btn-small" style="opacity:.4; pointer-events:none;">Older &rarr;</span>
+      {% endif %}
+    </div>
+  {% endif %}
 {% else %}
   <div class="empty-state">
-    <h3>No activity yet</h3>
-    <p>Signups, upgrades, and downgrades will show up here as they happen.</p>
+    <h3>No matching activity</h3>
+    <p>{% if q or event_type or start_date or end_date %}Try widening your filters.{% else %}Signups, upgrades, and downgrades will show up here as they happen.{% endif %}</p>
   </div>
 {% endif %}
 {% endblock %}

@@ -22,18 +22,81 @@ def dashboard():
     )
 
 
+PER_PAGE_OPTIONS = (10, 25, 50, 100)
+
+
 @app_admin_bp.route("/activity")
 @platform_admin_required
 def activity_list():
     """Signup/upgrade/downgrade history across every org -- the record-
     of-truth view to complement the one-off notification emails (see
     services/org_events.record_org_event), useful for spotting usage
-    patterns over time rather than just reacting to individual pings."""
-    events = OrgEventLog.query.order_by(OrgEventLog.created_at.desc()).limit(200).all()
+    patterns over time rather than just reacting to individual pings.
+
+    Filtered/paginated server-side (not loaded-then-filtered-in-JS like
+    catalog/list.html) since this table only grows over time and could
+    get large -- unlike the gift catalog, which is bounded by however
+    many items Jeremiah has actually added."""
+    from datetime import datetime, timedelta
+
+    q = request.args.get("q", "").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+    event_type = request.args.get("event_type", "").strip()
+
+    try:
+        per_page = int(request.args.get("per_page", 10))
+    except ValueError:
+        per_page = 10
+    if per_page not in PER_PAGE_OPTIONS:
+        per_page = 10
+
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+
+    query = OrgEventLog.query
+
+    if q:
+        query = query.filter(OrgEventLog.org_name_snapshot.ilike(f"%{q}%"))
+
+    if event_type in ("signup", "upgrade", "downgrade"):
+        query = query.filter(OrgEventLog.event_type == event_type)
+
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(OrgEventLog.created_at >= start_dt)
+        except ValueError:
+            start_date = ""
+
+    if end_date:
+        try:
+            # Inclusive of the whole end day -- created_at has a time
+            # component, so a bare "< end_date" would cut off that day
+            # at midnight and silently drop everything that happened on
+            # the end date itself.
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(OrgEventLog.created_at < end_dt)
+        except ValueError:
+            end_date = ""
+
+    pagination = query.order_by(OrgEventLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
     return render_template(
         "app_admin/activity.html",
-        events=events,
+        events=pagination.items,
+        pagination=pagination,
         pricing_display=current_app.config["PRICING_DISPLAY"],
+        per_page_options=PER_PAGE_OPTIONS,
+        per_page=per_page,
+        q=q,
+        start_date=start_date,
+        end_date=end_date,
+        event_type=event_type,
     )
 
 
