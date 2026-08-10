@@ -35,6 +35,14 @@ class Org(db.Model):
         default="free",
     )
 
+    # Which preset milestone set this org started from (Real Estate, Law
+    # Firm, ...) -- see PracticeType and services.practice_types. Kept
+    # after the org's milestones are seeded/personalized purely so App
+    # Admin can show/change it later; nothing at request time re-derives
+    # milestone behavior from this, since seeded CustomEventType rows
+    # are the org's own from that point on.
+    practice_type_id = db.Column(db.String(36), db.ForeignKey("practice_types.id"), nullable=True)
+
     # Billing
     stripe_customer_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
@@ -75,6 +83,7 @@ class Org(db.Model):
 
     users = db.relationship("User", back_populates="org", cascade="all, delete-orphan")
     contacts = db.relationship("Contact", back_populates="org", cascade="all, delete-orphan")
+    practice_type = db.relationship("PracticeType")
 
     @staticmethod
     def generate_sender_local_part(name):

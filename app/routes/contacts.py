@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from app.extensions import db
 from app.models import (
     Contact, ContactPerson, ContactMethod,
-    TimelineEvent, STANDARD_EVENT_TYPES, CustomEventType, slugify_event_key, MilestonePriority,
+    TimelineEvent, CUSTOM_MILESTONE_KEY, CustomEventType, slugify_event_key, MilestonePriority,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
     GiftCatalogItem, Order, Badge,
@@ -213,14 +213,15 @@ def _visible_custom_fields():
 
 
 def _visible_event_types():
-    """(key, label) pairs for the timeline event-type dropdown: the
-    built-in milestones first, then this org's custom ones the current
-    agent can see (org-wide, plus their own personal milestones), then
-    the 'Custom' escape hatch last for a genuine one-off label."""
-    standard = [(t, t.replace("_", " ").title()) for t in STANDARD_EVENT_TYPES if t != "custom"]
+    """(key, label) pairs for the timeline event-type dropdown: this
+    org's custom milestones the current agent can see (org-wide, plus
+    their own personal milestones -- this now includes whatever came
+    from the org's PracticeType preset, since those are seeded as
+    ordinary CustomEventType rows), then the 'Custom' escape hatch last
+    for a genuine one-off label."""
     query = CustomEventType.query.filter_by(org_id=current_user.org_id)
     custom = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
-    return standard + [(c.key, c.label) for c in custom] + [("custom", "Custom")]
+    return [(c.key, c.label) for c in custom] + [(CUSTOM_MILESTONE_KEY, "Custom")]
 
 
 def _visible_badges():
@@ -813,10 +814,12 @@ def manage_event_types():
     ).order_by(CustomEventType.label).all()
 
     # Every milestone type this agent can currently use, for the
-    # drag-and-drop priority list -- built-ins, org-wide, and their own
-    # personal ones. Doesn't include other agents' personal milestones,
-    # since this agent's contacts can never actually surface those.
-    all_types = {t: t.replace("_", " ").title() for t in STANDARD_EVENT_TYPES if t != "custom"}
+    # drag-and-drop priority list -- org-wide (including whatever came
+    # from the org's PracticeType preset, now just ordinary rows) and
+    # their own personal ones. Doesn't include other agents' personal
+    # milestones, since this agent's contacts can never actually
+    # surface those.
+    all_types = {}
     for t in org_types:
         all_types[t.key] = t.label
     for t in my_types:
@@ -843,7 +846,6 @@ def manage_event_types():
         "contacts/event_types.html",
         org_types=org_types,
         my_types=my_types,
-        standard_event_types=[t for t in STANDARD_EVENT_TYPES if t != "custom"],
         priority_order=priority_order,
         has_custom_priority=bool(ranked_keys),
     )
@@ -890,7 +892,7 @@ def new_event_type():
         return redirect(url_for("contacts.manage_event_types"))
 
     key = slugify_event_key(label)
-    if key in STANDARD_EVENT_TYPES or CustomEventType.query.filter_by(
+    if key == CUSTOM_MILESTONE_KEY or CustomEventType.query.filter_by(
         org_id=current_user.org_id, key=key
     ).first():
         flash(f"A milestone already exists with a name too similar to '{label}'. Try something more distinct.", "error")

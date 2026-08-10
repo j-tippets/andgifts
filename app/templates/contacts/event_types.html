@@ -95,16 +95,8 @@
   })();
 </script>
 
-<h2 style="margin-top:32px;">Built-in milestones</h2>
-<p class="subdued">Every agency starts with these &mdash; can't be renamed or removed.</p>
-{% for t in standard_event_types %}
-  <div class="team-row static-row">
-    <div><strong>{{ t.replace('_', ' ')|title }}</strong></div>
-  </div>
-{% endfor %}
-
-<h2 style="margin-top:28px;">Organization milestones</h2>
-<p class="subdued">Visible and usable by everyone in {{ current_user.org.name }} &mdash; on contact timelines and as flow triggers.</p>
+<h2 style="margin-top:32px;">Organization milestones</h2>
+<p class="subdued">Visible and usable by everyone in {{ current_user.org.name }} &mdash; on contact timelines and as flow triggers. This includes whatever came from your practice type's starting set, fully renamable and removable now.</p>
 
 {% if org_types %}
   {% for t in org_types %}

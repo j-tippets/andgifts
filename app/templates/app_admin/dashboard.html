@@ -25,6 +25,12 @@
     <span class="subdued"><small>Signups, upgrades, and downgrades across every agency.</small></span>
   </a>
 
+  <a href="{{ url_for('app_admin.practice_type_list') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Practice Types</strong>
+    <span class="subdued">{{ practice_type_count }} type{{ 's' if practice_type_count != 1 else '' }}</span>
+    <span class="subdued"><small>Milestone presets for each kind of business (real estate, law, dental, ...).</small></span>
+  </a>
+
   <a href="{{ url_for('app_admin.recipe_list') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
     <strong>Global Flow Library</strong>
     <span class="subdued">{{ recipe_count }} active global flow{{ 's' if recipe_count != 1 else '' }}</span>

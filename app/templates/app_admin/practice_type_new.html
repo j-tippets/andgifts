@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}New Practice Type — App Admin{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">App Admin</div>
+    <h1>New practice type</h1>
+  </div>
+  <a href="{{ url_for('app_admin.practice_type_list') }}" class="btn btn-ghost">&larr; Practice Types</a>
+</div>
+
+<div class="contact-card" style="max-width:480px;">
+  <form method="post">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" placeholder="e.g. Law Firm" required autofocus>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:12px;">Create</button>
+  </form>
+</div>
+{% endblock %}

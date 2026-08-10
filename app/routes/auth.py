@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required
 from app.extensions import db, limiter
-from app.models import User, Org
+from app.models import User, Org, PracticeType
 from app.services.email import send_verification_email, send_password_reset_email
 from app.services.org_events import record_org_event
+from app.services.practice_types import seed_org_milestones
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -41,6 +42,17 @@ def register():
         # Org.generate_sender_local_part / settings.sender_identity for
         # where an admin can change it later.
         org.sender_local_part = Org.generate_sender_local_part(org.name)
+
+        # &Gifts is real-estate-only today -- every self-registered org
+        # starts on that practice type's milestone preset. Once other
+        # verticals are live (see PracticeType / App Admin), this is
+        # where a signup-time chooser would plug in; for now there's
+        # only ever one option, so there's nothing to ask.
+        real_estate = PracticeType.query.filter_by(key="real_estate").first()
+        if real_estate:
+            org.practice_type_id = real_estate.id
+            db.session.flush()
+            seed_org_milestones(org)
 
         user = User(
             org_id=org.id,

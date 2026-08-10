@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ practice_type.name }} — App Admin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">App Admin</div>
+    <h1>{{ practice_type.name }}</h1>
+    <p class="subdued" style="margin-top:4px;">
+      <small>{{ org_count }} org{{ 's' if org_count != 1 }} on this practice type</small>
+    </p>
+  </div>
+  <a href="{{ url_for('app_admin.practice_type_list') }}" class="btn btn-ghost">&larr; Practice Types</a>
+</div>
+
+<div class="contact-card" style="max-width:480px; margin-bottom:28px;">
+  <form method="post">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" value="{{ practice_type.name }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:12px;">Save name</button>
+  </form>
+</div>
+
+<h2>Preset milestones</h2>
+<p class="subdued">
+  What a new org on this practice type starts with. Adding or removing here only affects orgs seeded from this
+  point forward &mdash; orgs already on this practice type keep what they have and can personalize it freely.
+</p>
+
+{% if practice_type.milestones %}
+  {% for m in practice_type.milestones %}
+    <div class="team-row static-row">
+      <div><strong>{{ m.label }}</strong></div>
+      <div style="display:flex; gap:4px; align-items:center;">
+        <form method="post" action="{{ url_for('app_admin.practice_type_milestone_move', practice_type_id=practice_type.id, milestone_id=m.id) }}">
+          <input type="hidden" name="direction" value="up">
+          <button type="submit" class="btn btn-ghost btn-small" {{ 'disabled' if loop.first }} aria-label="Move {{ m.label }} up">&uarr;</button>
+        </form>
+        <form method="post" action="{{ url_for('app_admin.practice_type_milestone_move', practice_type_id=practice_type.id, milestone_id=m.id) }}">
+          <input type="hidden" name="direction" value="down">
+          <button type="submit" class="btn btn-ghost btn-small" {{ 'disabled' if loop.last }} aria-label="Move {{ m.label }} down">&darr;</button>
+        </form>
+        <form method="post" action="{{ url_for('app_admin.practice_type_milestone_delete', practice_type_id=practice_type.id, milestone_id=m.id) }}"
+              onsubmit="return confirm('Remove {{ m.label }} from the preset? Orgs that already have it keep it.');">
+          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">No milestones yet &mdash; add the first one below.</p>
+{% endif %}
+
+<details style="margin-top:12px;">
+  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add milestone</summary>
+  <form method="post" action="{{ url_for('app_admin.practice_type_milestone_new', practice_type_id=practice_type.id) }}" style="margin-top:14px;">
+    <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. Case Filed" required></div>
+    <button type="submit" class="btn btn-primary">Add milestone</button>
+  </form>
+</details>
+
+<div class="danger-zone" style="margin-top:32px;">
+  <h2>Delete this practice type</h2>
+  <p class="subdued">Only possible while no org is assigned to it.</p>
+  <form method="post" action="{{ url_for('app_admin.practice_type_delete', practice_type_id=practice_type.id) }}"
+        onsubmit="return confirm('Delete {{ practice_type.name }}? This cannot be undone.');">
+    <button type="submit" class="btn btn-danger" {{ 'disabled' if org_count }}>Delete practice type</button>
+  </form>
+</div>
+{% endblock %}

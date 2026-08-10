@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact, User
 from app.models.campaigns import _timing_label as timing_label_phrase
-from app.models.timeline import STANDARD_EVENT_TYPES, CustomEventType
+from app.models.timeline import CustomEventType
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
 from app.services import campaign_rules
@@ -59,26 +59,25 @@ def _can_manage_recipe(recipe):
 
 def _org_event_type_choices():
     """(key, label) pairs for the local Flow Library's trigger dropdown:
-    built-ins plus this org's shared (org-scope) milestones. Personal
-    milestones are deliberately excluded -- a local recipe is a shared
-    team template any agent can copy, so it can't rely on a milestone
-    that's private to whichever admin happened to author it."""
-    standard = [(t, t.replace("_", " ").title()) for t in STANDARD_EVENT_TYPES if t != "custom"]
+    this org's shared (org-scope) milestones -- including whatever came
+    from the org's PracticeType preset, now ordinary rows like anything
+    else. Personal milestones are deliberately excluded -- a local
+    recipe is a shared team template any agent can copy, so it can't
+    rely on a milestone that's private to whichever admin happened to
+    author it."""
     org_types = (
         CustomEventType.query.filter_by(org_id=current_user.org_id, scope="org")
         .order_by(CustomEventType.label).all()
     )
-    return standard + [(t.key, t.label) for t in org_types]
+    return [(t.key, t.label) for t in org_types]
 
 
 def _personal_event_type_choices():
-    """(key, label) pairs for a personal flow's trigger dropdown:
-    built-ins, this org's shared milestones, and this agent's own
-    personal milestones."""
-    standard = [(t, t.replace("_", " ").title()) for t in STANDARD_EVENT_TYPES if t != "custom"]
+    """(key, label) pairs for a personal flow's trigger dropdown: this
+    org's shared milestones plus this agent's own personal milestones."""
     query = CustomEventType.query.filter_by(org_id=current_user.org_id)
     visible = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
-    return standard + [(t.key, t.label) for t in visible]
+    return [(t.key, t.label) for t in visible]
 
 
 def _condition_form_kwargs(org):
@@ -185,11 +184,10 @@ def _describe_condition(rule, field_labels):
 
 
 def _event_type_label(event_type, org):
-    """Plain display label for an event_type key -- a standard type's
-    title-cased name, or a CustomEventType's own label when it's one of
-    this org's (shared or personal) custom milestones."""
-    if event_type in STANDARD_EVENT_TYPES:
-        return event_type.replace("_", " ").title()
+    """Plain display label for an event_type key -- a CustomEventType's
+    own label when it's one of this org's (shared or personal) custom
+    milestones, else a generic title-cased fallback (covers the
+    'custom' one-off sentinel and any stale/legacy key)."""
     custom = CustomEventType.query.filter_by(org_id=org.id, key=event_type).first()
     return custom.label if custom else (event_type or "").replace("_", " ").title()
 

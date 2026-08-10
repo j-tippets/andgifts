@@ -22,6 +22,19 @@
     </div>
 
     <div class="field" style="margin-top:16px;">
+      <label for="practice_type_id">Practice type</label>
+      <select id="practice_type_id" name="practice_type_id">
+        <option value="">&mdash; None &mdash;</option>
+        {% for pt in practice_types %}
+          <option value="{{ pt.id }}" {{ 'selected' if org.practice_type_id == pt.id }}>{{ pt.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="subdued" style="margin:4px 0 0;">
+        <small>Changing this seeds any milestones from the new preset {{ org.name }} doesn't already have. Nothing they already personalized is touched or removed.</small>
+      </p>
+    </div>
+
+    <div class="field" style="margin-top:16px;">
       <label class="checkbox-chip">
         <input type="checkbox" name="dropoff_enabled" {% if org.dropoff_enabled %}checked{% endif %}>
         Offer free office drop-off at checkout

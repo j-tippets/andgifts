@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 
 from app.extensions import db
-from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe, Badge, OrgEventLog
-from app.models.timeline import STANDARD_EVENT_TYPES
+from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe, Badge, OrgEventLog, PracticeType, PracticeTypeMilestone
+from app.models.timeline import slugify_event_key
 from app.decorators import platform_admin_required
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str, tags_from_form, lead_time_from_form
+from app.services.practice_types import seed_org_milestones
 
 app_admin_bp = Blueprint("app_admin", __name__, url_prefix="/app-admin")
 
@@ -19,6 +20,7 @@ def dashboard():
         recipe_count=CampaignRecipe.query.filter_by(is_active=True, org_id=None).count(),
         badge_count=Badge.query.filter_by(scope="global").count(),
         recent_event_count=OrgEventLog.query.count(),
+        practice_type_count=PracticeType.query.count(),
     )
 
 
@@ -98,6 +100,156 @@ def activity_list():
         end_date=end_date,
         event_type=event_type,
     )
+
+
+# --- Practice types (milestone presets) ---------------------------------
+
+@app_admin_bp.route("/practice-types")
+@platform_admin_required
+def practice_type_list():
+    types = PracticeType.query.order_by(PracticeType.name).all()
+    org_counts = {pt.id: Org.query.filter_by(practice_type_id=pt.id).count() for pt in types}
+    return render_template("app_admin/practice_type_list.html", types=types, org_counts=org_counts)
+
+
+@app_admin_bp.route("/practice-types/new", methods=["GET", "POST"])
+@platform_admin_required
+def practice_type_new():
+    if request.method == "GET":
+        return render_template("app_admin/practice_type_new.html")
+
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Give the practice type a name.", "error")
+        return render_template("app_admin/practice_type_new.html")
+
+    key = slugify_event_key(name)
+    if PracticeType.query.filter_by(key=key).first():
+        flash(f"A practice type already exists with a name too similar to '{name}'.", "error")
+        return render_template("app_admin/practice_type_new.html")
+
+    practice_type = PracticeType(key=key, name=name)
+    db.session.add(practice_type)
+    db.session.commit()
+    flash(f"Added '{name}'. Now add its starting milestones.", "success")
+    return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type.id))
+
+
+@app_admin_bp.route("/practice-types/<practice_type_id>/edit", methods=["GET", "POST"])
+@platform_admin_required
+def practice_type_edit(practice_type_id):
+    practice_type = PracticeType.query.get_or_404(practice_type_id)
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if not name:
+            flash("Name can't be blank.", "error")
+        else:
+            practice_type.name = name
+            db.session.commit()
+            flash(f"Updated '{name}'.", "success")
+        return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type.id))
+
+    org_count = Org.query.filter_by(practice_type_id=practice_type.id).count()
+    return render_template(
+        "app_admin/practice_type_edit.html",
+        practice_type=practice_type,
+        org_count=org_count,
+    )
+
+
+@app_admin_bp.route("/practice-types/<practice_type_id>/milestones/new", methods=["POST"])
+@platform_admin_required
+def practice_type_milestone_new(practice_type_id):
+    """Adding a milestone here only affects orgs seeded AFTER this save
+    -- see services.practice_types.seed_org_milestones. Orgs already on
+    this practice type keep whatever they have; they don't retroactively
+    pick up new preset milestones."""
+    practice_type = PracticeType.query.get_or_404(practice_type_id)
+
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the milestone a name.", "error")
+        return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type.id))
+
+    key = slugify_event_key(label)
+    if key == "custom" or PracticeTypeMilestone.query.filter_by(
+        practice_type_id=practice_type.id, key=key
+    ).first():
+        flash(f"A milestone already exists with a name too similar to '{label}'.", "error")
+        return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type.id))
+
+    next_order = db.session.query(db.func.coalesce(db.func.max(PracticeTypeMilestone.sort_order), -1)).filter_by(
+        practice_type_id=practice_type.id
+    ).scalar() + 1
+
+    db.session.add(PracticeTypeMilestone(
+        practice_type_id=practice_type.id, key=key, label=label, sort_order=next_order,
+    ))
+    db.session.commit()
+    flash(f"Added '{label}'.", "success")
+    return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type.id))
+
+
+@app_admin_bp.route("/practice-types/<practice_type_id>/milestones/<milestone_id>/delete", methods=["POST"])
+@platform_admin_required
+def practice_type_milestone_delete(practice_type_id, milestone_id):
+    milestone = PracticeTypeMilestone.query.filter_by(
+        id=milestone_id, practice_type_id=practice_type_id
+    ).first_or_404()
+    label = milestone.label
+    db.session.delete(milestone)
+    db.session.commit()
+    flash(
+        f"Removed '{label}' from the preset. Orgs that already copied it keep it -- "
+        "this only changes what new orgs on this practice type start with.",
+        "success",
+    )
+    return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type_id))
+
+
+@app_admin_bp.route("/practice-types/<practice_type_id>/milestones/<milestone_id>/move", methods=["POST"])
+@platform_admin_required
+def practice_type_milestone_move(practice_type_id, milestone_id):
+    """Swaps this milestone's sort_order with its neighbor in the given
+    direction -- simple adjacent-swap reordering, same idea as the
+    up/down buttons on the agent priority list, just without drag-and-
+    drop since this is a low-traffic admin-only page."""
+    direction = request.form.get("direction")
+    milestones = (
+        PracticeTypeMilestone.query.filter_by(practice_type_id=practice_type_id)
+        .order_by(PracticeTypeMilestone.sort_order).all()
+    )
+    ids = [m.id for m in milestones]
+    if milestone_id not in ids:
+        return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type_id))
+
+    i = ids.index(milestone_id)
+    j = i - 1 if direction == "up" else i + 1
+    if 0 <= j < len(milestones):
+        milestones[i].sort_order, milestones[j].sort_order = milestones[j].sort_order, milestones[i].sort_order
+        db.session.commit()
+    return redirect(url_for("app_admin.practice_type_edit", practice_type_id=practice_type_id))
+
+
+@app_admin_bp.route("/practice-types/<practice_type_id>/delete", methods=["POST"])
+@platform_admin_required
+def practice_type_delete(practice_type_id):
+    practice_type = PracticeType.query.get_or_404(practice_type_id)
+    org_count = Org.query.filter_by(practice_type_id=practice_type.id).count()
+    if org_count:
+        flash(
+            f"Can't delete '{practice_type.name}' -- {org_count} org{'s' if org_count != 1 else ''} "
+            "still assigned to it. Reassign them first.",
+            "error",
+        )
+        return redirect(url_for("app_admin.practice_type_list"))
+
+    name = practice_type.name
+    db.session.delete(practice_type)
+    db.session.commit()
+    flash(f"Deleted '{name}'.", "success")
+    return redirect(url_for("app_admin.practice_type_list"))
 
 
 # --- Global gift catalog -----------------------------------------------
@@ -230,11 +382,25 @@ def org_edit(org_id):
         # Checkbox only appears in form data when checked.
         org.dropoff_enabled = request.form.get("dropoff_enabled") == "on"
 
+        new_practice_type_id = request.form.get("practice_type_id") or None
+        seeded = []
+        if new_practice_type_id != org.practice_type_id:
+            org.practice_type_id = new_practice_type_id
+            db.session.flush()  # so org.practice_type is loadable for seeding below
+            if new_practice_type_id:
+                seeded = seed_org_milestones(org)
+
         if org.dropoff_enabled and org.tier not in ("pro", "team"):
             flash(
                 f"Saved, but drop-off won't actually show at checkout until {org.name} is on "
                 "the pro or team plan.",
                 "warning",
+            )
+        elif seeded:
+            flash(
+                f"Updated {org.name}. Added {len(seeded)} milestone{'s' if len(seeded) != 1 else ''} "
+                "from the new practice type -- anything they already had (built-in or personalized) was left alone.",
+                "success",
             )
         else:
             flash(f"Updated {org.name}.", "success")
@@ -247,6 +413,7 @@ def org_edit(org_id):
         "app_admin/org_edit.html",
         org=org,
         events=events,
+        practice_types=PracticeType.query.order_by(PracticeType.name).all(),
         pricing_display=current_app.config["PRICING_DISPLAY"],
     )
 
@@ -320,9 +487,17 @@ def badge_delete(badge_id):
 # --- Campaign recipe book ------------------------------------------------
 
 def _recipe_form_kwargs():
-    """Shared dropdown data for the recipe new/edit forms."""
+    """Shared dropdown data for the recipe new/edit forms. A global
+    recipe isn't scoped to one org, so its trigger options are every
+    milestone key defined across every practice type's preset --
+    deduped by key (first-seen label wins in the rare case two presets
+    reuse the same key with different labels)."""
+    seen = []
+    for pm in PracticeTypeMilestone.query.order_by(PracticeTypeMilestone.key).all():
+        if pm.key not in seen:
+            seen.append(pm.key)
     return dict(
-        event_types=STANDARD_EVENT_TYPES,
+        event_types=seen,
         gift_items=(
             GiftCatalogItem.query.filter_by(org_id=None, is_active=True)
             .order_by(GiftCatalogItem.price_cents, GiftCatalogItem.name)
