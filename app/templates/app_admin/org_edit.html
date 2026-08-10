@@ -6,7 +6,7 @@
     <div class="eyebrow">App Admin</div>
     <h1>{{ org.name }}</h1>
     <p class="subdued" style="margin-top:4px;">
-      <small>{{ org.tier|capitalize }} plan &middot; {{ org.seat_count() }} seat{{ 's' if org.seat_count() != 1 else '' }} &middot; {{ org.contact_count() }} contact{{ 's' if org.contact_count() != 1 else '' }}</small>
+      <small>{{ org.display_tier_name() }} plan &middot; {{ org.seat_count() }} seat{{ 's' if org.seat_count() != 1 else '' }} &middot; {{ org.contact_count() }} contact{{ 's' if org.contact_count() != 1 else '' }}</small>
     </p>
   </div>
   <a href="{{ url_for('app_admin.orgs_list') }}" class="btn btn-ghost">&larr; Orgs</a>
@@ -29,9 +29,9 @@
       <p class="subdued" style="margin:4px 0 0;">
         <small>
           {% if org.tier in ('pro', 'team') %}
-            {{ org.name }} is on the {{ org.tier }} plan, so this will take effect immediately.
+            {{ org.name }} is on the {{ org.display_tier_name() }} plan, so this will take effect immediately.
           {% else %}
-            {{ org.name }} is on the {{ org.tier }} plan &mdash; this option won't actually appear at
+            {{ org.name }} is on the {{ org.display_tier_name() }} plan &mdash; this option won't actually appear at
             checkout until they're upgraded to pro or team, even if you turn it on here.
           {% endif %}
         </small>

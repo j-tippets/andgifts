@@ -15,7 +15,7 @@
     <a href="{{ url_for('app_admin.org_edit', org_id=org.id) }}" class="contact-row" style="text-decoration:none; color:inherit;">
       <div>
         <strong>{{ org.name }}</strong>
-        <span class="subdued"> — {{ org.tier|capitalize }} plan</span>
+        <span class="subdued"> — {{ org.display_tier_name() }} plan</span>
         {% if org.can_offer_dropoff() %}
           <span class="subdued"> &middot; drop-off on</span>
         {% endif %}

@@ -49,7 +49,7 @@
       </nav>
     </div>
     <button class="account-chip" id="accountToggleDesktop" aria-haspopup="true" aria-expanded="false">
-      <span class="plan-label">{{ current_user.org.tier|capitalize }} plan</span>
+      <span class="plan-label">{{ current_user.org.display_tier_name() }} plan</span>
       {% if current_user.photo_url %}
         <img src="{{ current_user.photo_url }}" alt="{{ current_user.full_name }}" class="avatar">
       {% else %}
@@ -62,7 +62,7 @@
   <div class="account-menu" id="accountMenu" hidden>
     <div class="account-menu-name">
       {{ current_user.full_name }}
-      <span class="account-menu-plan">{{ current_user.org.tier|capitalize }} plan</span>
+      <span class="account-menu-plan">{{ current_user.org.display_tier_name() }} plan</span>
     </div>
     <a href="{{ url_for('profile.edit_profile') }}">Profile</a>
     <a href="{{ url_for('settings.index') }}">Settings</a>

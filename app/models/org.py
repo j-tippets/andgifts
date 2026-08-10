@@ -110,6 +110,16 @@ class Org(db.Model):
         from flask import current_app
         return current_app.config["TIER_LIMITS"][self.tier][key]
 
+    def display_tier_name(self):
+        """Human-facing plan name (e.g. 'Solo') for the internal tier key
+        (e.g. 'starter') -- PRICING_DISPLAY is the single source of truth
+        for what a tier is CALLED, same way TIER_LIMITS is for what it
+        GETS, so nothing should ever build this name by capitalizing
+        self.tier directly (that's how 'Solo' regressed to 'Starter' in
+        the account badge)."""
+        from flask import current_app
+        return current_app.config["PRICING_DISPLAY"][self.tier]["display_name"]
+
     def can_add_contact(self):
         limit = self.limit_for("contacts")
         return limit is None or self.contact_count() < limit
