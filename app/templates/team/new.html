@@ -26,27 +26,50 @@
   <fieldset>
     <legend>How should they get access?</legend>
     <div class="access-method">
-      <label class="access-option">
-        <input type="radio" name="method" value="invite" checked>
-        <div>
+      <div class="access-option">
+        <input type="radio" name="method" value="invite" id="method-invite" checked>
+        <label for="method-invite" style="flex:1;">
           <div class="option-title">Email invite</div>
-          <div class="subdued">They'll set their own password. <small>(Link is generated for you to send manually until email sending is wired up.)</small></div>
+          <div class="subdued">They'll set their own password.</div>
+        </label>
+      </div>
+      <div class="access-option">
+        <input type="radio" name="method" value="direct" id="method-direct">
+        <div style="flex:1;">
+          <label for="method-direct">
+            <div class="option-title">Set a password directly</div>
+            <div class="subdued">You set a temporary password now.</div>
+          </label>
+          <div class="field" id="temp-password-field" style="margin-top:12px; display:none;">
+            <label for="temp_password">Temporary password</label>
+            <input type="text" id="temp_password" name="temp_password" placeholder="Leave blank to auto-generate">
+          </div>
         </div>
-      </label>
-      <label class="access-option">
-        <input type="radio" name="method" value="direct">
-        <div>
-          <div class="option-title">Create directly</div>
-          <div class="subdued">You set a temporary password now.</div>
-        </div>
-      </label>
+      </div>
     </div>
   </fieldset>
 
-  <div class="field">
-    <label>Temporary password (only used for "Create directly")</label>
-    <input type="text" name="temp_password" placeholder="Leave blank to auto-generate">
-  </div>
+  <script>
+    (function () {
+      var inviteRadio = document.getElementById('method-invite');
+      var directRadio = document.getElementById('method-direct');
+      var passwordField = document.getElementById('temp-password-field');
+      var passwordInput = document.getElementById('temp_password');
+
+      function sync() {
+        passwordField.style.display = directRadio.checked ? '' : 'none';
+      }
+
+      inviteRadio.addEventListener('change', sync);
+      directRadio.addEventListener('change', sync);
+      passwordInput.addEventListener('focus', function () {
+        directRadio.checked = true;
+        sync();
+      });
+
+      sync();
+    })();
+  </script>
 
   <button type="submit" class="btn btn-primary">Add agent</button>
   <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">Cancel</a>
