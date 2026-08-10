@@ -9,6 +9,15 @@
   <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">&larr; All team</a>
 </div>
 
+{% if member.status == 'pending' %}
+  <div class="flash flash-error" style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+    <span>{{ member.full_name }} hasn't accepted their invite yet.</span>
+    <form method="POST" action="{{ url_for('team.resend_invite', user_id=member.id) }}">
+      <button type="submit" class="btn btn-ghost btn-small">Resend invite</button>
+    </form>
+  </div>
+{% endif %}
+
 <form method="post" enctype="multipart/form-data">
   <fieldset>
     <legend>Photo</legend>

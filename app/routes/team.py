@@ -128,6 +128,34 @@ def accept_invite(token):
     return render_template("team/accept_invite.html", user=user)
 
 
+@team_bp.route("/<user_id>/resend-invite", methods=["POST"])
+@admin_required
+def resend_invite(user_id):
+    user = User.query.filter_by(id=user_id, org_id=current_user.org_id).first_or_404()
+    if user.status != "pending":
+        flash(f"{user.full_name} has already accepted their invite.", "error")
+        return redirect(url_for("team.list_members"))
+
+    # Fresh token + expiry window rather than reusing the old one -- the
+    # original link may already be sitting (unclicked) in an inbox, and
+    # this makes sure it can't be used after a stale invite is reissued.
+    user.invite_token = secrets.token_urlsafe(32)
+    user.invite_expires_at = datetime.utcnow() + timedelta(days=INVITE_EXPIRY_DAYS)
+    db.session.commit()
+
+    invite_link = url_for("team.accept_invite", token=user.invite_token, _external=True)
+    delivered = send_team_invite_email(user, invite_link, current_user.full_name)
+    if delivered:
+        flash(f"Invite resent to {user.email}.", "success")
+    else:
+        flash(
+            f"Couldn't resend the email to {user.email}. Share this link directly "
+            f"(expires in {INVITE_EXPIRY_DAYS} days): {invite_link}",
+            "error",
+        )
+    return redirect(url_for("team.list_members"))
+
+
 @team_bp.route("/<user_id>/edit", methods=["GET", "POST"])
 @admin_required
 def edit_member(user_id):

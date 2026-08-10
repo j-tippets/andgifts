@@ -18,20 +18,42 @@
 
 {% if members %}
   {% for member in members %}
-    <a href="{{ url_for('team.edit_member', user_id=member.id) }}" class="team-row">
-      <div style="display:flex; align-items:center; gap:12px;">
-        {% if member.photo_url %}
-          <img src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-sm">
-        {% else %}
-          <div class="avatar avatar-sm avatar-placeholder">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
-        {% endif %}
-        <div>
-          <strong>{{ member.full_name }}</strong>
-          <span class="subdued"> — {{ member.email }}</span>
+    {% if member.status == 'pending' %}
+      <div class="team-row static-row">
+        <a href="{{ url_for('team.edit_member', user_id=member.id) }}" style="display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit; flex:1;">
+          {% if member.photo_url %}
+            <img src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-sm">
+          {% else %}
+            <div class="avatar avatar-sm avatar-placeholder">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
+          {% endif %}
+          <div>
+            <strong>{{ member.full_name }}</strong>
+            <span class="subdued"> — {{ member.email }}</span>
+          </div>
+        </a>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="status-pill status-pending">Pending</span>
+          <form method="POST" action="{{ url_for('team.resend_invite', user_id=member.id) }}">
+            <button type="submit" class="btn btn-ghost btn-small">Resend invite</button>
+          </form>
         </div>
       </div>
-      <span class="role-pill role-{{ member.role }}">{{ member.role|capitalize }}</span>
-    </a>
+    {% else %}
+      <a href="{{ url_for('team.edit_member', user_id=member.id) }}" class="team-row">
+        <div style="display:flex; align-items:center; gap:12px;">
+          {% if member.photo_url %}
+            <img src="{{ member.photo_url }}" alt="{{ member.full_name }}" class="avatar avatar-sm">
+          {% else %}
+            <div class="avatar avatar-sm avatar-placeholder">{{ (member.first_name or '')[:1] }}{{ (member.last_name or '')[:1] }}</div>
+          {% endif %}
+          <div>
+            <strong>{{ member.full_name }}</strong>
+            <span class="subdued"> — {{ member.email }}</span>
+          </div>
+        </div>
+        <span class="role-pill role-{{ member.role }}">{{ member.role|capitalize }}</span>
+      </a>
+    {% endif %}
   {% endfor %}
 {% else %}
   <div class="empty-state">
