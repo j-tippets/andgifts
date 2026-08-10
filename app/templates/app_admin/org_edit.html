@@ -41,4 +41,26 @@
     <button type="submit" class="btn btn-primary" style="margin-top:20px;">Save</button>
   </form>
 </div>
+
+<div style="margin-top:32px; max-width:520px;">
+  <h2 style="margin-bottom:12px;">History</h2>
+  {% if events %}
+    {% for e in events %}
+      <div class="contact-row">
+        <span class="subdued">
+          {% if e.event_type == 'signup' %}
+            Signed up on {{ pricing_display[e.to_tier].display_name }}
+          {% elif e.event_type == 'upgrade' %}
+            Upgraded {{ pricing_display[e.from_tier].display_name }} &rarr; {{ pricing_display[e.to_tier].display_name }}
+          {% else %}
+            Downgraded {{ pricing_display[e.from_tier].display_name }} &rarr; {{ pricing_display[e.to_tier].display_name }}
+          {% endif %}
+        </span>
+        <span class="subdued">{{ e.created_at.strftime('%b %-d, %Y %-I:%M %p') }}</span>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="subdued">No signup/upgrade/downgrade history for this org yet.</p>
+  {% endif %}
+</div>
 {% endblock %}

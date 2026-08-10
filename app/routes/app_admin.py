@@ -242,7 +242,13 @@ def org_edit(org_id):
         db.session.commit()
         return redirect(url_for("app_admin.org_edit", org_id=org.id))
 
-    return render_template("app_admin/org_edit.html", org=org)
+    events = OrgEventLog.query.filter_by(org_id=org.id).order_by(OrgEventLog.created_at.desc()).all()
+    return render_template(
+        "app_admin/org_edit.html",
+        org=org,
+        events=events,
+        pricing_display=current_app.config["PRICING_DISPLAY"],
+    )
 
 
 # --- Billing (placeholder) ----------------------------------------------
