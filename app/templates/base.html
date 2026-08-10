@@ -68,6 +68,11 @@
     <a href="{{ url_for('settings.index') }}">Settings</a>
     {% if current_user.is_admin %}
       <a href="{{ url_for('team.list_members') }}">Team</a>
+      {% if current_user.org.tier == 'free' %}
+        <a href="{{ url_for('pages.pricing') }}" class="account-menu-upgrade">Upgrade</a>
+      {% else %}
+        <a href="{{ url_for('settings.billing') }}">Billing</a>
+      {% endif %}
     {% endif %}
     {% if current_user.platform_admin %}
       <a href="{{ url_for('app_admin.dashboard') }}">App Admin</a>
