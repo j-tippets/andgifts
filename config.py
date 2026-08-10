@@ -121,6 +121,16 @@ class Config:
         "team": {"contacts": None, "seats": None, "ai_dashboard": True, "email_monthly_cap": None, "sms_monthly_cap": None, "contact_cooldown_days": 5},
     }
 
+    # Low-to-high ordering of tiers -- lets webhook handlers tell an
+    # upgrade from a downgrade (see routes/orders.py) without hardcoding
+    # tier comparisons in more than one place.
+    TIER_ORDER = ["free", "starter", "pro", "team"]
+
+    # Where signup/upgrade/downgrade notification emails go (see
+    # services/org_events.py). Separate from SUPPORT_INBOX_EMAIL since
+    # these are business-activity pings, not customer support requests.
+    PLATFORM_ADMIN_EMAIL = os.environ.get("PLATFORM_ADMIN_EMAIL", "admin@andgifts.app")
+
     # --- Public pricing page display (marketing copy only -- NOT wired to
     # Stripe or enforcement yet; that's the next step). price_cents is
     # display-only for now; TIER_LIMITS above remains the single source of

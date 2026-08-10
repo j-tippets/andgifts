@@ -240,6 +240,47 @@ def send_flow_action_email(action, sender_name, sender_user=None):
         return False, "SendGrid send failed. Check the app logs, or try sending manually."
     return True, None
 
+def send_org_event_notification(org, event_type, from_tier, to_tier, org_admin_url=None):
+    """Sent to PLATFORM_ADMIN_EMAIL whenever an org signs up, upgrades,
+    or downgrades (see services/org_events.record_org_event, the single
+    call site for this). Uses PRICING_DISPLAY names (e.g. 'Solo') rather
+    than raw tier keys (e.g. 'starter') so this reads the same way the
+    in-app badges do -- see Org.display_tier_name for why that
+    distinction matters here."""
+    to_email = current_app.config.get("PLATFORM_ADMIN_EMAIL")
+    if not to_email:
+        return False
+
+    display_names = current_app.config["PRICING_DISPLAY"]
+    to_name = display_names.get(to_tier, {}).get("display_name", to_tier)
+
+    if event_type == "signup":
+        subject = f"New signup: {org.name}"
+        headline = f"{org.name} just signed up on the {to_name} plan."
+    else:
+        from_name = display_names.get(from_tier, {}).get("display_name", from_tier)
+        verb = "upgraded" if event_type == "upgrade" else "downgraded"
+        subject = f"{'Upgrade' if event_type == 'upgrade' else 'Downgrade'}: {org.name} ({from_name} \u2192 {to_name})"
+        headline = f"{org.name} just {verb} from {from_name} to {to_name}."
+
+    link_row = (
+        f'<tr><td style="padding:6px 0; color:#6B6459; width:120px;">Details</td>'
+        f'<td><a href="{org_admin_url}">View in App Admin</a></td></tr>'
+        if org_admin_url else ""
+    )
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color:#2A1A45;">{headline}</h2>
+      <table style="width:100%; border-collapse: collapse; margin: 16px 0;">
+        <tr><td style="padding:6px 0; color:#6B6459; width:120px;">Org</td><td>{org.name}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459;">Event</td><td>{event_type.capitalize()}</td></tr>
+        {link_row}
+      </table>
+    </div>
+    """
+    return send_email(to_email, subject, html)
+
+
 def send_support_request(user, topic, message):
     """Sent when a user submits the Support form (see routes/support.py).
     Goes to the internal support inbox, not the user -- this is a report

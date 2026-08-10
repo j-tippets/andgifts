@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Activity — App Admin{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <div class="eyebrow">App Admin</div>
+    <h1>Activity</h1>
+    <p class="subdued" style="margin-top:4px;"><small>Signups, upgrades, and downgrades, most recent first. Last 200 events.</small></p>
+  </div>
+  <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
+</div>
+
+{% if events %}
+  {% for e in events %}
+    <div class="contact-row" style="{% if e.org_id %}cursor:pointer;{% endif %}"
+      {% if e.org_id %}onclick="window.location='{{ url_for('app_admin.org_edit', org_id=e.org_id) }}'"{% endif %}>
+      <div>
+        <strong>{{ e.org_name_snapshot }}</strong>
+        <span class="subdued">
+          &mdash;
+          {% if e.event_type == 'signup' %}
+            signed up on {{ pricing_display[e.to_tier].display_name }}
+          {% elif e.event_type == 'upgrade' %}
+            upgraded {{ pricing_display[e.from_tier].display_name }} &rarr; {{ pricing_display[e.to_tier].display_name }}
+          {% else %}
+            downgraded {{ pricing_display[e.from_tier].display_name }} &rarr; {{ pricing_display[e.to_tier].display_name }}
+          {% endif %}
+        </span>
+        {% if not e.email_delivered %}
+          <span class="status-pill status-disabled">Email failed</span>
+        {% endif %}
+      </div>
+      <span class="subdued">{{ e.created_at.strftime('%b %-d, %Y %-I:%M %p') }}</span>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <h3>No activity yet</h3>
+    <p>Signups, upgrades, and downgrades will show up here as they happen.</p>
+  </div>
+{% endif %}
+{% endblock %}

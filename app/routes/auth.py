@@ -6,6 +6,7 @@ from flask_login import login_user, logout_user, login_required
 from app.extensions import db, limiter
 from app.models import User, Org
 from app.services.email import send_verification_email, send_password_reset_email
+from app.services.org_events import record_org_event
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -51,6 +52,7 @@ def register():
         )
         user.set_password(request.form["password"])
         db.session.add(user)
+        record_org_event(org, "signup", None, "free")
         db.session.commit()
 
         delivered = _send_verification(user)

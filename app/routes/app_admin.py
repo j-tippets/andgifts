@@ -1,7 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 
 from app.extensions import db
-from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe, Badge
+from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe, Badge, OrgEventLog
 from app.models.timeline import STANDARD_EVENT_TYPES
 from app.decorators import platform_admin_required
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str, tags_from_form, lead_time_from_form
@@ -18,6 +18,22 @@ def dashboard():
         org_count=Org.query.count(),
         recipe_count=CampaignRecipe.query.filter_by(is_active=True, org_id=None).count(),
         badge_count=Badge.query.filter_by(scope="global").count(),
+        recent_event_count=OrgEventLog.query.count(),
+    )
+
+
+@app_admin_bp.route("/activity")
+@platform_admin_required
+def activity_list():
+    """Signup/upgrade/downgrade history across every org -- the record-
+    of-truth view to complement the one-off notification emails (see
+    services/org_events.record_org_event), useful for spotting usage
+    patterns over time rather than just reacting to individual pings."""
+    events = OrgEventLog.query.order_by(OrgEventLog.created_at.desc()).limit(200).all()
+    return render_template(
+        "app_admin/activity.html",
+        events=events,
+        pricing_display=current_app.config["PRICING_DISPLAY"],
     )
 
 

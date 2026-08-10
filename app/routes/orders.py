@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import Order, ActionLog, ContactAuditLog, Org
 from app.services.stripe_client import get_stripe
 from app.services.email import send_order_confirmation
+from app.services.org_events import record_org_event
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -85,9 +86,12 @@ def stripe_webhook():
                     org_id, tier, session.get("id"),
                 )
             else:
+                old_tier = org.tier
                 org.stripe_customer_id = session.get("customer")
                 org.stripe_subscription_id = session.get("subscription")
                 org.tier = tier
+                if tier != old_tier:
+                    record_org_event(org, "upgrade", old_tier, tier)
                 db.session.commit()
             return ("", 200)
 
@@ -146,18 +150,27 @@ def stripe_webhook():
         sub = event["data"]["object"]
         org = Org.query.filter_by(stripe_subscription_id=sub["id"]).first()
         if org:
+            old_tier = org.tier
+            new_tier = None
             if sub.get("status") == "canceled":
-                org.tier = "free"
+                new_tier = "free"
             else:
                 price_id = sub["items"]["data"][0]["price"]["id"]
-                tier = _tier_for_price_id(price_id)
-                if tier:
-                    org.tier = tier
-                else:
+                new_tier = _tier_for_price_id(price_id)
+                if not new_tier:
                     current_app.logger.warning(
                         "customer.subscription.updated for org %s references unknown price %s",
                         org.id, price_id,
                     )
+
+            # Only log/notify when the tier actually changed -- this
+            # event also fires for things that don't affect tier at all
+            # (e.g. a card update), and we don't want an email for those.
+            if new_tier and new_tier != old_tier:
+                org.tier = new_tier
+                tier_order = current_app.config["TIER_ORDER"]
+                event_type = "upgrade" if tier_order.index(new_tier) > tier_order.index(old_tier) else "downgrade"
+                record_org_event(org, event_type, old_tier, new_tier)
             db.session.commit()
 
     elif event["type"] == "customer.subscription.deleted":
@@ -168,8 +181,11 @@ def stripe_webhook():
         sub = event["data"]["object"]
         org = Org.query.filter_by(stripe_subscription_id=sub["id"]).first()
         if org:
+            old_tier = org.tier
             org.tier = "free"
             org.stripe_subscription_id = None
+            if old_tier != "free":
+                record_org_event(org, "downgrade", old_tier, "free")
             db.session.commit()
 
     return ("", 200)

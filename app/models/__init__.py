@@ -11,6 +11,7 @@ from app.models.audit import ContactAuditLog
 from app.models.campaigns import CampaignRecipe, Campaign, CampaignRecipeRule, CampaignRule
 from app.models.orders import Order
 from app.models.support import SupportRequest
+from app.models.org_events import OrgEventLog, EVENT_TYPES
 
 __all__ = [
     "Org", "User",
@@ -24,4 +25,5 @@ __all__ = [
     "CampaignRecipe", "Campaign", "CampaignRecipeRule", "CampaignRule",
     "Order",
     "SupportRequest",
+    "OrgEventLog", "EVENT_TYPES",
 ]
