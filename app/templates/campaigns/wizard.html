@@ -30,16 +30,27 @@
 </div>
 
 <form method="POST" id="wizard-form" novalidate>
+  {% set is_post = request.method == 'POST' %}
+  {% set repeat_checked = (request.form.get('repeat_enabled') if is_post else (not campaign or campaign.repeat_enabled)) %}
+  {% set use_llm_gift_checked = (request.form.get('use_llm_gift_selection') if is_post else (campaign and campaign.use_llm_gift_selection)) %}
+  {% set add_note_checked = (request.form.get('add_note') if is_post else (not campaign or campaign.add_note)) %}
+  {% set use_llm_copy_checked = (request.form.get('use_llm_copy') if is_post else (campaign and campaign.use_llm_copy)) %}
+  {% set action_type_value = request.form.get('action_type', campaign.action_type if campaign else 'gift') %}
+  {% set timing_unit_value = request.form.get('timing_unit', campaign.timing_unit if campaign else 'day') %}
+  {% set timing_direction_value = request.form.get('timing_direction', campaign.timing_direction if campaign else 'after') %}
+  {% set event_type_value = request.form.get('event_type', campaign.event_type if campaign else '') %}
+  {% set recur_interval_unit_value = request.form.get('recur_interval_unit', campaign.recur_interval_unit if campaign else 'year') %}
+  {% set suggested_gift_id_value = request.form.get('suggested_gift_id', campaign.suggested_gift_id if campaign else '') %}
   <div class="wizard-pane active" data-pane="1">
     <div class="form-section">
       <h3 class="form-section-title">Name this flow</h3>
       <div class="field">
         <label>Name</label>
-        <input type="text" name="name" value="{{ campaign.name if campaign else '' }}" placeholder="e.g. Post-showing feedback ask" required>
+        <input type="text" name="name" value="{{ request.form.get('name', campaign.name if campaign else '') }}" placeholder="e.g. Post-showing feedback ask" required>
       </div>
       <div class="field">
         <label>Description (optional)</label>
-        <textarea name="description" rows="2" placeholder="What this flow is for">{{ campaign.description if campaign and campaign.description else '' }}</textarea>
+        <textarea name="description" rows="2" placeholder="What this flow is for">{{ request.form.get('description', campaign.description if campaign and campaign.description else '') }}</textarea>
       </div>
     </div>
 
@@ -47,47 +58,47 @@
       <h3 class="form-section-title">When should this happen?</h3>
       <div class="timing-sentence-row">
         <div class="timing-amount-row" id="timing-amount-row">
-          <input type="text" name="timing_amount" class="timing-sentence-amount" value="{{ campaign.timing_amount if campaign else 1 }}" aria-label="Amount">
+          <input type="text" name="timing_amount" class="timing-sentence-amount" value="{{ request.form.get('timing_amount', campaign.timing_amount if campaign else 1) }}" aria-label="Amount">
           <select name="timing_unit" class="timing-sentence-select" aria-label="Unit">
-            <option value="day" {{ 'selected' if not campaign or campaign.timing_unit == 'day' else '' }}>days</option>
-            <option value="week" {{ 'selected' if campaign and campaign.timing_unit == 'week' else '' }}>weeks</option>
-            <option value="month" {{ 'selected' if campaign and campaign.timing_unit == 'month' else '' }}>months</option>
-            <option value="year" {{ 'selected' if campaign and campaign.timing_unit == 'year' else '' }}>years</option>
+            <option value="day" {{ 'selected' if timing_unit_value == 'day' else '' }}>days</option>
+            <option value="week" {{ 'selected' if timing_unit_value == 'week' else '' }}>weeks</option>
+            <option value="month" {{ 'selected' if timing_unit_value == 'month' else '' }}>months</option>
+            <option value="year" {{ 'selected' if timing_unit_value == 'year' else '' }}>years</option>
           </select>
         </div>
         <select name="timing_direction" class="timing-sentence-select" aria-label="Timing direction">
-          <option value="before" {{ 'selected' if campaign and campaign.timing_direction == 'before' else '' }}>before</option>
-          <option value="same_day" {{ 'selected' if campaign and campaign.timing_direction == 'same_day' else '' }}>the same day as</option>
-          <option value="after" {{ 'selected' if not campaign or campaign.timing_direction == 'after' else '' }}>after</option>
+          <option value="before" {{ 'selected' if timing_direction_value == 'before' else '' }}>before</option>
+          <option value="same_day" {{ 'selected' if timing_direction_value == 'same_day' else '' }}>the same day as</option>
+          <option value="after" {{ 'selected' if timing_direction_value == 'after' else '' }}>after</option>
         </select>
         <select name="event_type" class="timing-sentence-select timing-event-select" required aria-label="Event">
           {% for et, et_label in event_types %}
-            <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
+            <option value="{{ et }}" {{ 'selected' if event_type_value == et else '' }}>{{ et_label }}</option>
           {% endfor %}
         </select>
       </div>
       <p class="subdued" style="margin-top:10px;"><small>Choose the timing and the moment that starts this flow.</small></p>
 
-      <button type="button" id="repeat-toggle" class="chip {{ 'active' if not campaign or campaign.repeat_enabled else '' }}" style="margin-top:14px;" aria-pressed="{{ 'true' if not campaign or campaign.repeat_enabled else 'false' }}">
+      <button type="button" id="repeat-toggle" class="chip {{ 'active' if repeat_checked else '' }}" style="margin-top:14px;" aria-pressed="{{ 'true' if repeat_checked else 'false' }}">
         &#8635; Recurring
       </button>
-      <input type="checkbox" name="repeat_enabled" id="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }} style="display:none;" aria-hidden="true">
+      <input type="checkbox" name="repeat_enabled" id="repeat_enabled" {{ 'checked' if repeat_checked else '' }} style="display:none;" aria-hidden="true">
 
       <div id="repeat-fields" style="margin-top:14px;">
         <div class="timing-sentence-row">
           <span class="subdued" style="font-size:14.5px;">every</span>
-          <input type="text" name="recur_interval_amount" class="timing-sentence-amount" value="{{ campaign.recur_interval_amount if campaign else 1 }}" aria-label="Repeat amount">
+          <input type="text" name="recur_interval_amount" class="timing-sentence-amount" value="{{ request.form.get('recur_interval_amount', campaign.recur_interval_amount if campaign else 1) }}" aria-label="Repeat amount">
           <select name="recur_interval_unit" class="timing-sentence-select" aria-label="Repeat unit">
-            <option value="day" {{ 'selected' if campaign and campaign.recur_interval_unit == 'day' else '' }}>day(s)</option>
-            <option value="week" {{ 'selected' if campaign and campaign.recur_interval_unit == 'week' else '' }}>week(s)</option>
-            <option value="month" {{ 'selected' if campaign and campaign.recur_interval_unit == 'month' else '' }}>month(s)</option>
-            <option value="year" {{ 'selected' if not campaign or campaign.recur_interval_unit == 'year' else '' }}>year(s)</option>
+            <option value="day" {{ 'selected' if recur_interval_unit_value == 'day' else '' }}>day(s)</option>
+            <option value="week" {{ 'selected' if recur_interval_unit_value == 'week' else '' }}>week(s)</option>
+            <option value="month" {{ 'selected' if recur_interval_unit_value == 'month' else '' }}>month(s)</option>
+            <option value="year" {{ 'selected' if recur_interval_unit_value == 'year' else '' }}>year(s)</option>
           </select>
         </div>
 
         <div class="timing-sentence-row" id="max-occurrences-field" style="margin-top:10px;">
           <span class="subdued" style="font-size:14.5px;">run this a maximum of</span>
-          <input type="text" name="max_occurrences" class="timing-sentence-amount" value="{{ campaign.max_occurrences if campaign and campaign.max_occurrences else '' }}" placeholder="&infin;" aria-label="Max occurrences">
+          <input type="text" name="max_occurrences" class="timing-sentence-amount" value="{{ request.form.get('max_occurrences', campaign.max_occurrences if campaign and campaign.max_occurrences else '') }}" placeholder="&infin;" aria-label="Max occurrences">
           <span class="subdued" style="font-size:14.5px;">times</span>
         </div>
         <p class="subdued" style="margin-top:4px;"><small>Leave the maximum blank to run every time this flow qualifies, with no limit.</small></p>
@@ -111,7 +122,7 @@
       </div>
 
       <label style="font-family:var(--font-rounded); font-weight:700; font-size:13px; display:block; margin-bottom:8px;">Add a condition (optional)</label>
-      {{ condition_builder(condition_fields, condition_operator_map, campaign.rules if campaign else []) }}
+      {{ condition_builder(condition_fields, condition_operator_map, rules) }}
     </div>
 
     <div style="display:flex; justify-content:space-between;">
@@ -125,28 +136,28 @@
       <h3 class="form-section-title">What should &amp;Gifts do?</h3>
       <div class="access-method">
         <label class="access-option">
-          <input type="radio" name="action_type" value="gift" id="action_type_gift" {{ 'checked' if not campaign or campaign.action_type == 'gift' else '' }}>
+          <input type="radio" name="action_type" value="gift" id="action_type_gift" {{ 'checked' if action_type_value == 'gift' else '' }}>
           <div>
             <div class="option-title">Send a gift</div>
             <div class="subdued"><small>Picked automatically within budget, or a fixed item</small></div>
           </div>
         </label>
         <label class="access-option">
-          <input type="radio" name="action_type" value="email" id="action_type_email" {{ 'checked' if campaign and campaign.action_type == 'email' else '' }}>
+          <input type="radio" name="action_type" value="email" id="action_type_email" {{ 'checked' if action_type_value == 'email' else '' }}>
           <div>
             <div class="option-title">Send an email</div>
             <div class="subdued"><small>Templated or written by the LLM</small></div>
           </div>
         </label>
         <label class="access-option">
-          <input type="radio" name="action_type" value="text" id="action_type_text" {{ 'checked' if campaign and campaign.action_type == 'text' else '' }}>
+          <input type="radio" name="action_type" value="text" id="action_type_text" {{ 'checked' if action_type_value == 'text' else '' }}>
           <div>
             <div class="option-title">Send a text</div>
             <div class="subdued"><small>Templated or written by the LLM</small></div>
           </div>
         </label>
         <label class="access-option">
-          <input type="radio" name="action_type" value="handwritten_note" id="action_type_handwritten_note" {{ 'checked' if campaign and campaign.action_type == 'handwritten_note' else '' }}>
+          <input type="radio" name="action_type" value="handwritten_note" id="action_type_handwritten_note" {{ 'checked' if action_type_value == 'handwritten_note' else '' }}>
           <div>
             <div class="option-title">Handwritten note</div>
             <div class="subdued"><small>Templated or written by the LLM</small></div>
@@ -157,7 +168,7 @@
 
     <div class="form-section" id="gift-fields">
       <label class="checkbox-chip" style="margin-bottom:10px;">
-        <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if campaign and campaign.use_llm_gift_selection else '' }}>
+        <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if use_llm_gift_checked else '' }}>
         Let the LLM pick the best gift instead of a fixed item
       </label>
       <div class="field">
@@ -170,34 +181,34 @@
         <select name="suggested_gift_id">
           <option value="">— none —</option>
           {% for g in gift_items %}
-            <option value="{{ g.id }}" {{ 'selected' if campaign and campaign.suggested_gift_id == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
+            <option value="{{ g.id }}" {{ 'selected' if suggested_gift_id_value == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
           {% endfor %}
         </select>
       </div>
       <label class="checkbox-chip" style="margin-top:10px;">
-        <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if not campaign or campaign.add_note else '' }}>
+        <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if add_note_checked else '' }}>
         Add a note to the gift or gift card
       </label>
       <div class="field" id="note-text-field" style="margin-top:10px;">
         <label>Note text (leave blank to let the LLM write it)</label>
-        <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ campaign.note_text if campaign and campaign.note_text else '' }}</textarea>
+        <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ request.form.get('note_text', campaign.note_text if campaign and campaign.note_text else '') }}</textarea>
         <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
       </div>
     </div>
 
     <div class="form-section" id="message-fields">
       <label class="checkbox-chip">
-        <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if campaign and campaign.use_llm_copy else '' }}>
+        <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if use_llm_copy_checked else '' }}>
         Let the LLM write the message instead of a fixed template
       </label>
       <div class="field" id="template-field" style="margin-top:10px;">
         <label>Message template</label>
-        <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ campaign.message_template if campaign and campaign.message_template else '' }}</textarea>
+        <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ request.form.get('message_template', campaign.message_template if campaign and campaign.message_template else '') }}</textarea>
         <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
       </div>
       <div class="field" id="llm-hint-field" style="margin-top:10px;">
         <label>What should the LLM say?</label>
-        <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '' }}</textarea>
+        <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ request.form.get('llm_prompt_hint', campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '') }}</textarea>
       </div>
     </div>
 
