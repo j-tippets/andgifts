@@ -21,6 +21,7 @@
       <div class="team-row priority-item" draggable="true" data-key="{{ item.key }}" style="cursor:grab;">
         <div class="priority-view" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
           <span class="subdued" aria-hidden="true">&#8942;&#8942;</span>
+          <span class="priority-rank">{{ loop.index }}</span>
           <strong>{{ item.label }}</strong>
         </div>
         {% if item.can_manage %}
@@ -68,6 +69,13 @@
       }, { offset: -Infinity }).element;
     }
 
+    function renumber() {
+      list.querySelectorAll('.priority-item').forEach(function (item, i) {
+        var rank = item.querySelector('.priority-rank');
+        if (rank) rank.textContent = i + 1;
+      });
+    }
+
     list.querySelectorAll('.priority-item').forEach(function (item) {
       item.addEventListener('dragstart', function (e) {
         // Don't let a drag start while an edit is open, or from inside
@@ -82,11 +90,11 @@
 
       item.querySelector('.priority-up').addEventListener('click', function () {
         var prev = item.previousElementSibling;
-        if (prev) list.insertBefore(item, prev);
+        if (prev) { list.insertBefore(item, prev); renumber(); }
       });
       item.querySelector('.priority-down').addEventListener('click', function () {
         var next = item.nextElementSibling;
-        if (next) list.insertBefore(next, item);
+        if (next) { list.insertBefore(next, item); renumber(); }
       });
 
       var editToggle = item.querySelector('.edit-toggle');
@@ -151,6 +159,7 @@
       } else {
         list.insertBefore(dragEl, after);
       }
+      renumber();
     });
 
     form.addEventListener('submit', function () {
