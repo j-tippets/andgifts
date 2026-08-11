@@ -1017,6 +1017,12 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 }
 .form-section .field:last-child { margin-bottom: 0; }
 
+.subsection-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--evergreen);
+  margin: 0 0 4px;
+}
+
+
 /* ---- Preview panel (dry-run results on flow builders) ---- */
 .preview-panel {
   position: relative; background: var(--paper-raised); border: 1.5px solid var(--line);
