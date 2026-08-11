@@ -55,20 +55,11 @@
             <option value="year" {{ 'selected' if campaign and campaign.timing_unit == 'year' else '' }}>years</option>
           </select>
         </div>
-        <div class="timing-direction-row">
-          <label class="timing-direction-option">
-            <input type="radio" name="timing_direction" value="before" {{ 'checked' if campaign and campaign.timing_direction == 'before' else '' }}>
-            before
-          </label>
-          <label class="timing-direction-option">
-            <input type="radio" name="timing_direction" value="same_day" {{ 'checked' if campaign and campaign.timing_direction == 'same_day' else '' }}>
-            the same day as
-          </label>
-          <label class="timing-direction-option">
-            <input type="radio" name="timing_direction" value="after" {{ 'checked' if not campaign or campaign.timing_direction == 'after' else '' }}>
-            after
-          </label>
-        </div>
+        <select name="timing_direction" class="timing-sentence-select" aria-label="Timing direction">
+          <option value="before" {{ 'selected' if campaign and campaign.timing_direction == 'before' else '' }}>before</option>
+          <option value="same_day" {{ 'selected' if campaign and campaign.timing_direction == 'same_day' else '' }}>the same day as</option>
+          <option value="after" {{ 'selected' if not campaign or campaign.timing_direction == 'after' else '' }}>after</option>
+        </select>
         <select name="event_type" class="timing-sentence-select timing-event-select" required aria-label="Event">
           {% for et, et_label in event_types %}
             <option value="{{ et }}" {{ 'selected' if campaign and campaign.event_type == et else '' }}>{{ et_label }}</option>
@@ -317,7 +308,7 @@
     var templateField = document.getElementById('template-field');
     var llmHintField = document.getElementById('llm-hint-field');
     var timingAmountRow = document.getElementById('timing-amount-row');
-    var timingDirectionInputs = document.querySelectorAll('input[name="timing_direction"]');
+    var timingDirectionSelect = document.querySelector('select[name="timing_direction"]');
     var addNote = document.getElementById('add_note');
     var noteTextField = document.getElementById('note-text-field');
     var repeatEnabled = document.getElementById('repeat_enabled');
@@ -334,11 +325,11 @@
       noteTextField.style.display = addNote.checked ? '' : 'none';
       repeatFields.style.display = repeatEnabled.checked ? '' : 'none';
 
-      var direction = document.querySelector('input[name="timing_direction"]:checked');
+      var direction = timingDirectionSelect;
       timingAmountRow.style.display = (direction && direction.value === 'same_day') ? 'none' : 'flex';
     }
     actionTypeInputs.forEach(function (el) { el.addEventListener('change', refresh); });
-    timingDirectionInputs.forEach(function (el) { el.addEventListener('change', refresh); });
+    timingDirectionSelect.addEventListener('change', refresh);
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
     addNote.addEventListener('change', refresh);
@@ -360,8 +351,7 @@
     }
 
     function timingPhrase() {
-      var direction = document.querySelector('input[name="timing_direction"]:checked');
-      var dirVal = direction ? direction.value : 'after';
+      var dirVal = timingDirectionSelect ? timingDirectionSelect.value : 'after';
       if (dirVal === 'same_day') return 'The same day as';
       var amount = parseInt(document.querySelector('[name="timing_amount"]').value, 10) || 1;
       var unit = document.querySelector('[name="timing_unit"]').value;
