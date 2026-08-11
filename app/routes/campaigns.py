@@ -278,6 +278,18 @@ def _org_contacts_query():
     return Contact.query.filter_by(org_id=current_user.org_id)
 
 
+def _wizard_rules(campaign):
+    """Condition rows for the wizard's Who step to display. On a POST
+    re-render (preview, or the name-required bounce-back) this rebuilds
+    from what was just submitted, so in-progress edits to conditions
+    survive the round trip the same way the rest of the form now does
+    (see the request.form fallbacks in wizard.html) instead of reverting
+    to whatever's saved -- or to nothing, for a brand new flow."""
+    if request.method == "POST":
+        return _conditions_from_form(CampaignRule, current_user.org)
+    return campaign.rules if campaign else []
+
+
 def _campaign_form_kwargs():
     """Shared dropdown data for the campaign wizard."""
     return dict(
@@ -632,6 +644,7 @@ def campaign_new():
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
+            rules=_wizard_rules(None),
             **_campaign_form_kwargs(),
         )
 
@@ -640,6 +653,7 @@ def campaign_new():
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
+            rules=_wizard_rules(None),
             **_campaign_form_kwargs(),
         )
 
@@ -649,6 +663,7 @@ def campaign_new():
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
+            rules=_wizard_rules(None),
             spec=spec,
             previewed_spec=spec,
             preview_results=preview_results,
@@ -684,6 +699,7 @@ def campaign_edit(campaign_id):
         return render_template(
             "campaigns/wizard.html",
             campaign=campaign,
+            rules=_wizard_rules(campaign),
             price_max_display=cents_to_dollars_str(campaign.price_max_cents),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             resulting_actions=_resulting_actions(campaign),
@@ -692,7 +708,15 @@ def campaign_edit(campaign_id):
 
     if not request.form.get("name", "").strip():
         flash("Name is required.", "error")
-        return redirect(url_for("campaigns.campaign_edit", campaign_id=campaign.id))
+        return render_template(
+            "campaigns/wizard.html",
+            campaign=campaign,
+            rules=_wizard_rules(campaign),
+            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
+            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
+            resulting_actions=_resulting_actions(campaign),
+            **_campaign_form_kwargs(),
+        )
 
     if request.form.get("action") == "preview":
         spec = _build_flow_spec_from_form(default_name=campaign.name)
@@ -703,6 +727,7 @@ def campaign_edit(campaign_id):
         return render_template(
             "campaigns/wizard.html",
             campaign=campaign,
+            rules=_wizard_rules(campaign),
             price_max_display=cents_to_dollars_str(campaign.price_max_cents),
             can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             preview_results=preview_results,
