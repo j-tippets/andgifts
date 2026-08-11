@@ -135,7 +135,7 @@ button { font-family: inherit; }
   font-family: var(--font-rounded);
 }
 .topbar .account-chip { padding: 6px 16px 6px 6px; }
-.plan-label { font-family: var(--font-rounded); font-weight: 700; font-size: 11px; color: var(--ink); opacity: .75; white-space: nowrap; }
+.user-chip-label { font-family: var(--font-rounded); font-weight: 700; font-size: 11px; color: var(--ink); opacity: .75; white-space: nowrap; }
 .account-chip .avatar, .account-chip .avatar-placeholder { width: 28px; height: 28px; font-size: 11px; flex-shrink: 0; }
 
 .account-menu {
