@@ -4,29 +4,48 @@
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
     <div class="eyebrow">Settings</div>
-    <h1>Milestone events</h1>
+    <h1>Milestones</h1>
   </div>
   <a href="{{ url_for('settings.index') }}" class="btn btn-ghost">&larr; Settings</a>
 </div>
 
-<h2>Your priority order</h2>
 <p class="subdued">
-  When a contact qualifies for more than one milestone on the same day, whichever is higher in this list wins.
-  This is just yours &mdash; other agents can order theirs differently.
+  Every milestone you can currently use &mdash; organization-wide ones from {{ current_user.org.name }}, plus your own personal ones.
+  Drag to reorder: when a contact qualifies for more than one on the same day, whichever is higher here wins.
+  This order is just yours &mdash; other agents can order theirs differently.
   {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
+  Org milestones can only be renamed or removed by an admin; you can always rename or remove your own personal ones.
 </p>
 
 <form method="POST" action="{{ url_for('contacts.save_milestone_priority') }}" id="priority-form">
   <div id="priority-list" style="margin-bottom:12px;">
     {% for item in priority_order %}
       <div class="team-row priority-item" draggable="true" data-key="{{ item.key }}" style="cursor:grab;">
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div class="priority-view" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
           <span class="subdued" aria-hidden="true">&#8942;&#8942;</span>
           <strong>{{ item.label }}</strong>
+          <span class="badge-pill">{{ "Org" if item.scope == "org" else "Personal" }}</span>
         </div>
-        <div style="display:flex; gap:4px;">
+        {% if item.can_manage %}
+        <div class="priority-edit" style="display:none; flex:1; align-items:center; gap:8px;">
+          <input type="text" class="edit-label-input" value="{{ item.label }}" style="flex:1;">
+        </div>
+        {% endif %}
+        <div style="display:flex; gap:4px; flex-shrink:0;">
           <button type="button" class="btn btn-ghost btn-small priority-up" aria-label="Move {{ item.label }} up">&uarr;</button>
           <button type="button" class="btn btn-ghost btn-small priority-down" aria-label="Move {{ item.label }} down">&darr;</button>
+          {% if item.can_manage %}
+            <button type="button" class="btn btn-ghost btn-small edit-toggle" aria-label="Rename {{ item.label }}">Edit</button>
+            <button type="button" class="btn btn-ghost btn-small edit-save" style="display:none;">Save</button>
+            <button type="button" class="btn btn-ghost btn-small edit-cancel" style="display:none;">Cancel</button>
+            <form method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=item.id) }}"
+                  onsubmit="return confirm('Remove the {{ item.label }} milestone? Timeline events and flows already using it keep working, it just won\'t be offered as an option going forward.');">
+              <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+            </form>
+            <form method="post" action="{{ url_for('contacts.edit_event_type', event_type_id=item.id) }}" class="edit-label-form" style="display:none;">
+              <input type="hidden" name="label" class="edit-label-hidden">
+            </form>
+          {% endif %}
         </div>
       </div>
     {% endfor %}
@@ -53,7 +72,10 @@
     }
 
     list.querySelectorAll('.priority-item').forEach(function (item) {
-      item.addEventListener('dragstart', function () {
+      item.addEventListener('dragstart', function (e) {
+        // Don't let a drag start while an edit is open, or from inside
+        // the input/buttons -- only the row itself should be draggable.
+        if (item.classList.contains('editing')) { e.preventDefault(); return; }
         dragEl = item;
         item.classList.add('dragging');
       });
@@ -68,6 +90,58 @@
       item.querySelector('.priority-down').addEventListener('click', function () {
         var next = item.nextElementSibling;
         if (next) list.insertBefore(next, item);
+      });
+
+      var editToggle = item.querySelector('.edit-toggle');
+      if (!editToggle) return;
+      var view = item.querySelector('.priority-view');
+      var editRow = item.querySelector('.priority-edit');
+      var input = item.querySelector('.edit-label-input');
+      var saveBtn = item.querySelector('.edit-save');
+      var cancelBtn = item.querySelector('.edit-cancel');
+      var labelForm = item.querySelector('.edit-label-form');
+      var labelHidden = item.querySelector('.edit-label-hidden');
+      var originalValue = input.value;
+
+      function openEdit() {
+        item.classList.add('editing');
+        item.setAttribute('draggable', 'false');
+        view.style.display = 'none';
+        editRow.style.display = 'flex';
+        editToggle.style.display = 'none';
+        item.querySelector('.priority-up').style.display = 'none';
+        item.querySelector('.priority-down').style.display = 'none';
+        saveBtn.style.display = '';
+        cancelBtn.style.display = '';
+        input.focus();
+        input.select();
+      }
+      function closeEdit() {
+        item.classList.remove('editing');
+        item.setAttribute('draggable', 'true');
+        view.style.display = 'flex';
+        editRow.style.display = 'none';
+        editToggle.style.display = '';
+        item.querySelector('.priority-up').style.display = '';
+        item.querySelector('.priority-down').style.display = '';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+      }
+
+      editToggle.addEventListener('click', openEdit);
+      cancelBtn.addEventListener('click', function () {
+        input.value = originalValue;
+        closeEdit();
+      });
+      saveBtn.addEventListener('click', function () {
+        var value = input.value.trim();
+        if (!value || value === originalValue) { closeEdit(); return; }
+        labelHidden.value = value;
+        labelForm.submit();
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+        if (e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); }
       });
     });
 
@@ -95,61 +169,25 @@
   })();
 </script>
 
-<h2 style="margin-top:32px;">Organization milestones</h2>
-<p class="subdued">Visible and usable by everyone in {{ current_user.org.name }} &mdash; on contact timelines and as flow triggers. This includes whatever came from your practice type's starting set, fully renamable and removable now.</p>
+<div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:24px;">
+  {% if current_user.is_admin %}
+  <details>
+    <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add organization milestone</summary>
+    <form method="post" action="{{ url_for('contacts.new_event_type') }}" style="margin-top:14px;">
+      <input type="hidden" name="scope" value="org">
+      <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. 5 Year Anniversary" required></div>
+      <button type="submit" class="btn btn-primary">Add milestone</button>
+    </form>
+  </details>
+  {% endif %}
 
-{% if org_types %}
-  {% for t in org_types %}
-    <div class="team-row static-row">
-      <div><strong>{{ t.label }}</strong></div>
-      {% if current_user.is_admin %}
-        <form method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=t.id) }}"
-              onsubmit="return confirm('Remove the {{ t.label }} milestone? Timeline events and flows already using it keep working, it just won\'t be offered as an option going forward.');">
-          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
-        </form>
-      {% endif %}
-    </div>
-  {% endfor %}
-{% else %}
-  <p class="subdued">No organization-wide milestones yet.</p>
-{% endif %}
-
-{% if current_user.is_admin %}
-<details style="margin-top:12px; margin-bottom:32px;">
-  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add organization milestone</summary>
-  <form method="post" action="{{ url_for('contacts.new_event_type') }}" style="margin-top:14px;">
-    <input type="hidden" name="scope" value="org">
-    <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. 5 Year Anniversary" required></div>
-    <button type="submit" class="btn btn-primary">Add milestone</button>
-  </form>
-</details>
-{% else %}
-<p class="subdued" style="margin-bottom:32px;"><small>Only an org admin can add or remove organization-wide milestones.</small></p>
-{% endif %}
-
-<h2>My milestones</h2>
-<p class="subdued">Only usable by you, on any contact you can see.</p>
-
-{% if my_types %}
-  {% for t in my_types %}
-    <div class="team-row static-row">
-      <div><strong>{{ t.label }}</strong></div>
-      <form method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=t.id) }}"
-            onsubmit="return confirm('Remove your {{ t.label }} milestone? Timeline events and flows already using it keep working, it just won\'t be offered as an option going forward.');">
-        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
-      </form>
-    </div>
-  {% endfor %}
-{% else %}
-  <p class="subdued">You haven't added any personal milestones yet.</p>
-{% endif %}
-
-<details style="margin-top:12px;">
-  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add personal milestone</summary>
-  <form method="post" action="{{ url_for('contacts.new_event_type') }}" style="margin-top:14px;">
-    <input type="hidden" name="scope" value="personal">
-    <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. Kid started kindergarten" required></div>
-    <button type="submit" class="btn btn-primary">Add milestone</button>
-  </form>
-</details>
+  <details>
+    <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add personal milestone</summary>
+    <form method="post" action="{{ url_for('contacts.new_event_type') }}" style="margin-top:14px;">
+      <input type="hidden" name="scope" value="personal">
+      <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. Kid started kindergarten" required></div>
+      <button type="submit" class="btn btn-primary">Add milestone</button>
+    </form>
+  </details>
+</div>
 {% endblock %}

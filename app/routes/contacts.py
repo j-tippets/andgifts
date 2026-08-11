@@ -819,11 +819,22 @@ def manage_event_types():
     # their own personal ones. Doesn't include other agents' personal
     # milestones, since this agent's contacts can never actually
     # surface those.
+    # Every milestone type this agent can currently use, keyed by the
+    # stable `key` (not the row id, since that's what priority/timeline
+    # rows reference) -- each entry carries what the unified list needs
+    # to render and gate its own edit/delete controls, so the template
+    # doesn't have to re-derive permission logic per row.
     all_types = {}
     for t in org_types:
-        all_types[t.key] = t.label
+        all_types[t.key] = {
+            "key": t.key, "label": t.label, "id": t.id, "scope": "org",
+            "can_manage": current_user.is_admin,
+        }
     for t in my_types:
-        all_types[t.key] = t.label
+        all_types[t.key] = {
+            "key": t.key, "label": t.label, "id": t.id, "scope": "personal",
+            "can_manage": True,
+        }
 
     ranked = (
         MilestonePriority.query.filter_by(user_id=current_user.id)
@@ -837,15 +848,12 @@ def manage_event_types():
     # every usable type, even before the agent has touched this page.
     unranked_keys = [k for k in all_types if k not in ranked_keys]
     priority_order = [
-        {"key": k, "label": all_types[k]}
-        for k in ranked_keys + unranked_keys
+        all_types[k] for k in ranked_keys + unranked_keys
         if k in all_types  # drop stale ranked rows for a since-removed milestone
     ]
 
     return render_template(
         "contacts/event_types.html",
-        org_types=org_types,
-        my_types=my_types,
         priority_order=priority_order,
         has_custom_priority=bool(ranked_keys),
     )
@@ -908,6 +916,37 @@ def new_event_type():
     db.session.add(event_type)
     db.session.commit()
     flash(f"Added the '{event_type.label}' milestone.", "success")
+    return redirect(url_for("contacts.manage_event_types"))
+
+
+@contacts_bp.route("/event-types/<event_type_id>/edit", methods=["POST"])
+@login_required
+def edit_event_type(event_type_id):
+    """Renames a milestone in place. Deliberately only ever touches
+    `label` -- `key` is left alone so existing TimelineEvent rows,
+    MilestonePriority rows, and flow triggers that reference the old
+    key keep working without any backfill."""
+    event_type = CustomEventType.query.filter_by(
+        id=event_type_id, org_id=current_user.org_id
+    ).first_or_404()
+
+    if event_type.scope == "org" and not current_user.is_admin:
+        flash("Only an admin can rename an organization-wide milestone.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+    if event_type.scope == "personal" and event_type.owner_user_id != current_user.id:
+        flash("You can only rename your own personal milestones.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the milestone a name.", "error")
+        return redirect(url_for("contacts.manage_event_types"))
+
+    old_label = event_type.label
+    event_type.label = label
+    db.session.commit()
+    if old_label != label:
+        flash(f"Renamed '{old_label}' to '{label}'.", "success")
     return redirect(url_for("contacts.manage_event_types"))
 
 
