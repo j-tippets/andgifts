@@ -68,12 +68,12 @@
       </div>
       <p class="subdued" style="margin-top:10px;"><small>Choose the timing and the moment that starts this flow.</small></p>
 
-      <label class="checkbox-chip" style="margin-top:14px;">
-        <input type="checkbox" name="repeat_enabled" id="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }}>
-        Repeat this flow
-      </label>
+      <button type="button" id="repeat-toggle" class="chip {{ 'active' if not campaign or campaign.repeat_enabled else '' }}" style="margin-top:14px;" aria-pressed="{{ 'true' if not campaign or campaign.repeat_enabled else 'false' }}">
+        &#8635; Recurring
+      </button>
+      <input type="checkbox" name="repeat_enabled" id="repeat_enabled" {{ 'checked' if not campaign or campaign.repeat_enabled else '' }} style="display:none;" aria-hidden="true">
 
-      <div id="repeat-fields" style="margin-top:10px;">
+      <div id="repeat-fields" style="margin-top:14px;">
         <div class="timing-sentence-row">
           <span class="subdued" style="font-size:14.5px;">every</span>
           <input type="text" name="recur_interval_amount" class="timing-sentence-amount" value="{{ campaign.recur_interval_amount if campaign else 1 }}" aria-label="Repeat amount">
@@ -313,6 +313,7 @@
     var noteTextField = document.getElementById('note-text-field');
     var repeatEnabled = document.getElementById('repeat_enabled');
     var repeatFields = document.getElementById('repeat-fields');
+    var repeatToggle = document.getElementById('repeat-toggle');
 
     function refresh() {
       var checked = document.querySelector('input[name="action_type"]:checked');
@@ -333,7 +334,13 @@
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
     addNote.addEventListener('change', refresh);
-    repeatEnabled.addEventListener('change', refresh);
+    repeatToggle.addEventListener('click', function () {
+      var isActive = !repeatEnabled.checked;
+      repeatEnabled.checked = isActive;
+      repeatToggle.classList.toggle('active', isActive);
+      repeatToggle.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      refresh();
+    });
     refresh();
 
     // Live sentence bar -- a client-side mirror of
