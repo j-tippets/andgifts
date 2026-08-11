@@ -113,16 +113,12 @@
   <div class="wizard-pane" data-pane="2">
     <div class="form-section">
       <h3 class="form-section-title">Who should receive this?</h3>
-      <div class="safeguards-card">
-        <div class="safeguards-card-icon">&#10003;</div>
-        <div>
-          <div class="safeguards-card-title">Built-in safeguards</div>
-          <div class="subdued"><small>Opt-outs are always skipped, and the same milestone never fires twice for the same contact. Everything below is optional, on top of those.</small></div>
-        </div>
-      </div>
 
-      <label style="font-family:var(--font-rounded); font-weight:700; font-size:13px; display:block; margin-bottom:8px;">Add a condition (optional)</label>
+      <h4 class="subsection-title">Add a condition</h4>
+      <p class="subdued" style="margin-bottom:14px;"><small>Narrow this flow to contacts matching specific criteria &mdash; leave it empty to include everyone who qualifies for the milestone.</small></p>
       {{ condition_builder(condition_fields, condition_operator_map, rules) }}
+
+      <p class="subdued" style="margin-top:18px; font-size:12px;">&#10003; <small>Built-in safeguards always apply on top of this: opt-outs are skipped, and the same milestone never fires twice for the same contact.</small></p>
     </div>
 
     <div style="display:flex; justify-content:space-between;">
