@@ -568,6 +568,11 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   will-change: transform; user-select: none;
 }
 .s-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.s-card-icon {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.s-card-icon svg { width: 18px; height: 18px; }
 .s-type-pill { display: inline-flex; align-items: center; gap: 5px; }
 .s-type-pill svg { width: 12px; height: 12px; }
 

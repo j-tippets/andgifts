@@ -38,10 +38,9 @@
             <div class="stamp skip">&#10005;</div>
 
             <div class="s-card-top">
-              <span class="status-pill s-type-pill pill-type-{{ s.action_type }}">
+              <div class="s-card-icon pill-type-{{ s.action_type }}" title="{{ s.action_type.replace('_', ' ')|capitalize }}">
                 {{ type_icon(s.action_type) }}
-                {{ s.action_type.replace('_', ' ')|capitalize }}
-              </span>
+              </div>
               <span class="s-badge">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 {{ s.target_date.strftime('%b %-d') }}
