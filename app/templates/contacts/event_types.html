@@ -10,11 +10,9 @@
 </div>
 
 <p class="subdued">
-  Every milestone you can currently use &mdash; organization-wide ones from {{ current_user.org.name }}, plus your own personal ones.
-  Drag to reorder: when a contact qualifies for more than one on the same day, whichever is higher here wins.
+  Every milestone you can currently use. Drag to reorder: when a contact qualifies for more than one on the same day, whichever is higher here wins.
   This order is just yours &mdash; other agents can order theirs differently.
   {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
-  Org milestones can only be renamed or removed by an admin; you can always rename or remove your own personal ones.
 </p>
 
 <form method="POST" action="{{ url_for('contacts.save_milestone_priority') }}" id="priority-form">
@@ -24,7 +22,6 @@
         <div class="priority-view" style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
           <span class="subdued" aria-hidden="true">&#8942;&#8942;</span>
           <strong>{{ item.label }}</strong>
-          <span class="badge-pill">{{ "Org" if item.scope == "org" else "Personal" }}</span>
         </div>
         {% if item.can_manage %}
         <div class="priority-edit" style="display:none; flex:1; align-items:center; gap:8px;">
