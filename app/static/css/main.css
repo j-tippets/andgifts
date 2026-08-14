@@ -919,6 +919,14 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .confirm-dialog h2 { font-size: 20px; }
 .action-dialog { max-width: 560px; }
 .action-dialog h2 { margin-top: 0; margin-bottom: 16px; }
+.llm-example-box {
+  position: relative; background: var(--paper-raised); border: 1.5px solid var(--line);
+  border-radius: 12px; padding: 12px 14px 12px 18px; font-size: 13.5px; font-style: italic;
+}
+.llm-example-box::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px;
+  border-radius: 4px; background: var(--gold);
+}
 
 .priority-rank {
   display: inline-flex; align-items: center; justify-content: center;

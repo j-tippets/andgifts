@@ -1,15 +1,16 @@
 from types import SimpleNamespace
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact, User
 from app.models.campaigns import _timing_label as timing_label_phrase
 from app.models.timeline import CustomEventType
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
 from app.services import campaign_rules
+from app.services import llm
 
 campaigns_bp = Blueprint("campaigns", __name__, url_prefix="/campaigns")
 
@@ -771,6 +772,29 @@ def campaign_edit(campaign_id):
     db.session.commit()
     flash(f"Updated \u201c{campaign.name}\u201d.", "success")
     return redirect(url_for("campaigns.list_campaigns"))
+
+
+@campaigns_bp.route("/preview-message", methods=["POST"])
+@login_required
+@limiter.limit("20 per hour")
+def preview_message():
+    """AJAX endpoint backing the 'Example LLM output' box in the
+    wizard's message dialog (email/text/handwritten_note). Runs the
+    same generate_message() used for real sends, against a made-up
+    contact/event so an agent can see roughly what the LLM will write
+    from their hint before saving anything -- no contact matching, no
+    Campaign/CampaignRecipe involved. Rate-limited since (unlike the
+    rest of the wizard) this fires a real Anthropic API call on
+    demand rather than only during scheduled suggestion generation."""
+    prompt_hint = request.form.get("llm_prompt_hint", "").strip()
+    event_type = request.form.get("event_type", "").strip()
+
+    event_label = _event_type_label(event_type, current_user.org) if event_type else "milestone"
+    fake_contact = SimpleNamespace(household_name="Jordan & Casey Smith")
+    fake_event = SimpleNamespace(display_label=lambda: event_label)
+
+    message = llm.generate_message(prompt_hint or None, fake_contact, fake_event)
+    return jsonify(message=message)
 
 
 @campaigns_bp.route("/<campaign_id>/delete", methods=["POST"])

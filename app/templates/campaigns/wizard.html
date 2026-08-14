@@ -200,7 +200,8 @@
           <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
         </div>
       </div>
-      <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; margin-top:18px;">
+        <button type="button" class="btn btn-ghost" data-cancel-dialog="gift-action-dialog">Cancel</button>
         <button type="button" class="btn btn-primary" data-close-dialog="gift-action-dialog">Done</button>
       </div>
     </dialog>
@@ -219,10 +220,16 @@
         </div>
         <div class="field" id="llm-hint-field" style="margin-top:10px;">
           <label>What should the LLM say?</label>
-          <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ request.form.get('llm_prompt_hint', campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '') }}</textarea>
+          <textarea name="llm_prompt_hint" id="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ request.form.get('llm_prompt_hint', campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '') }}</textarea>
+          <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+            <button type="button" id="preview-message-btn" class="btn btn-ghost btn-small">Preview example</button>
+            <span id="preview-message-status" class="subdued" style="display:none;"><small>Generating&hellip;</small></span>
+          </div>
+          <div id="preview-message-box" class="llm-example-box" style="display:none; margin-top:10px;"></div>
         </div>
       </div>
-      <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; margin-top:18px;">
+        <button type="button" class="btn btn-ghost" data-cancel-dialog="message-action-dialog">Cancel</button>
         <button type="button" class="btn btn-primary" data-close-dialog="message-action-dialog">Done</button>
       </div>
     </dialog>
@@ -413,10 +420,47 @@
       return type === 'gift' ? giftDialog : messageDialog;
     }
 
+    // Cancel discards whatever was changed since the dialog was last
+    // opened (not all the way back to the saved campaign) -- each
+    // showModal() call snapshots the dialog's own fields, and Cancel
+    // restores that snapshot rather than just closing. Change events
+    // are re-dispatched after restoring so refresh()'s visibility
+    // toggles (fixed gift vs. LLM, template vs. LLM hint, note text)
+    // recompute for the restored state.
+    var dialogSnapshots = {};
+
+    function snapshotDialog(dialog) {
+      var data = [];
+      dialog.querySelectorAll('input, textarea, select').forEach(function (el) {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          data.push({ el: el, checked: el.checked });
+        } else {
+          data.push({ el: el, value: el.value });
+        }
+      });
+      return data;
+    }
+
+    function restoreDialog(snapshot) {
+      snapshot.forEach(function (entry) {
+        if ('checked' in entry) {
+          if (entry.el.checked !== entry.checked) {
+            entry.el.checked = entry.checked;
+            entry.el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        } else if (entry.el.value !== entry.value) {
+          entry.el.value = entry.value;
+          entry.el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    }
+
     function openActionDialog(type) {
       if (!type) return;
       if (type !== 'gift') messageDialogTitle.textContent = MESSAGE_DIALOG_TITLES[type] || 'Message details';
-      dialogForActionType(type).showModal();
+      var dialog = dialogForActionType(type);
+      dialogSnapshots[dialog.id] = snapshotDialog(dialog);
+      dialog.showModal();
     }
 
     function updateActionEditRow() {
@@ -447,7 +491,74 @@
       });
     });
 
+    document.querySelectorAll('[data-cancel-dialog]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dialog = document.getElementById(btn.dataset.cancelDialog);
+        var snapshot = dialogSnapshots[dialog.id];
+        if (snapshot) restoreDialog(snapshot);
+        dialog.close();
+      });
+    });
+
+    // The browser's own Escape-key dismissal fires 'cancel' (before
+    // 'close') on a <dialog> -- treat that the same as clicking
+    // Cancel, so Escape discards rather than silently keeping
+    // whatever was typed.
+    [giftDialog, messageDialog].forEach(function (dialog) {
+      dialog.addEventListener('cancel', function () {
+        var snapshot = dialogSnapshots[dialog.id];
+        if (snapshot) restoreDialog(snapshot);
+      });
+    });
+
     updateActionEditRow();
+
+    // "Preview example" -- an on-demand call (not live-as-you-type,
+    // to avoid firing a real Anthropic API call on every keystroke)
+    // that shows roughly what the LLM would write from the current
+    // hint, against a made-up contact/event via
+    // campaigns.preview_message. Independent of use_llm_copy's
+    // checked state so switching back to a fixed template doesn't
+    // strand a stale example.
+    var previewBtn = document.getElementById('preview-message-btn');
+    var previewStatus = document.getElementById('preview-message-status');
+    var previewBox = document.getElementById('preview-message-box');
+    var llmPromptHint = document.getElementById('llm_prompt_hint');
+    var eventTypeSelect = document.querySelector('select[name="event_type"]');
+
+    if (previewBtn) {
+      previewBtn.addEventListener('click', function () {
+        previewBtn.disabled = true;
+        previewStatus.style.display = '';
+        previewBox.style.display = 'none';
+
+        var body = new URLSearchParams();
+        body.set('llm_prompt_hint', llmPromptHint.value);
+        body.set('event_type', eventTypeSelect ? eventTypeSelect.value : '');
+
+        fetch('{{ url_for("campaigns.preview_message") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString()
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('request failed');
+            return res.json();
+          })
+          .then(function (data) {
+            previewBox.textContent = '\u201c' + data.message + '\u201d';
+            previewBox.style.display = '';
+          })
+          .catch(function () {
+            previewBox.textContent = "Couldn't generate a preview just now -- try again in a moment.";
+            previewBox.style.display = '';
+          })
+          .finally(function () {
+            previewBtn.disabled = false;
+            previewStatus.style.display = 'none';
+          });
+      });
+    }
 
     // Live sentence bar -- a client-side mirror of
     // app/routes/campaigns.py::_describe_flow_sentence, so the phrasing
