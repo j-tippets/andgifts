@@ -307,7 +307,11 @@ def _conditions_from_form(rule_cls, org):
     campaign_rules.operators_for_field is dropped rather than trusted
     blindly -- the client-side dropdowns already constrain this, but a
     condition row referencing a deleted custom field, or a field/operator
-    pairing that doesn't make sense, shouldn't silently get saved."""
+    pairing that doesn't make sense, shouldn't silently get saved. Rows
+    left with a value-requiring operator but a blank value are dropped
+    too -- the wizard's JS already prunes these before submit, but this
+    is the backstop for any path that reaches this function without it
+    (a non-JS submit, or a future caller)."""
     fields = request.form.getlist("condition_field")
     operators = request.form.getlist("condition_operator")
     values = request.form.getlist("condition_value")
@@ -316,11 +320,14 @@ def _conditions_from_form(rule_cls, org):
     for position, (field, operator, value) in enumerate(zip(fields, operators, values)):
         field = field.strip()
         operator = operator.strip()
+        value = value.strip()
         if not field or not operator:
             continue
         if operator not in campaign_rules.operators_for_field(field, org):
             continue
-        rows.append(rule_cls(field=field, config={"operator": operator, "value": value.strip()}, position=position))
+        if not value and operator not in campaign_rules.VALUE_LESS_OPERATORS:
+            continue
+        rows.append(rule_cls(field=field, config={"operator": operator, "value": value}, position=position))
     return rows
 
 

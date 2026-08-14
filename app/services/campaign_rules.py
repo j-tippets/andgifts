@@ -67,6 +67,12 @@ OPERATOR_LABELS = {
     "is_not_empty": "is not empty",
 }
 
+# Operators that don't take a value -- everything else needs one, and a
+# saved condition with a blank value doesn't error, it just can never
+# match anyone (e.g. "interest tag equals ''" checks membership in a
+# set, and "" is never a member). See _conditions_from_form.
+VALUE_LESS_OPERATORS = {"is_empty", "is_not_empty"}
+
 
 def condition_field_choices(org):
     """(field_key, label, value_type) tuples for the condition builder's

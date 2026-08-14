@@ -36,6 +36,7 @@
     var hasRows = container.querySelectorAll('.condition-row').length > 0;
     indicator.style.display = hasRows ? 'none' : 'inline-block';
   }
+  window.refreshEveryoneIndicator = refreshEveryoneIndicator;
 
   document.querySelectorAll('.condition-rows').forEach(function (container) {
     refreshEveryoneIndicator(container);

@@ -295,7 +295,36 @@
 <script>
   (function () {
     var TOTAL_STEPS = 4;
+    var currentPane = 1;
+
+    // A condition row left with a field/operator chosen but no value
+    // typed in doesn't error server-side -- it saves as a real
+    // condition that can never match anyone (e.g. "interest tag is ''"),
+    // so the flow would silently generate zero suggestions forever with
+    // no error to explain why. Prune those rows whenever the user
+    // leaves the Who step, rather than trusting them to notice and
+    // delete an unused row themselves. Rows using is_empty/is_not_empty
+    // don't need a value and are left alone.
+    function pruneEmptyConditionRows() {
+      var rows = document.querySelectorAll('#condition-rows .condition-row');
+      var removedAny = false;
+      rows.forEach(function (row) {
+        var opSel = row.querySelector('.condition-operator-select');
+        var valInput = row.querySelector('.condition-value-input');
+        var needsValue = opSel && opSel.value !== 'is_empty' && opSel.value !== 'is_not_empty';
+        if (needsValue && valInput && !valInput.value.trim()) {
+          row.remove();
+          removedAny = true;
+        }
+      });
+      if (removedAny && window.refreshEveryoneIndicator) {
+        window.refreshEveryoneIndicator(document.getElementById('condition-rows'));
+      }
+    }
+
     function wizardGoImpl(n) {
+      if (currentPane === 2 && n !== 2) pruneEmptyConditionRows();
+      currentPane = n;
       for (var i = 1; i <= TOTAL_STEPS; i++) {
         var pane = document.querySelector('[data-pane="' + i + '"]');
         var dot = document.querySelector('[data-step-dot="' + i + '"]');
@@ -464,6 +493,7 @@
     // dropdown or aren't required at all.
     var nameInput = document.querySelector('input[name="name"]');
     document.getElementById('wizard-form').addEventListener('submit', function (e) {
+      pruneEmptyConditionRows();
       if (!nameInput.value.trim()) {
         e.preventDefault();
         wizardGoImpl(1);
