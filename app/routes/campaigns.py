@@ -664,6 +664,15 @@ def campaign_new():
             **_campaign_form_kwargs(),
         )
 
+    if not request.form.get("action_type", "").strip():
+        flash("Choose what this flow should do.", "error")
+        return render_template(
+            "campaigns/wizard.html",
+            campaign=None,
+            rules=_wizard_rules(None),
+            **_campaign_form_kwargs(),
+        )
+
     if request.form.get("action") == "preview":
         spec = _build_flow_spec_from_form()
         preview_results = _run_preview(spec, _my_contacts_query())
@@ -715,6 +724,18 @@ def campaign_edit(campaign_id):
 
     if not request.form.get("name", "").strip():
         flash("Name is required.", "error")
+        return render_template(
+            "campaigns/wizard.html",
+            campaign=campaign,
+            rules=_wizard_rules(campaign),
+            price_max_display=cents_to_dollars_str(campaign.price_max_cents),
+            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
+            resulting_actions=_resulting_actions(campaign),
+            **_campaign_form_kwargs(),
+        )
+
+    if not request.form.get("action_type", "").strip():
+        flash("Choose what this flow should do.", "error")
         return render_template(
             "campaigns/wizard.html",
             campaign=campaign,

@@ -35,7 +35,7 @@
   {% set use_llm_gift_checked = (request.form.get('use_llm_gift_selection') if is_post else (campaign and campaign.use_llm_gift_selection)) %}
   {% set add_note_checked = (request.form.get('add_note') if is_post else (not campaign or campaign.add_note)) %}
   {% set use_llm_copy_checked = (request.form.get('use_llm_copy') if is_post else (campaign and campaign.use_llm_copy)) %}
-  {% set action_type_value = request.form.get('action_type', campaign.action_type if campaign else 'gift') %}
+  {% set action_type_value = request.form.get('action_type', campaign.action_type if campaign else '') %}
   {% set timing_unit_value = request.form.get('timing_unit', campaign.timing_unit if campaign else 'day') %}
   {% set timing_direction_value = request.form.get('timing_direction', campaign.timing_direction if campaign else 'after') %}
   {% set event_type_value = request.form.get('event_type', campaign.event_type if campaign else '') %}
@@ -162,53 +162,69 @@
           </div>
         </label>
       </div>
-    </div>
 
-    <div class="form-section" id="gift-fields">
-      <label class="checkbox-chip" style="margin-bottom:10px;">
-        <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if use_llm_gift_checked else '' }}>
-        Let the LLM pick the best gift instead of a fixed item
-      </label>
-      <div class="field">
-        <label>Gift budget cap (USD)</label>
-        <input type="text" name="price_max" value="{{ request.form.get('price_max', price_max_display if campaign else '') }}" placeholder="e.g. 150.00">
-        <p class="subdued" style="margin-top:4px;"><small>Used as the LLM's budget above, or ignored if you pick a fixed gift below.</small></p>
-      </div>
-      <div class="field" id="fixed-gift-field">
-        <label>Fixed gift (used unless LLM selection is checked above)</label>
-        <select name="suggested_gift_id">
-          <option value="">— none —</option>
-          {% for g in gift_items %}
-            <option value="{{ g.id }}" {{ 'selected' if suggested_gift_id_value == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
-          {% endfor %}
-        </select>
-      </div>
-      <label class="checkbox-chip" style="margin-top:10px;">
-        <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if add_note_checked else '' }}>
-        Add a note to the gift or gift card
-      </label>
-      <div class="field" id="note-text-field" style="margin-top:10px;">
-        <label>Note text (leave blank to let the LLM write it)</label>
-        <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ request.form.get('note_text', campaign.note_text if campaign and campaign.note_text else '') }}</textarea>
-        <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+      <div id="action-edit-row" style="margin-top:14px; display:none;">
+        <button type="button" id="action-edit-btn" class="btn btn-ghost btn-small">Edit details</button>
       </div>
     </div>
 
-    <div class="form-section" id="message-fields">
-      <label class="checkbox-chip">
-        <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if use_llm_copy_checked else '' }}>
-        Let the LLM write the message instead of a fixed template
-      </label>
-      <div class="field" id="template-field" style="margin-top:10px;">
-        <label>Message template</label>
-        <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ request.form.get('message_template', campaign.message_template if campaign and campaign.message_template else '') }}</textarea>
-        <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+    <dialog id="gift-action-dialog" class="confirm-dialog action-dialog">
+      <h2>Gift details</h2>
+      <div class="form-section" id="gift-fields" style="border:none; padding:0; margin:0;">
+        <label class="checkbox-chip" style="margin-bottom:10px;">
+          <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if use_llm_gift_checked else '' }}>
+          Let the LLM pick the best gift instead of a fixed item
+        </label>
+        <div class="field">
+          <label>Gift budget cap (USD)</label>
+          <input type="text" name="price_max" value="{{ request.form.get('price_max', price_max_display if campaign else '') }}" placeholder="e.g. 150.00">
+          <p class="subdued" style="margin-top:4px;"><small>Used as the LLM's budget above, or ignored if you pick a fixed gift below.</small></p>
+        </div>
+        <div class="field" id="fixed-gift-field">
+          <label>Fixed gift (used unless LLM selection is checked above)</label>
+          <select name="suggested_gift_id">
+            <option value="">— none —</option>
+            {% for g in gift_items %}
+              <option value="{{ g.id }}" {{ 'selected' if suggested_gift_id_value == g.id else '' }}>{{ g.name }} (${{ '%.2f'|format(g.price_cents / 100) }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <label class="checkbox-chip" style="margin-top:10px;">
+          <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if add_note_checked else '' }}>
+          Add a note to the gift or gift card
+        </label>
+        <div class="field" id="note-text-field" style="margin-top:10px;">
+          <label>Note text (leave blank to let the LLM write it)</label>
+          <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ request.form.get('note_text', campaign.note_text if campaign and campaign.note_text else '') }}</textarea>
+          <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+        </div>
       </div>
-      <div class="field" id="llm-hint-field" style="margin-top:10px;">
-        <label>What should the LLM say?</label>
-        <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ request.form.get('llm_prompt_hint', campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '') }}</textarea>
+      <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+        <button type="button" class="btn btn-primary" data-close-dialog="gift-action-dialog">Done</button>
       </div>
-    </div>
+    </dialog>
+
+    <dialog id="message-action-dialog" class="confirm-dialog action-dialog">
+      <h2 id="message-dialog-title">Message details</h2>
+      <div class="form-section" id="message-fields" style="border:none; padding:0; margin:0;">
+        <label class="checkbox-chip">
+          <input type="checkbox" name="use_llm_copy" id="use_llm_copy" {{ 'checked' if use_llm_copy_checked else '' }}>
+          Let the LLM write the message instead of a fixed template
+        </label>
+        <div class="field" id="template-field" style="margin-top:10px;">
+          <label>Message template</label>
+          <textarea name="message_template" rows="2" placeholder="e.g. Hi {contact_name}, how did the showing go?">{{ request.form.get('message_template', campaign.message_template if campaign and campaign.message_template else '') }}</textarea>
+          <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+        </div>
+        <div class="field" id="llm-hint-field" style="margin-top:10px;">
+          <label>What should the LLM say?</label>
+          <textarea name="llm_prompt_hint" rows="2" placeholder="e.g. Thank them again for their business and ask for a referral.">{{ request.form.get('llm_prompt_hint', campaign.llm_prompt_hint if campaign and campaign.llm_prompt_hint else '') }}</textarea>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+        <button type="button" class="btn btn-primary" data-close-dialog="message-action-dialog">Done</button>
+      </div>
+    </dialog>
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
       <button type="button" class="btn btn-ghost" onclick="wizardGo(2)">&larr; Back</button>
@@ -339,8 +355,6 @@
 
     var actionTypeInputs = document.querySelectorAll('input[name="action_type"]');
     var fixedGiftField = document.getElementById('fixed-gift-field');
-    var giftFields = document.getElementById('gift-fields');
-    var messageFields = document.getElementById('message-fields');
     var useLlmGift = document.getElementById('use_llm_gift_selection');
     var useLlmCopy = document.getElementById('use_llm_copy');
     var templateField = document.getElementById('template-field');
@@ -354,10 +368,6 @@
     var repeatToggle = document.getElementById('repeat-toggle');
 
     function refresh() {
-      var checked = document.querySelector('input[name="action_type"]:checked');
-      var isGift = checked && checked.value === 'gift';
-      giftFields.style.display = isGift ? '' : 'none';
-      messageFields.style.display = isGift ? 'none' : '';
       fixedGiftField.style.display = useLlmGift.checked ? 'none' : '';
       templateField.style.display = useLlmCopy.checked ? 'none' : '';
       llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
@@ -367,7 +377,6 @@
       var direction = timingDirectionSelect;
       timingAmountRow.style.display = (direction && direction.value === 'same_day') ? 'none' : 'flex';
     }
-    actionTypeInputs.forEach(function (el) { el.addEventListener('change', refresh); });
     timingDirectionSelect.addEventListener('change', refresh);
     useLlmGift.addEventListener('change', refresh);
     useLlmCopy.addEventListener('change', refresh);
@@ -380,6 +389,62 @@
       refresh();
     });
     refresh();
+
+    // Step 3 ("What"): the lower details box is a popup per action
+    // type rather than an always-visible panel. Picking "Send a gift"
+    // opens #gift-action-dialog; picking email/text/handwritten note
+    // opens the shared #message-action-dialog (same fields for all
+    // three -- templated vs. LLM-written -- just a different title).
+    // Selecting a method opens its dialog immediately so configuring
+    // details reads as one motion, not two; "Edit details" reopens it
+    // later without needing to click the radio again (clicking an
+    // already-checked radio doesn't fire 'change').
+    var giftDialog = document.getElementById('gift-action-dialog');
+    var messageDialog = document.getElementById('message-action-dialog');
+    var messageDialogTitle = document.getElementById('message-dialog-title');
+    var actionEditRow = document.getElementById('action-edit-row');
+    var actionEditBtn = document.getElementById('action-edit-btn');
+    var MESSAGE_DIALOG_TITLES = { email: 'Email details', text: 'Text details', handwritten_note: 'Note details' };
+
+    function dialogForActionType(type) {
+      return type === 'gift' ? giftDialog : messageDialog;
+    }
+
+    function openActionDialog(type) {
+      if (!type) return;
+      if (type !== 'gift') messageDialogTitle.textContent = MESSAGE_DIALOG_TITLES[type] || 'Message details';
+      dialogForActionType(type).showModal();
+    }
+
+    function updateActionEditRow() {
+      var checked = document.querySelector('input[name="action_type"]:checked');
+      actionEditRow.style.display = checked ? '' : 'none';
+      if (checked) {
+        var labels = { gift: 'Edit gift details', email: 'Edit email details', text: 'Edit text details', handwritten_note: 'Edit note details' };
+        actionEditBtn.textContent = labels[checked.value] || 'Edit details';
+      }
+    }
+
+    actionTypeInputs.forEach(function (el) {
+      el.addEventListener('change', function () {
+        refresh();
+        updateActionEditRow();
+        openActionDialog(el.value);
+      });
+    });
+
+    actionEditBtn.addEventListener('click', function () {
+      var checked = document.querySelector('input[name="action_type"]:checked');
+      openActionDialog(checked && checked.value);
+    });
+
+    document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById(btn.dataset.closeDialog).close();
+      });
+    });
+
+    updateActionEditRow();
 
     // Live sentence bar -- a client-side mirror of
     // app/routes/campaigns.py::_describe_flow_sentence, so the phrasing
@@ -498,6 +563,11 @@
         e.preventDefault();
         wizardGoImpl(1);
         nameInput.focus();
+        return;
+      }
+      if (!document.querySelector('input[name="action_type"]:checked')) {
+        e.preventDefault();
+        wizardGoImpl(3);
       }
     });
 

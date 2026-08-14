@@ -917,6 +917,8 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 }
 .confirm-dialog::backdrop { background: rgba(42,26,69,.35); }
 .confirm-dialog h2 { font-size: 20px; }
+.action-dialog { max-width: 560px; }
+.action-dialog h2 { margin-top: 0; margin-bottom: 16px; }
 
 .priority-rank {
   display: inline-flex; align-items: center; justify-content: center;
