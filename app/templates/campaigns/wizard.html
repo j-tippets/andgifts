@@ -107,7 +107,7 @@
     </div>
 
     <div style="display:flex; justify-content:flex-end;">
-      <button type="button" class="btn btn-primary" onclick="wizardGo(2)">Next &rarr;</button>
+      <button type="button" class="btn btn-primary" onclick="wizardNext(2)">Next &rarr;</button>
     </div>
   </div>
 
@@ -126,7 +126,7 @@
 
     <div style="display:flex; justify-content:space-between;">
       <button type="button" class="btn btn-ghost" onclick="wizardGo(1)">&larr; Back</button>
-      <button type="button" class="btn btn-primary" onclick="wizardGo(3)">Next &rarr;</button>
+      <button type="button" class="btn btn-primary" onclick="wizardNext(3)">Next &rarr;</button>
     </div>
   </div>
 
@@ -568,19 +568,44 @@
       validationError.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    // Per-step validation -- checks the requirement that belongs to
+    // `step` specifically (not everything up to it), so it can be
+    // called both when leaving that step via Next and, as a backstop,
+    // at final submit regardless of how the user got there.
+    function validateStep(step) {
+      if (step === 1 && !nameInput.value.trim()) {
+        showValidationError('Give this flow a name before continuing.');
+        nameInput.focus();
+        return false;
+      }
+      if (step === 3 && !document.querySelector('input[name="action_type"]:checked')) {
+        showValidationError('Choose what this flow should do before continuing.');
+        return false;
+      }
+      return true;
+    }
+
+    function wizardNextImpl(n) {
+      if (!validateStep(currentPane)) return;
+      wizardGoImpl(n);
+    }
+    window.wizardNext = wizardNextImpl;
+
     document.getElementById('wizard-form').addEventListener('submit', function (e) {
       pruneEmptyConditionRows();
+      // wizardGoImpl() clears the banner as part of navigating, so on
+      // this backstop path the jump has to happen before the message
+      // is (re-)shown, or the clear would wipe it right back out.
       if (!nameInput.value.trim()) {
         e.preventDefault();
         wizardGoImpl(1);
-        showValidationError('Give this flow a name before continuing.');
-        nameInput.focus();
+        validateStep(1);
         return;
       }
       if (!document.querySelector('input[name="action_type"]:checked')) {
         e.preventDefault();
         wizardGoImpl(3);
-        showValidationError('Choose what this flow should do before continuing.');
+        validateStep(3);
         return;
       }
       validationError.style.display = 'none';
