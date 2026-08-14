@@ -1,13 +1,22 @@
 {% extends "base.html" %}
 {% from "campaigns/_condition_builder_macro.html" import condition_builder %}
-{% block title %}{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }} — Flows{% endblock %}
+{% set scope = scope|default('personal') %}
+{% block title %}{{ 'Edit ' ~ campaign.name if campaign else ('Add to Flow Library' if scope == 'library' else 'Build a new flow') }} — Flows{% endblock %}
 {% block content %}
 <div class="page-head with-action">
   <div>
-    <h1>{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }}</h1>
-    <p class="subdued" style="margin-top:4px;"><small>Applies only to your own contacts.</small></p>
+    <h1>{{ 'Edit ' ~ campaign.name if campaign else ('Add to Flow Library' if scope == 'library' else 'Build a new flow') }}</h1>
+    <p class="subdued" style="margin-top:4px;">
+      <small>
+        {% if scope == 'library' %}
+          Applies to every contact in your agency once an agent adds it to their own flows.
+        {% else %}
+          Applies only to your own contacts.
+        {% endif %}
+      </small>
+    </p>
   </div>
-  <a href="{{ url_for('campaigns.campaign_detail', campaign_id=campaign.id) if campaign else url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; {{ 'Back to Flow' if campaign else 'Back to Flows' }}</a>
+  <a href="{{ url_for('campaigns.campaign_detail', campaign_id=campaign.id) if campaign else (url_for('campaigns.recipe_book') if scope == 'library' else url_for('campaigns.list_campaigns')) }}" class="btn btn-ghost">&larr; {{ 'Back to Flow' if campaign else ('Back to Flow Library' if scope == 'library' else 'Back to Flows') }}</a>
 </div>
 
 <div class="flow-sentence-bar">
@@ -30,6 +39,7 @@
 </div>
 
 <form method="POST" id="wizard-form" novalidate>
+  <input type="hidden" name="scope" value="{{ scope }}">
   {% set is_post = request.method == 'POST' %}
   {% set repeat_checked = (request.form.get('repeat_enabled') if is_post else (campaign and campaign.repeat_enabled)) %}
   {% set use_llm_gift_checked = (request.form.get('use_llm_gift_selection') if is_post else (campaign and campaign.use_llm_gift_selection)) %}
@@ -266,7 +276,7 @@
 
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between;">
       <button type="button" class="btn btn-ghost" onclick="wizardGo(3)">&larr; Back</button>
-      <button type="submit" name="action" value="save" class="btn btn-primary">{{ 'Save changes' if campaign else 'Turn on automation' }}</button>
+      <button type="submit" name="action" value="save" class="btn btn-primary">{{ 'Save changes' if campaign else ('Add to Flow Library' if scope == 'library' else 'Turn on automation') }}</button>
     </div>
   </div>
 </form>

@@ -10,7 +10,7 @@
   <div style="display:flex; gap:8px; flex-shrink:0;">
     <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Your Flows</a>
     {% if current_user.is_admin %}
-      <a href="{{ url_for('campaigns.library_new') }}" class="btn btn-primary">+ Create local flow</a>
+      <a href="{{ url_for('campaigns.campaign_new', scope='library') }}" class="btn btn-primary">+ Build from scratch</a>
     {% endif %}
   </div>
 </div>

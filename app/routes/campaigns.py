@@ -291,10 +291,16 @@ def _wizard_rules(campaign):
     return campaign.rules if campaign else []
 
 
-def _campaign_form_kwargs():
-    """Shared dropdown data for the campaign wizard."""
+def _campaign_form_kwargs(scope="personal"):
+    """Shared dropdown data for the campaign wizard. scope='library'
+    (only reachable for admins, only from campaign_new) swaps in the
+    org-only event types _org_event_type_choices() already used by the
+    Flow Library forms -- a library flow is a shared team template, so
+    it can't offer a milestone private to whichever admin happened to
+    build it. campaign_edit never passes scope; a personal Campaign
+    being edited is always 'personal'."""
     return dict(
-        event_types=_personal_event_type_choices(),
+        event_types=_org_event_type_choices() if scope == "library" else _personal_event_type_choices(),
         gift_items=current_user.org.available_catalog_items(),
         **_condition_form_kwargs(current_user.org),
     )
@@ -513,45 +519,6 @@ def add_from_recipe(recipe_id):
     return redirect(url_for("campaigns.list_campaigns"))
 
 
-@campaigns_bp.route("/library/new", methods=["GET", "POST"])
-@login_required
-def library_new():
-    """Agency admins author local flows here -- shown only in this
-    org's Flow Library, alongside the platform's global flows. Each
-    agent (including the admin) still has to add it to get it running
-    for their own contacts."""
-    if not current_user.is_admin:
-        flash("Only an agency admin can add a flow to the library.", "error")
-        return redirect(url_for("campaigns.recipe_book"))
-
-    if request.method == "GET":
-        return render_template("campaigns/library_new.html", **_recipe_form_kwargs())
-
-    if not request.form.get("name", "").strip() or not request.form.get("event_type"):
-        flash("Name and a trigger event are required.", "error")
-        return render_template("campaigns/library_new.html", **_recipe_form_kwargs())
-
-    if request.form.get("action") == "preview":
-        spec = _build_flow_spec_from_form()
-        preview_results = _run_preview(spec, _org_contacts_query())
-        return render_template(
-            "campaigns/library_new.html",
-            spec=spec,
-            preview_results=preview_results,
-            preview_scope_label="every contact in your agency",
-            flow_sentence=_describe_flow_sentence(spec, current_user.org),
-            review_stats=_review_stats(preview_results),
-            **_recipe_form_kwargs(),
-        )
-
-    recipe = CampaignRecipe(is_active=True, org_id=current_user.org_id)
-    _save_recipe_from_form(recipe)
-    db.session.add(recipe)
-    db.session.commit()
-    flash(f"Added \u201c{recipe.name}\u201d to your agency's Flow Library.", "success")
-    return redirect(url_for("campaigns.recipe_book"))
-
-
 @campaigns_bp.route("/library/<recipe_id>/edit", methods=["GET", "POST"])
 @login_required
 def library_edit(recipe_id):
@@ -648,18 +615,31 @@ def toggle_active(campaign_id):
 @campaigns_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def campaign_new():
-    """Build a flow from scratch. Always a personal Campaign, scoped to
-    the builder's own contacts -- there's no 'add to the agency Flow
-    Library instead' choice here anymore. Publishing a reusable
-    template for the whole team is a separate, deliberate action
-    (library_new, admin-only), not a fork-in-the-road inside this
-    wizard."""
+    """Build a flow from scratch -- a personal Campaign by default, or
+    (admin only, reached via ?scope=library from the Flow Library's
+    '+ Build from scratch' button) a CampaignRecipe added straight to
+    the agency's Flow Library instead. This one wizard now covers both;
+    there used to be a second, separate flat-form route (library_new)
+    for the library case, but its fields were already identical to
+    this wizard's (_save_recipe_from_form and _save_campaign_from_form
+    read the exact same request.form keys), so scope is now just a
+    fork in this route rather than a whole parallel UI to keep in
+    sync. scope rides along as a hidden form field (see wizard.html)
+    so it survives the preview round trip and the final save."""
+    scope = request.values.get("scope", "personal")
+    if scope not in ("personal", "library"):
+        scope = "personal"
+    if scope == "library" and not current_user.is_admin:
+        flash("Only an agency admin can add a flow to the library.", "error")
+        return redirect(url_for("campaigns.recipe_book"))
+
     if request.method == "GET":
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
             rules=_wizard_rules(None),
-            **_campaign_form_kwargs(),
+            scope=scope,
+            **_campaign_form_kwargs(scope),
         )
 
     if not request.form.get("name", "").strip():
@@ -668,7 +648,8 @@ def campaign_new():
             "campaigns/wizard.html",
             campaign=None,
             rules=_wizard_rules(None),
-            **_campaign_form_kwargs(),
+            scope=scope,
+            **_campaign_form_kwargs(scope),
         )
 
     if not request.form.get("action_type", "").strip():
@@ -677,12 +658,18 @@ def campaign_new():
             "campaigns/wizard.html",
             campaign=None,
             rules=_wizard_rules(None),
-            **_campaign_form_kwargs(),
+            scope=scope,
+            **_campaign_form_kwargs(scope),
         )
 
     if request.form.get("action") == "preview":
         spec = _build_flow_spec_from_form()
-        preview_results = _run_preview(spec, _my_contacts_query())
+        if scope == "library":
+            preview_results = _run_preview(spec, _org_contacts_query())
+            preview_scope_label = "every contact in your agency"
+        else:
+            preview_results = _run_preview(spec, _my_contacts_query())
+            preview_scope_label = "your own contacts"
         return render_template(
             "campaigns/wizard.html",
             campaign=None,
@@ -690,11 +677,20 @@ def campaign_new():
             spec=spec,
             previewed_spec=spec,
             preview_results=preview_results,
-            preview_scope_label="your own contacts",
+            preview_scope_label=preview_scope_label,
             flow_sentence=_describe_flow_sentence(spec, current_user.org),
             review_stats=_review_stats(preview_results),
-            **_campaign_form_kwargs(),
+            scope=scope,
+            **_campaign_form_kwargs(scope),
         )
+
+    if scope == "library":
+        recipe = CampaignRecipe(is_active=True, org_id=current_user.org_id)
+        _save_recipe_from_form(recipe)
+        db.session.add(recipe)
+        db.session.commit()
+        flash(f"Added \u201c{recipe.name}\u201d to your agency's Flow Library.", "success")
+        return redirect(url_for("campaigns.recipe_book"))
 
     campaign = Campaign(
         org_id=current_user.org_id,
