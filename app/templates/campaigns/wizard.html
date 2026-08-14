@@ -41,6 +41,7 @@
   {% set event_type_value = request.form.get('event_type', campaign.event_type if campaign else '') %}
   {% set recur_interval_unit_value = request.form.get('recur_interval_unit', campaign.recur_interval_unit if campaign else 'year') %}
   {% set suggested_gift_id_value = request.form.get('suggested_gift_id', campaign.suggested_gift_id if campaign else '') %}
+  <div id="wizard-validation-error" class="flash flash-error" style="display:none;"></div>
   <div class="wizard-pane active" data-pane="1">
     <div class="form-section">
       <h3 class="form-section-title">Name this flow</h3>
@@ -341,6 +342,8 @@
     function wizardGoImpl(n) {
       if (currentPane === 2 && n !== 2) pruneEmptyConditionRows();
       currentPane = n;
+      var validationError = document.getElementById('wizard-validation-error');
+      if (validationError) validationError.style.display = 'none';
       for (var i = 1; i <= TOTAL_STEPS; i++) {
         var pane = document.querySelector('[data-pane="' + i + '"]');
         var dot = document.querySelector('[data-step-dot="' + i + '"]');
@@ -557,18 +560,30 @@
     // that actually needs one; the rest are either preselected in a
     // dropdown or aren't required at all.
     var nameInput = document.querySelector('input[name="name"]');
+    var validationError = document.getElementById('wizard-validation-error');
+
+    function showValidationError(message) {
+      validationError.textContent = message;
+      validationError.style.display = '';
+      validationError.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     document.getElementById('wizard-form').addEventListener('submit', function (e) {
       pruneEmptyConditionRows();
       if (!nameInput.value.trim()) {
         e.preventDefault();
         wizardGoImpl(1);
+        showValidationError('Give this flow a name before continuing.');
         nameInput.focus();
         return;
       }
       if (!document.querySelector('input[name="action_type"]:checked')) {
         e.preventDefault();
         wizardGoImpl(3);
+        showValidationError('Choose what this flow should do before continuing.');
+        return;
       }
+      validationError.style.display = 'none';
     });
 
     {% if preview_results is defined %}
