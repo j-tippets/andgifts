@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Actions — Ag{% endblock %}
+{% block title %}History — Ag{% endblock %}
 {% block content %}
 {% from "dashboard/_type_icon.html" import type_icon %}
 <div class="subtab-links">
   <a href="{{ url_for('campaigns.list_campaigns') }}">Your flows</a>
-  <a href="{{ url_for('campaigns.actions_report') }}" class="active">Actions</a>
+  <a href="{{ url_for('campaigns.actions_report') }}" class="active">History</a>
 </div>
 <div class="page-head">
   <div>
-    <h1>Actions</h1>
+    <h1>History</h1>
     <p class="subdued" style="margin-top:4px;">
       <small>
         {% if agents is not none %}
