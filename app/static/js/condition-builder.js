@@ -25,7 +25,21 @@
     });
   }
 
+  // "Everyone who qualifies" indicator: shown whenever a condition-rows
+  // container has zero rows, hidden as soon as one is added. Each
+  // container may have its own indicator (id="<container-id>-indicator")
+  // -- currently only the wizard's main condition builder has one.
+  function refreshEveryoneIndicator(container) {
+    var indicator = document.getElementById(container.id + '-indicator') ||
+      document.getElementById('everyone-indicator');
+    if (!indicator) return;
+    var hasRows = container.querySelectorAll('.condition-row').length > 0;
+    indicator.style.display = hasRows ? 'none' : 'inline-block';
+  }
+
   document.querySelectorAll('.condition-rows').forEach(function (container) {
+    refreshEveryoneIndicator(container);
+
     container.addEventListener('change', function (e) {
       if (!e.target.classList.contains('condition-field-select')) return;
       var row = e.target.closest('.condition-row');
@@ -35,7 +49,10 @@
 
     container.addEventListener('click', function (e) {
       var removeBtn = e.target.closest('.condition-remove-btn');
-      if (removeBtn) removeBtn.closest('.condition-row').remove();
+      if (removeBtn) {
+        removeBtn.closest('.condition-row').remove();
+        refreshEveryoneIndicator(container);
+      }
     });
   });
 
@@ -81,6 +98,7 @@
       container.appendChild(row);
 
       populateOperatorSelect(container, opSelect, fields[0][0], null);
+      refreshEveryoneIndicator(container);
     });
   });
 })();
