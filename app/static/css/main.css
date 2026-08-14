@@ -471,6 +471,7 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
 .access-option {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -481,6 +482,8 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
 .access-option input[type="radio"] { margin-top: 3px; }
 .access-option .option-title { font-weight: 600; }
 .access-option .subdued small { display: block; margin-top: 2px; }
+.access-option-edit-btn { display: none; flex-shrink: 0; align-self: center; }
+.access-option:has(input:checked) .access-option-edit-btn { display: inline-block; }
 
 .wizard-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
 .wizard-step {

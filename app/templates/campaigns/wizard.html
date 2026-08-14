@@ -136,36 +136,36 @@
       <div class="access-method">
         <label class="access-option">
           <input type="radio" name="action_type" value="gift" id="action_type_gift" {{ 'checked' if action_type_value == 'gift' else '' }}>
-          <div>
+          <div style="flex:1;">
             <div class="option-title">Send a gift</div>
             <div class="subdued"><small>Picked automatically within budget, or a fixed item</small></div>
           </div>
+          <button type="button" class="btn btn-ghost btn-small access-option-edit-btn" data-action-type="gift">Edit gift details</button>
         </label>
         <label class="access-option">
           <input type="radio" name="action_type" value="email" id="action_type_email" {{ 'checked' if action_type_value == 'email' else '' }}>
-          <div>
+          <div style="flex:1;">
             <div class="option-title">Send an email</div>
             <div class="subdued"><small>Templated or written by the LLM</small></div>
           </div>
+          <button type="button" class="btn btn-ghost btn-small access-option-edit-btn" data-action-type="email">Edit email details</button>
         </label>
         <label class="access-option">
           <input type="radio" name="action_type" value="text" id="action_type_text" {{ 'checked' if action_type_value == 'text' else '' }}>
-          <div>
+          <div style="flex:1;">
             <div class="option-title">Send a text</div>
             <div class="subdued"><small>Templated or written by the LLM</small></div>
           </div>
+          <button type="button" class="btn btn-ghost btn-small access-option-edit-btn" data-action-type="text">Edit text details</button>
         </label>
         <label class="access-option">
           <input type="radio" name="action_type" value="handwritten_note" id="action_type_handwritten_note" {{ 'checked' if action_type_value == 'handwritten_note' else '' }}>
-          <div>
+          <div style="flex:1;">
             <div class="option-title">Handwritten note</div>
             <div class="subdued"><small>Templated or written by the LLM</small></div>
           </div>
+          <button type="button" class="btn btn-ghost btn-small access-option-edit-btn" data-action-type="handwritten_note">Edit note details</button>
         </label>
-      </div>
-
-      <div id="action-edit-row" style="margin-top:14px; display:none;">
-        <button type="button" id="action-edit-btn" class="btn btn-ghost btn-small">Edit details</button>
       </div>
     </div>
 
@@ -412,8 +412,6 @@
     var giftDialog = document.getElementById('gift-action-dialog');
     var messageDialog = document.getElementById('message-action-dialog');
     var messageDialogTitle = document.getElementById('message-dialog-title');
-    var actionEditRow = document.getElementById('action-edit-row');
-    var actionEditBtn = document.getElementById('action-edit-btn');
     var MESSAGE_DIALOG_TITLES = { email: 'Email details', text: 'Text details', handwritten_note: 'Note details' };
 
     function dialogForActionType(type) {
@@ -463,26 +461,27 @@
       dialog.showModal();
     }
 
-    function updateActionEditRow() {
-      var checked = document.querySelector('input[name="action_type"]:checked');
-      actionEditRow.style.display = checked ? '' : 'none';
-      if (checked) {
-        var labels = { gift: 'Edit gift details', email: 'Edit email details', text: 'Edit text details', handwritten_note: 'Edit note details' };
-        actionEditBtn.textContent = labels[checked.value] || 'Edit details';
-      }
-    }
-
     actionTypeInputs.forEach(function (el) {
       el.addEventListener('change', function () {
         refresh();
-        updateActionEditRow();
         openActionDialog(el.value);
       });
     });
 
-    actionEditBtn.addEventListener('click', function () {
-      var checked = document.querySelector('input[name="action_type"]:checked');
-      openActionDialog(checked && checked.value);
+    // One "Edit ... details" button per option card (not a single
+    // shared button below the list) -- CSS shows only the one whose
+    // row is currently checked (see .access-option:has(input:checked)
+    // .access-option-edit-btn), so it always sits in the same row as
+    // the selected option instead of floating below the whole group.
+    // preventDefault/stopPropagation keep the click from also being
+    // forwarded to the label's radio (harmless on an already-checked
+    // radio, but avoids relying on that).
+    document.querySelectorAll('.access-option-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openActionDialog(btn.dataset.actionType);
+      });
     });
 
     document.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
@@ -510,8 +509,6 @@
         if (snapshot) restoreDialog(snapshot);
       });
     });
-
-    updateActionEditRow();
 
     // "Preview example" -- an on-demand call (not live-as-you-type,
     // to avoid firing a real Anthropic API call on every keystroke)
