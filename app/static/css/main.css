@@ -484,6 +484,8 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
 .access-option .subdued small { display: block; margin-top: 2px; }
 .access-option-edit-btn { display: none; flex-shrink: 0; align-self: center; }
 .access-option:has(input:checked) .access-option-edit-btn { display: inline-block; }
+.access-option-compact { padding: 10px 12px; }
+.access-option-compact .option-title { font-size: 14px; }
 
 .wizard-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
 .wizard-step {

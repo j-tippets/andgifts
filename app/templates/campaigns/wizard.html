@@ -172,17 +172,29 @@
     <dialog id="gift-action-dialog" class="confirm-dialog action-dialog">
       <h2>Gift details</h2>
       <div class="form-section" id="gift-fields" style="border:none; padding:0; margin:0;">
-        <label class="checkbox-chip" style="margin-bottom:10px;">
-          <input type="checkbox" name="use_llm_gift_selection" id="use_llm_gift_selection" {{ 'checked' if use_llm_gift_checked else '' }}>
-          Let the LLM pick the best gift instead of a fixed item
-        </label>
-        <div class="field">
+        <div class="access-method" style="gap:8px; margin-bottom:18px;">
+          <label class="access-option access-option-compact">
+            <input type="radio" name="use_llm_gift_selection" value="1" id="gift_mode_auto" {{ 'checked' if use_llm_gift_checked else '' }}>
+            <div style="flex:1;">
+              <div class="option-title">Pick automatically, within a budget</div>
+              <div class="subdued"><small>The LLM chooses the best matching item from your catalog</small></div>
+            </div>
+          </label>
+          <label class="access-option access-option-compact">
+            <input type="radio" name="use_llm_gift_selection" value="" id="gift_mode_fixed" {{ '' if use_llm_gift_checked else 'checked' }}>
+            <div style="flex:1;">
+              <div class="option-title">Always send a specific gift</div>
+              <div class="subdued"><small>Choose one item from your catalog</small></div>
+            </div>
+          </label>
+        </div>
+
+        <div class="field" id="price-max-field">
           <label>Gift budget cap (USD)</label>
           <input type="text" name="price_max" value="{{ request.form.get('price_max', price_max_display if campaign else '') }}" placeholder="e.g. 150.00">
-          <p class="subdued" style="margin-top:4px;"><small>Used as the LLM's budget above, or ignored if you pick a fixed gift below.</small></p>
         </div>
         <div class="field" id="fixed-gift-field">
-          <label>Fixed gift (used unless LLM selection is checked above)</label>
+          <label>Gift</label>
           <select name="suggested_gift_id">
             <option value="">— none —</option>
             {% for g in gift_items %}
@@ -190,14 +202,17 @@
             {% endfor %}
           </select>
         </div>
-        <label class="checkbox-chip" style="margin-top:10px;">
-          <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if add_note_checked else '' }}>
-          Add a note to the gift or gift card
-        </label>
-        <div class="field" id="note-text-field" style="margin-top:10px;">
-          <label>Note text (leave blank to let the LLM write it)</label>
-          <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ request.form.get('note_text', campaign.note_text if campaign and campaign.note_text else '') }}</textarea>
-          <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+
+        <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:16px;">
+          <label class="checkbox-chip">
+            <input type="checkbox" name="add_note" id="add_note" {{ 'checked' if add_note_checked else '' }}>
+            Add a note to the gift or gift card
+          </label>
+          <div class="field" id="note-text-field" style="margin-top:10px;">
+            <label>Note text (leave blank to let the LLM write it)</label>
+            <textarea name="note_text" rows="2" placeholder="e.g. Congratulations on your new home!">{{ request.form.get('note_text', campaign.note_text if campaign and campaign.note_text else '') }}</textarea>
+            <p class="subdued" style="margin-top:4px;"><small>Supports {contact_name}, {event_label}, {event_date}.</small></p>
+          </div>
         </div>
       </div>
       <div style="display:flex; justify-content:space-between; margin-top:18px;">
@@ -365,7 +380,8 @@
 
     var actionTypeInputs = document.querySelectorAll('input[name="action_type"]');
     var fixedGiftField = document.getElementById('fixed-gift-field');
-    var useLlmGift = document.getElementById('use_llm_gift_selection');
+    var priceMaxField = document.getElementById('price-max-field');
+    var giftModeInputs = document.querySelectorAll('input[name="use_llm_gift_selection"]');
     var useLlmCopy = document.getElementById('use_llm_copy');
     var templateField = document.getElementById('template-field');
     var llmHintField = document.getElementById('llm-hint-field');
@@ -377,8 +393,15 @@
     var repeatFields = document.getElementById('repeat-fields');
     var repeatToggle = document.getElementById('repeat-toggle');
 
+    function isAutoGiftPick() {
+      var checked = document.querySelector('input[name="use_llm_gift_selection"]:checked');
+      return !!checked && checked.value === '1';
+    }
+
     function refresh() {
-      fixedGiftField.style.display = useLlmGift.checked ? 'none' : '';
+      var autoPick = isAutoGiftPick();
+      priceMaxField.style.display = autoPick ? '' : 'none';
+      fixedGiftField.style.display = autoPick ? 'none' : '';
       templateField.style.display = useLlmCopy.checked ? 'none' : '';
       llmHintField.style.display = useLlmCopy.checked ? '' : 'none';
       noteTextField.style.display = addNote.checked ? '' : 'none';
@@ -388,7 +411,7 @@
       timingAmountRow.style.display = (direction && direction.value === 'same_day') ? 'none' : 'flex';
     }
     timingDirectionSelect.addEventListener('change', refresh);
-    useLlmGift.addEventListener('change', refresh);
+    giftModeInputs.forEach(function (el) { el.addEventListener('change', refresh); });
     useLlmCopy.addEventListener('change', refresh);
     addNote.addEventListener('change', refresh);
     repeatToggle.addEventListener('click', function () {
@@ -603,7 +626,7 @@
       var phrase;
 
       if (actionType === 'gift') {
-        if (useLlmGift.checked) {
+        if (isAutoGiftPick()) {
           var price = document.querySelector('[name="price_max"]').value.trim();
           phrase = 'send a gift (LLM-picked' + (price ? ', up to $' + price : '') + ')';
         } else {
