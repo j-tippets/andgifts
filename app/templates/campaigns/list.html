@@ -24,7 +24,7 @@
 
 {% macro campaign_card(c) %}
   <div class="flow-card-v2 {{ 'is-inactive' if not c.is_active else '' }}">
-    <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="flow-card-v2-link">
+    <a href="{{ url_for('campaigns.campaign_detail', campaign_id=c.id) }}" class="flow-card-v2-link">
       <div class="flow-card-v2-header">
         <h4>{{ c.name }}</h4>
         {% if not c.is_active %}<span class="status-pill pill-do-not-contact">Paused</span>{% endif %}

@@ -50,7 +50,7 @@
             </strong>
             <div class="subdued">
               {% if a.source_campaign %}
-                From flow: <a href="{{ url_for('campaigns.campaign_edit', campaign_id=a.source_campaign_id) }}">{{ a.source_campaign.name }}</a>
+                From flow: <a href="{{ url_for('campaigns.campaign_detail', campaign_id=a.source_campaign_id) }}">{{ a.source_campaign.name }}</a>
               {% else %}
                 Not tied to a flow
               {% endif %}
@@ -84,7 +84,7 @@
             </strong>
             <div class="subdued">
               {% if entry.suggested_action and entry.suggested_action.source_campaign %}
-                From flow: <a href="{{ url_for('campaigns.campaign_edit', campaign_id=entry.suggested_action.source_campaign_id) }}">{{ entry.suggested_action.source_campaign.name }}</a>
+                From flow: <a href="{{ url_for('campaigns.campaign_detail', campaign_id=entry.suggested_action.source_campaign_id) }}">{{ entry.suggested_action.source_campaign.name }}</a>
               {% else %}
                 Not tied to a flow
               {% endif %}

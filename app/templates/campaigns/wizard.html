@@ -7,7 +7,7 @@
     <h1>{{ 'Edit ' ~ campaign.name if campaign else 'Build a new flow' }}</h1>
     <p class="subdued" style="margin-top:4px;"><small>Applies only to your own contacts.</small></p>
   </div>
-  <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Flows</a>
+  <a href="{{ url_for('campaigns.campaign_detail', campaign_id=campaign.id) if campaign else url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; {{ 'Back to Flow' if campaign else 'Back to Flows' }}</a>
 </div>
 
 <div class="flow-sentence-bar">
@@ -270,65 +270,6 @@
     </div>
   </div>
 </form>
-
-{% if campaign %}
-{% from "dashboard/_type_icon.html" import type_icon %}
-<div class="form-section" style="margin-top:28px;">
-  <h3 class="form-section-title">Actions from this flow</h3>
-  {% if resulting_actions %}
-    <div class="timeline">
-      {% for entry in resulting_actions %}
-        <div class="timeline-item">
-          <div class="timeline-date">{{ entry.sent_at.strftime('%b %-d, %Y %-I:%M %p') }}</div>
-          <strong>
-            <span class="action-type-icon">{{ type_icon(entry.action_type) }}</span>
-            {{ entry.action_type.replace('_', ' ')|capitalize }}
-            &mdash;
-            <a href="{{ url_for('contacts.view_contact', contact_id=entry.contact_id) }}">{{ entry.contact.household_name }}</a>
-          </strong>
-          {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
-          {% if entry.delivery_status == 'sent' %}
-            <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Emailed</span>
-          {% elif entry.delivery_status == 'failed' %}
-            <span class="status-pill pill-do-not-contact">Not sent &mdash; {{ entry.delivery_error }}</span>
-          {% elif entry.delivery_status == 'blocked' %}
-            <span class="status-pill" style="background:var(--gold-soft); color:var(--gold-ink);">Not sent (plan limit) &mdash; {{ entry.delivery_error }}</span>
-          {% endif %}
-          {% if entry.cost_cents %}<div class="subdued">${{ '%.2f'|format(entry.cost_cents / 100) }}</div>{% endif %}
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p class="subdued">No actions have resulted from this flow yet.</p>
-  {% endif %}
-</div>
-
-<div class="form-section" style="margin-top:28px;">
-  <h3 class="form-section-title">{{ 'Pause' if campaign.is_active else 'Resume' }} this flow</h3>
-  <p class="subdued" style="margin-bottom:12px;">
-    {% if campaign.is_active %}
-      Stops new suggestions from this flow without losing its history or settings.
-    {% else %}
-      Makes this flow active again.
-    {% endif %}
-  </p>
-  <form method="post" action="{{ url_for('campaigns.toggle_active', campaign_id=campaign.id) }}">
-    <button type="submit" class="btn btn-ghost">{{ 'Pause' if campaign.is_active else 'Resume' }}</button>
-  </form>
-</div>
-
-<div class="form-section" style="border-color: var(--danger);">
-  <h3 class="form-section-title" style="color: var(--danger);">Delete this flow</h3>
-  {% if can_delete %}
-    <p class="subdued" style="margin-bottom:12px;">Permanently removes this flow. Its past suggestions and sends stay in history.</p>
-    <form method="post" action="{{ url_for('campaigns.campaign_delete', campaign_id=campaign.id) }}" onsubmit="return confirm('Delete this flow?');">
-      <button type="submit" class="btn btn-danger">Delete</button>
-    </form>
-  {% else %}
-    <p class="subdued">This flow still has pending suggestions waiting for approval. Resolve (approve or skip) those first, then it can be deleted.</p>
-  {% endif %}
-</div>
-{% endif %}
 
 <script src="{{ url_for('static', filename='js/condition-builder.js') }}" defer></script>
 <script>

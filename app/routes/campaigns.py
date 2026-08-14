@@ -636,6 +636,12 @@ def toggle_active(campaign_id):
     campaign.is_active = not campaign.is_active
     db.session.commit()
     flash(f"\u201c{campaign.name}\u201d is now {'active' if campaign.is_active else 'paused'}.", "success")
+    # Pause/Resume is submitted from both the flows list (list.html's
+    # kebab menu) and a single flow's own detail page -- a flag rather
+    # than a raw next-URL, so there's no open-redirect surface to worry
+    # about validating.
+    if request.form.get("next") == "detail":
+        return redirect(url_for("campaigns.campaign_detail", campaign_id=campaign.id))
     return redirect(url_for("campaigns.list_campaigns"))
 
 
@@ -704,6 +710,28 @@ def campaign_new():
     return redirect(url_for("campaigns.list_campaigns"))
 
 
+@campaigns_bp.route("/<campaign_id>")
+@login_required
+def campaign_detail(campaign_id):
+    """The landing page for one flow -- its plain-English summary, the
+    actions it's produced, and pause/delete -- separate from the editor
+    itself (campaign_edit) so opening a flow to check on it doesn't
+    also dump you into a 4-step wizard. 'Edit flow' is the one link
+    into campaign_edit from here."""
+    campaign = Campaign.query.filter_by(id=campaign_id, org_id=current_user.org_id).first_or_404()
+    if not _can_manage(campaign):
+        flash("You don't have permission to view that flow.", "error")
+        return redirect(url_for("campaigns.list_campaigns"))
+
+    return render_template(
+        "campaigns/detail.html",
+        campaign=campaign,
+        flow_sentence=_describe_flow_sentence(campaign, current_user.org),
+        can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
+        resulting_actions=_resulting_actions(campaign),
+    )
+
+
 @campaigns_bp.route("/<campaign_id>/edit", methods=["GET", "POST"])
 @login_required
 def campaign_edit(campaign_id):
@@ -718,8 +746,6 @@ def campaign_edit(campaign_id):
             campaign=campaign,
             rules=_wizard_rules(campaign),
             price_max_display=cents_to_dollars_str(campaign.price_max_cents),
-            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
-            resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )
 
@@ -730,8 +756,6 @@ def campaign_edit(campaign_id):
             campaign=campaign,
             rules=_wizard_rules(campaign),
             price_max_display=cents_to_dollars_str(campaign.price_max_cents),
-            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
-            resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )
 
@@ -742,8 +766,6 @@ def campaign_edit(campaign_id):
             campaign=campaign,
             rules=_wizard_rules(campaign),
             price_max_display=cents_to_dollars_str(campaign.price_max_cents),
-            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
-            resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )
 
@@ -758,20 +780,18 @@ def campaign_edit(campaign_id):
             campaign=campaign,
             rules=_wizard_rules(campaign),
             price_max_display=cents_to_dollars_str(campaign.price_max_cents),
-            can_delete=_can_manage(campaign) and not _has_pending_actions(campaign),
             preview_results=preview_results,
             preview_scope_label=scope_label,
             previewed_spec=spec,
             flow_sentence=_describe_flow_sentence(spec, current_user.org),
             review_stats=_review_stats(preview_results),
-            resulting_actions=_resulting_actions(campaign),
             **_campaign_form_kwargs(),
         )
 
     _save_campaign_from_form(campaign)
     db.session.commit()
     flash(f"Updated \u201c{campaign.name}\u201d.", "success")
-    return redirect(url_for("campaigns.list_campaigns"))
+    return redirect(url_for("campaigns.campaign_detail", campaign_id=campaign.id))
 
 
 @campaigns_bp.route("/preview-message", methods=["POST"])
