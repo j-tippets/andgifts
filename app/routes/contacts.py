@@ -975,21 +975,44 @@ def delete_event_type(event_type_id):
     return redirect(url_for("contacts.manage_event_types"))
 
 
+def _apply_timeline_form(event, form):
+    """Shared field-mapping for add/edit timeline event -- also handles
+    the Important Date fields (is_important_date, year_known, amount).
+    An Important Date is always annually recurring by definition, so
+    the is_recurring checkbox is only meaningful for an ordinary
+    Timeline milestone."""
+    event.event_type = form["event_type"]
+    event.label = form.get("label") or None
+    event.event_date = datetime.strptime(form["event_date"], "%Y-%m-%d").date()
+    event.notes = form.get("notes")
+    event.year_known = not bool(form.get("year_unknown"))
+
+    event.is_important_date = bool(form.get("is_important_date"))
+    if event.is_important_date:
+        event.is_recurring = True
+        event.recurrence_rule = "annual"
+    else:
+        event.is_recurring = bool(form.get("is_recurring"))
+        event.recurrence_rule = "annual" if event.is_recurring else "none"
+
+    raw_amount = form.get("amount", "").strip()
+    if raw_amount:
+        try:
+            event.amount_cents = round(float(raw_amount.replace(",", "").replace("$", "")) * 100)
+        except ValueError:
+            event.amount_cents = None
+    else:
+        event.amount_cents = None
+
+
 @contacts_bp.route("/<contact_id>/timeline/new", methods=["POST"])
 @login_required
 def add_timeline_event(contact_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
 
-    event = TimelineEvent(
-        contact_id=contact.id,
-        event_type=request.form["event_type"],
-        label=request.form.get("label") or None,
-        event_date=datetime.strptime(request.form["event_date"], "%Y-%m-%d").date(),
-        notes=request.form.get("notes"),
-        is_recurring=bool(request.form.get("is_recurring")),
-        recurrence_rule="annual" if request.form.get("is_recurring") else "none",
-    )
+    event = TimelineEvent(contact_id=contact.id)
+    _apply_timeline_form(event, request.form)
     db.session.add(event)
     _log_contact_activity(
         contact, "timeline_added",
@@ -1006,13 +1029,7 @@ def edit_timeline_event(contact_id, event_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     event = TimelineEvent.query.filter_by(id=event_id, contact_id=contact.id).first_or_404()
-
-    event.event_type = request.form["event_type"]
-    event.label = request.form.get("label") or None
-    event.event_date = datetime.strptime(request.form["event_date"], "%Y-%m-%d").date()
-    event.notes = request.form.get("notes")
-    event.is_recurring = bool(request.form.get("is_recurring"))
-    event.recurrence_rule = "annual" if event.is_recurring else "none"
+    _apply_timeline_form(event, request.form)
 
     _log_contact_activity(
         contact, "timeline_updated",

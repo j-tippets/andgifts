@@ -59,6 +59,20 @@ class Contact(db.Model):
     )
     badges = db.relationship("Badge", secondary="contact_badges", back_populates="contacts")
 
+    @property
+    def important_dates(self):
+        """The subset of timeline_events flagged is_important_date (see
+        TimelineEvent), sorted by upcoming month/day rather than the
+        Timeline's own event_date order. These still live in the same
+        table and participate in the suggestion engine exactly like any
+        other recurring milestone -- this is purely a display split so
+        birthdays/anniversaries don't clutter the narrative Timeline
+        feed."""
+        return sorted(
+            (e for e in self.timeline_events if e.is_important_date),
+            key=lambda e: (e.event_date.month, e.event_date.day),
+        )
+
     def primary_person(self):
         return next((p for p in self.people if p.household_role == "head"), self.people[0] if self.people else None)
 
@@ -149,7 +163,7 @@ class Interest(db.Model):
     contacts = db.relationship("Contact", secondary=contact_interests, back_populates="interests")
 
 
-CUSTOM_FIELD_TYPES = ["text", "textarea", "number", "date", "checkbox", "select"]
+CUSTOM_FIELD_TYPES = ["text", "textarea", "number", "currency", "date", "checkbox", "select"]
 
 
 class CustomFieldDefinition(db.Model):

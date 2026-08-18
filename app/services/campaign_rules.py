@@ -43,6 +43,18 @@ BUILT_IN_FIELDS = {
         "value_type": "number",
         "operators": ["older_than"],
     },
+    # The dollar amount on whichever TimelineEvent is driving this
+    # flow's current trigger (see TimelineEvent.amount_cents) -- e.g.
+    # "sale price greater than $200,000" on a flow anchored to the
+    # "closing" event_type. Only meaningful in that per-event context,
+    # so it's evaluated via the `event` param threaded through
+    # evaluate_conditions/_actual_value below rather than off the
+    # contact alone like every other built-in.
+    "event_amount": {
+        "label": "This event's amount",
+        "value_type": "number",
+        "operators": ["greater_than", "less_than", "is_empty", "is_not_empty"],
+    },
 }
 
 # Which operators make sense for each custom-field type. Date fields are
@@ -88,14 +100,26 @@ def condition_field_choices(org):
     ]
     custom_fields = (
         CustomFieldDefinition.query.filter_by(org_id=org.id)
-        .filter(CustomFieldDefinition.field_type.in_(["text", "number", "checkbox", "select"]))
+        .filter(CustomFieldDefinition.field_type.in_(["text", "number", "currency", "checkbox", "select"]))
         .order_by(CustomFieldDefinition.label)
         .all()
     )
     for f in custom_fields:
-        value_type = "text" if f.field_type in ("text", "select") else f.field_type
+        value_type = _custom_field_value_type(f.field_type)
         choices.append((f"custom:{f.id}", f.label, value_type))
     return choices
+
+
+def _custom_field_value_type(field_type):
+    """Which condition-builder value_type a CustomFieldDefinition.field_type
+    maps to. currency reuses the "number" comparators as-is -- the value
+    is stored as a plain numeric string same as "number" fields, dollar
+    formatting is a display-only concern in the templates."""
+    if field_type in ("text", "select"):
+        return "text"
+    if field_type == "currency":
+        return "number"
+    return field_type
 
 
 def operators_for_field(field_key, org):
@@ -112,23 +136,30 @@ def operators_for_field(field_key, org):
         definition = CustomFieldDefinition.query.filter_by(id=field_id, org_id=org.id).first()
         if not definition:
             return []
-        value_type = "text" if definition.field_type in ("text", "select") else definition.field_type
+        value_type = _custom_field_value_type(definition.field_type)
         return OPERATORS_BY_VALUE_TYPE.get(value_type, [])
     return []
 
 
-def _actual_value(field_key, contact):
+def _actual_value(field_key, contact, event=None):
     """The contact's current value for a condition field, or a sentinel
     tuple (False, None) for fields that need special per-condition
     handling (gift_cooldown_days -- it depends on `today`/`org`, not
     just the contact, so it's evaluated directly in evaluate_conditions
     instead of through this generic path). Returns (True, value)
     otherwise, so an actual None/empty value is distinguishable from
-    "not handled here"."""
+    "not handled here".
+
+    `event` is the specific TimelineEvent driving this trigger occurrence
+    (both call sites in suggestion_engine.py already have it in scope),
+    needed only for event_amount -- every other field is contact-level."""
     if field_key == "interest_tag":
         return True, {i.name for i in contact.interests}
     if field_key == "has_badge":
         return True, {b.label for b in contact.badges}
+    if field_key == "event_amount":
+        amount = event.amount_cents if event and event.amount_cents is not None else None
+        return True, (str(amount / 100) if amount is not None else None)
     if field_key.startswith("custom:"):
         field_id = field_key.split(":", 1)[1]
         row = next((v for v in contact.custom_values if v.field_definition_id == field_id), None)
@@ -194,11 +225,16 @@ def _eval_cooldown(contact, org, today, expected_days):
     ).scalar()
 
 
-def evaluate_conditions(campaign, contact, org, today):
+def evaluate_conditions(campaign, contact, org, today, event=None):
     """True if every condition attached to this campaign passes for
     this contact (plain AND). Call this inside the suggestion-generation
     loop, after the trigger/timing check and before creating the
-    SuggestedAction."""
+    SuggestedAction.
+
+    `event` is the specific TimelineEvent occurrence this trigger check
+    is for -- pass it whenever the caller has one (both current call
+    sites do) so the event_amount condition field can read it. Every
+    other field ignores it."""
     import logging
 
     for rule in campaign.rules:
@@ -211,7 +247,7 @@ def evaluate_conditions(campaign, contact, org, today):
                 return False
             continue
 
-        handled, actual = _actual_value(field_key, contact)
+        handled, actual = _actual_value(field_key, contact, event)
         if not handled:
             logging.getLogger(__name__).warning(
                 "Unknown condition field %r on campaign %s -- skipping it.",

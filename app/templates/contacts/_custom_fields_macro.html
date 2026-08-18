@@ -19,6 +19,11 @@
       <input type="date" name="custom_{{ field.id }}" value="{{ value }}">
     {% elif field.field_type == 'number' %}
       <input type="number" name="custom_{{ field.id }}" value="{{ value }}" step="any">
+    {% elif field.field_type == 'currency' %}
+      <div class="input-prefix-group">
+        <span class="input-prefix">$</span>
+        <input type="number" name="custom_{{ field.id }}" value="{{ value }}" step="0.01" min="0">
+      </div>
     {% else %}
       <input type="text" name="custom_{{ field.id }}" value="{{ value }}">
     {% endif %}

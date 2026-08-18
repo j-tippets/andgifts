@@ -377,7 +377,7 @@ def generate_campaign_suggestions_for_org(org, today=None):
                     if _campaign_suggestion_exists(org.id, campaign.id, contact.id, event.id, trigger_date):
                         continue
 
-                    if not campaign_rules.evaluate_conditions(campaign, contact, org, today):
+                    if not campaign_rules.evaluate_conditions(campaign, contact, org, today, event=event):
                         continue
 
                     gift_item, gift_reasoning = None, None
@@ -696,7 +696,7 @@ def preview_flow_matches(spec, contacts, org, today=None, limit=20):
             if trigger_date is None:
                 continue
 
-            if not campaign_rules.evaluate_conditions(spec, contact, org, today):
+            if not campaign_rules.evaluate_conditions(spec, contact, org, today, event=event):
                 continue
 
             gift_item, gift_reasoning = None, None

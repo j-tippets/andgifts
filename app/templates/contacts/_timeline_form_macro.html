@@ -1,4 +1,4 @@
-{% macro timeline_event_form(action_url, event_types, event=none, submit_label='Add event', button_class='btn-primary', form_id=none) %}
+{% macro timeline_event_form(action_url, event_types, event=none, submit_label='Add event', button_class='btn-primary', form_id=none, default_important=false) %}
   {% set fid = form_id or (event.id if event else 'new') %}
   <form method="POST" action="{{ action_url }}" style="margin-top:14px;">
     <div class="field">
@@ -16,8 +16,23 @@
       </div>
       <div class="field"><label>Date</label><input type="date" name="event_date" value="{{ event.event_date.isoformat() if event else '' }}" required></div>
     </div>
-    <div class="field">
+    <div class="field-row">
+      <div class="field">
+        <label class="checkbox-chip"><input type="checkbox" name="is_important_date" value="1" class="important-date-toggle" data-recurring-target="recurring-field-{{ fid }}" {{ 'checked' if (event and event.is_important_date) or (not event and default_important) else '' }}> Important Date <span class="subdued">(birthday, anniversary — shows on its own card, not the Timeline)</span></label>
+      </div>
+      <div class="field">
+        <label class="checkbox-chip"><input type="checkbox" name="year_unknown" value="1" {{ 'checked' if event and not event.year_known else '' }}> I don't know the year</label>
+      </div>
+    </div>
+    <div class="field" id="recurring-field-{{ fid }}" {{ 'style=display:none;' if (event and event.is_important_date) or (not event and default_important) else '' }}>
       <label class="checkbox-chip"><input type="checkbox" name="is_recurring" value="1" {{ 'checked' if event and event.is_recurring else '' }}> Repeats annually</label>
+    </div>
+    <div class="field">
+      <label>Amount <span class="subdued">(optional — e.g. sale price)</span></label>
+      <div class="input-prefix-group">
+        <span class="input-prefix">$</span>
+        <input type="number" name="amount" step="0.01" min="0" placeholder="250,000" value="{{ '%.2f'|format(event.amount_cents / 100) if event and event.amount_cents is not none else '' }}">
+      </div>
     </div>
     <div class="field">
       <label>Notes</label>
@@ -25,4 +40,14 @@
     </div>
     <button type="submit" class="btn {{ button_class }}">{{ submit_label }}</button>
   </form>
+  <script>
+    (function() {
+      var toggle = document.currentScript.previousElementSibling.querySelector('.important-date-toggle');
+      if (!toggle) return;
+      toggle.addEventListener('change', function() {
+        var target = document.getElementById(toggle.dataset.recurringTarget);
+        if (target) target.style.display = toggle.checked ? 'none' : '';
+      });
+    })();
+  </script>
 {% endmacro %}

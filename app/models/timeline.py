@@ -48,12 +48,60 @@ class TimelineEvent(db.Model):
         db.Enum("annual", "none", name="recurrence_rule"), default="none"
     )
 
+    # Flags this row as belonging to the Contact page's "Important
+    # Dates" card (birthdays, anniversaries, ...) instead of the
+    # chronological Timeline feed. Deliberately just a display split --
+    # the row is still an ordinary recurring TimelineEvent underneath,
+    # so it needs no changes to the suggestion engine or campaign
+    # conditions, which key off event_type/is_recurring same as always.
+    # Routes always force is_recurring=True/recurrence_rule="annual"
+    # alongside this flag; there's no such thing as a one-time
+    # Important Date.
+    is_important_date = db.Column(db.Boolean, default=False, nullable=False)
+
+    # event_date always carries a real year (recurrence math needs one
+    # to do `.replace(year=...)`), but for an Important Date the agent
+    # may only know the month/day (e.g. a birthday with no known birth
+    # year). year_known=False means: store *some* year so the date
+    # picker and recurrence logic keep working, but never display that
+    # year or compute an age/years-since from it.
+    year_known = db.Column(db.Boolean, default=True, nullable=False)
+
+    # Optional dollar amount tied to this event (e.g. a home purchase
+    # price). Stored as integer cents, same convention as
+    # CampaignRecipe.price_max_cents, to avoid float rounding. Usable
+    # in flow conditions via the "event_amount" built-in field -- see
+    # app/services/campaign_rules.py.
+    amount_cents = db.Column(db.Integer, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     contact = db.relationship("Contact", back_populates="timeline_events")
 
     def display_label(self):
         return self.label or self.event_type.replace("_", " ").title()
+
+    def display_date(self):
+        """Month/day only when the year isn't real, else the full date."""
+        return self.event_date.strftime("%b %-d") if not self.year_known else self.event_date.strftime("%b %-d, %Y")
+
+    def display_amount(self):
+        if self.amount_cents is None:
+            return None
+        return f"${self.amount_cents / 100:,.0f}"
+
+    def years_since(self, today=None):
+        """Whole years between event_date and today -- age for a
+        birthday, anniversary count for anything else. None when the
+        year isn't real, since there's nothing to count from."""
+        if not self.year_known:
+            return None
+        from datetime import date as _date
+        today = today or _date.today()
+        years = today.year - self.event_date.year
+        if (today.month, today.day) < (self.event_date.month, self.event_date.day):
+            years -= 1
+        return years
 
 
 class MilestonePriority(db.Model):

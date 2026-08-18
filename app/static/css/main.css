@@ -290,6 +290,26 @@ h3 { font-size: 17px; }
 }
 .field-row { display: flex; gap: 16px; }
 .field-row .field { flex: 1; }
+/* Currency inputs (custom fields, timeline event amount) -- a fixed "$"
+   sitting inside the same bordered box as the number input. */
+.input-prefix-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-raised);
+  overflow: hidden;
+}
+.input-prefix-group .input-prefix {
+  padding: 9px 0 9px 11px;
+  font-size: 14px;
+  color: var(--subdued, #6b7280);
+}
+.input-prefix-group input {
+  border: none !important;
+  background: transparent !important;
+  padding-left: 4px !important;
+}
 fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
 legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; color: var(--evergreen); }
 .checkbox-grid { display: flex; flex-wrap: wrap; gap: 10px; }
