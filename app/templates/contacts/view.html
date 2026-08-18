@@ -251,7 +251,7 @@
     {% for event in contact.timeline_events if not event.is_important_date %}
       <div class="timeline-item">
         <button type="button" class="timeline-item-btn timeline-summary" onclick="document.getElementById('edit-timeline-event-{{ event.id }}').showModal()">
-          <div class="timeline-date">{{ event.display_date() }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
+          <div class="timeline-date">{{ event.display_date() }}</div>
           <strong>{{ event.display_label() }}</strong>
           {% if event.display_amount() %}<span class="subdued"> — {{ event.display_amount() }}</span>{% endif %}
           {% if event.id in completed_by_event_id %}

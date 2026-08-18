@@ -17,9 +17,6 @@
       <div class="field"><label>Date</label><input type="date" name="event_date" value="{{ event.event_date.isoformat() if event else '' }}" required></div>
     </div>
     <div class="field">
-      <label class="checkbox-chip"><input type="checkbox" name="is_recurring" value="1" {{ 'checked' if event and event.is_recurring else '' }}> Repeats annually</label>
-    </div>
-    <div class="field">
       <label>Amount <span class="subdued">(optional — e.g. sale price)</span></label>
       <div class="input-prefix-group">
         <span class="input-prefix">$</span>

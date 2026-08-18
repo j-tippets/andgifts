@@ -1023,8 +1023,18 @@ def _apply_timeline_form(event, form, org_id, user):
     else:
         event.event_type = form["event_type"]
         event.label = form.get("label") or None
-        event.is_recurring = bool(form.get("is_recurring"))
-        event.recurrence_rule = "annual" if event.is_recurring else "none"
+        # "Repeats annually" is retired here -- native Timeline
+        # recurrence was really only ever meaningful for
+        # birthday/anniversary-style dates, which now live exclusively
+        # under Important Dates (always recurring by definition, set
+        # in the branch above). An ordinary Timeline milestone is a
+        # one-time occurrence; a flow that still wants to fire every
+        # year off it (e.g. a closing anniversary) uses the campaign's
+        # own repeat_enabled/recur_interval schedule instead, which
+        # already supports exactly that -- see CampaignRecipe and
+        # _campaign_trigger_dates in suggestion_engine.py.
+        event.is_recurring = False
+        event.recurrence_rule = "none"
 
         raw_amount = form.get("amount", "").strip()
         if raw_amount:
