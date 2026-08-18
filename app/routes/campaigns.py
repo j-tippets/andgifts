@@ -93,7 +93,7 @@ def _condition_form_kwargs(org):
             (op, campaign_rules.OPERATOR_LABELS.get(op, op))
             for op in campaign_rules.operators_for_field(key, org)
         ]
-        for key, _label, _value_type in fields
+        for key, _label, _value_type, _options in fields
     }
     return dict(condition_fields=fields, condition_operator_map=operator_map)
 
@@ -227,7 +227,7 @@ def _describe_flow_sentence(spec, org):
         if spec.use_llm_copy:
             action += ", written by the LLM"
 
-    field_labels = {key: label for key, label, _value_type in campaign_rules.condition_field_choices(org)}
+    field_labels = {key: label for key, label, _value_type, _options in campaign_rules.condition_field_choices(org)}
     condition_phrases = [_describe_condition(rule, field_labels) for rule in spec.rules]
     condition_clause = f", if {' and '.join(condition_phrases)}," if condition_phrases else ","
 

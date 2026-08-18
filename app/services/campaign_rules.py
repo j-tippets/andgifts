@@ -87,17 +87,38 @@ VALUE_LESS_OPERATORS = {"is_empty", "is_not_empty"}
 
 
 def condition_field_choices(org):
-    """(field_key, label, value_type) tuples for the condition builder's
-    field dropdown: built-ins first, then this org's own custom fields
-    (org-scope and every agent's personal ones -- a flow's conditions
-    aren't scoped per-agent the way personal custom fields otherwise
-    are, since the flow itself already belongs to one agent or is a
-    shared team template)."""
-    from app.models import CustomFieldDefinition
+    """(field_key, label, value_type, options) tuples for the condition
+    builder's field dropdown: built-ins first, then this org's own
+    custom fields (org-scope and every agent's personal ones -- a
+    flow's conditions aren't scoped per-agent the way personal custom
+    fields otherwise are, since the flow itself already belongs to one
+    agent or is a shared team template).
 
-    choices = [
-        (key, spec["label"], spec["value_type"]) for key, spec in BUILT_IN_FIELDS.items()
-    ]
+    `options` is a list of (value, label) pairs when the field has a
+    fixed, known set of valid values -- badges, interest tags,
+    select-type custom fields, checkbox (Yes/No) -- so the condition
+    builder can render a dropdown instead of a free-text box the agent
+    has to guess the exact spelling for (e.g. does this badge say
+    "VIP" or "Vip"?). Empty list means free text/number -- there's
+    nothing to enumerate for something like a numeric "Income" field,
+    so that stays a text box the agent types a threshold into."""
+    from app.models import CustomFieldDefinition, Badge, Interest
+
+    choices = []
+    for key, spec in BUILT_IN_FIELDS.items():
+        if key == "interest_tag":
+            names = sorted({i.name for i in Interest.query.all()}, key=lambda n: n.lower())
+            options = [(n, n) for n in names]
+        elif key == "has_badge":
+            visible_badges = Badge.query.filter(
+                (Badge.org_id.is_(None)) | (Badge.org_id == org.id)
+            ).all()
+            labels = sorted({b.label for b in visible_badges}, key=lambda n: n.lower())
+            options = [(l, l) for l in labels]
+        else:
+            options = []
+        choices.append((key, spec["label"], spec["value_type"], options))
+
     custom_fields = (
         CustomFieldDefinition.query.filter_by(org_id=org.id)
         .filter(CustomFieldDefinition.field_type.in_(["text", "number", "currency", "checkbox", "select"]))
@@ -106,8 +127,19 @@ def condition_field_choices(org):
     )
     for f in custom_fields:
         value_type = _custom_field_value_type(f.field_type)
-        choices.append((f"custom:{f.id}", f.label, value_type))
+        choices.append((f"custom:{f.id}", f.label, value_type, _custom_field_options(f)))
     return choices
+
+
+def _custom_field_options(field):
+    """(value, label) pairs for a CustomFieldDefinition with a fixed
+    set of valid values -- empty list for anything freeform (text,
+    number, currency)."""
+    if field.field_type == "select":
+        return [(opt, opt) for opt in field.option_list()]
+    if field.field_type == "checkbox":
+        return [("1", "Yes"), ("0", "No")]
+    return []
 
 
 def _custom_field_value_type(field_type):

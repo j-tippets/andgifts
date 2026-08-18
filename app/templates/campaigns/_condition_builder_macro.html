@@ -1,13 +1,16 @@
 {% macro condition_builder(condition_fields, condition_operator_map, existing_conditions, container_id='condition-rows') %}
-{% set field_options = condition_fields | map(attribute=0) | list %}
-{% set field_labels = condition_fields | map(attribute=1) | list %}
+{% set field_options_by_key = {} %}
+{% for key, label, value_type, options in condition_fields %}
+  {% set _ = field_options_by_key.update({key: options}) %}
+{% endfor %}
 <div class="condition-rows" id="{{ container_id }}"
      data-operator-map='{{ condition_operator_map|tojson }}'
      data-field-options='{{ condition_fields | map("list") | list | tojson }}'>
   {% for c in existing_conditions %}
+    {% set value_options = field_options_by_key.get(c.field, []) %}
     <div class="condition-row">
       <select name="condition_field" class="condition-field-select">
-        {% for key, label, value_type in condition_fields %}
+        {% for key, label, value_type, options in condition_fields %}
           <option value="{{ key }}" {{ 'selected' if c.field == key else '' }}>{{ label }}</option>
         {% endfor %}
       </select>
@@ -16,8 +19,16 @@
           <option value="{{ op }}" {{ 'selected' if c.config and c.config.get('operator') == op else '' }}>{{ op_label }}</option>
         {% endfor %}
       </select>
-      <input type="text" name="condition_value" class="condition-value-input"
-             value="{{ c.config.get('value', '') if c.config else '' }}" placeholder="value">
+      {% if value_options %}
+        <select name="condition_value" class="condition-value-input">
+          {% for val, val_label in value_options %}
+            <option value="{{ val }}" {{ 'selected' if c.config and c.config.get('value') == val else '' }}>{{ val_label }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input type="text" name="condition_value" class="condition-value-input"
+               value="{{ c.config.get('value', '') if c.config else '' }}" placeholder="value">
+      {% endif %}
       <button type="button" class="condition-remove-btn" aria-label="Remove condition">&times;</button>
     </div>
   {% endfor %}

@@ -10,7 +10,15 @@
   }
 
   function fieldOptionsFor(container) {
-    return JSON.parse(container.dataset.fieldOptions || '[]'); // [[key, label, valueType], ...]
+    return JSON.parse(container.dataset.fieldOptions || '[]'); // [[key, label, valueType, options], ...]
+  }
+
+  function valueOptionsFor(container, fieldKey) {
+    var fields = fieldOptionsFor(container);
+    for (var i = 0; i < fields.length; i++) {
+      if (fields[i][0] === fieldKey) return fields[i][3] || [];
+    }
+    return [];
   }
 
   function populateOperatorSelect(container, opSelect, fieldKey, keepValue) {
@@ -23,6 +31,46 @@
       if (pair[0] === keepValue) opt.selected = true;
       opSelect.appendChild(opt);
     });
+  }
+
+  // The value control swaps between a free-text <input> and a <select>
+  // depending on whether the currently-chosen field has a fixed,
+  // known set of valid values (badges, interest tags, select-type
+  // custom fields, checkbox) -- see campaign_rules.condition_field_choices.
+  // Since that can change every time a different field is picked, this
+  // replaces the control outright rather than trying to morph one
+  // element's type in place.
+  function buildValueControl(container, fieldKey, keepValue) {
+    var valueOptions = valueOptionsFor(container, fieldKey);
+    var control;
+    if (valueOptions.length) {
+      control = document.createElement('select');
+      valueOptions.forEach(function (pair) {
+        var opt = document.createElement('option');
+        opt.value = pair[0];
+        opt.textContent = pair[1];
+        if (pair[0] === keepValue) opt.selected = true;
+        control.appendChild(opt);
+      });
+    } else {
+      control = document.createElement('input');
+      control.type = 'text';
+      control.placeholder = 'value';
+      if (keepValue != null) control.value = keepValue;
+    }
+    control.name = 'condition_value';
+    control.className = 'condition-value-input';
+    return control;
+  }
+
+  function replaceValueControl(row, container, fieldKey, keepValue) {
+    var old = row.querySelector('.condition-value-input');
+    var replacement = buildValueControl(container, fieldKey, keepValue);
+    if (old) {
+      old.replaceWith(replacement);
+    } else {
+      row.insertBefore(replacement, row.querySelector('.condition-remove-btn'));
+    }
   }
 
   // "Everyone who qualifies" indicator: shown whenever a condition-rows
@@ -46,6 +94,11 @@
       var row = e.target.closest('.condition-row');
       var opSelect = row.querySelector('.condition-operator-select');
       populateOperatorSelect(container, opSelect, e.target.value, null);
+      // A field change means the value's meaning changed entirely
+      // (e.g. switching from a badge to a number field), so the old
+      // typed/selected value doesn't carry over -- same as the
+      // operator reset just above.
+      replaceValueControl(row, container, e.target.value, null);
     });
 
     container.addEventListener('click', function (e) {
@@ -80,12 +133,6 @@
       opSelect.name = 'condition_operator';
       opSelect.className = 'condition-operator-select';
 
-      var valueInput = document.createElement('input');
-      valueInput.type = 'text';
-      valueInput.name = 'condition_value';
-      valueInput.className = 'condition-value-input';
-      valueInput.placeholder = 'value';
-
       var removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.className = 'condition-remove-btn';
@@ -94,7 +141,7 @@
 
       row.appendChild(fieldSelect);
       row.appendChild(opSelect);
-      row.appendChild(valueInput);
+      row.appendChild(buildValueControl(container, fields[0][0], null));
       row.appendChild(removeBtn);
       container.appendChild(row);
 
