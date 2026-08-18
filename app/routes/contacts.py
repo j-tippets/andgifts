@@ -218,8 +218,13 @@ def _visible_event_types():
     their own personal milestones -- this now includes whatever came
     from the org's PracticeType preset, since those are seeded as
     ordinary CustomEventType rows), then the 'Custom' escape hatch last
-    for a genuine one-off label."""
-    query = CustomEventType.query.filter_by(org_id=current_user.org_id)
+    for a genuine one-off label. Excludes is_important_date_type rows
+    -- those exist only so a flow can target an Important Date's
+    freeform label by event_type (see _resolve_event_type_for_label);
+    they were never meant to be pickable here, since Important Dates
+    are a separate one-time concept from a repeatable Timeline
+    milestone type."""
+    query = CustomEventType.query.filter_by(org_id=current_user.org_id, is_important_date_type=False)
     custom = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
     return [(c.key, c.label) for c in custom] + [(CUSTOM_MILESTONE_KEY, "Custom")]
 
@@ -978,20 +983,21 @@ def delete_event_type(event_type_id):
 def _resolve_event_type_for_label(org_id, user, label):
     """Get-or-create a CustomEventType for a freeform Important Date
     label, so flows can still target it by event_type same as any
-    other milestone (e.g. "Birthday" typed here will match the
-    "birthday" preset most orgs already have seeded -- see
-    services.practice_types). Reuses any existing org-wide or personal
+    other milestone. Reuses any existing org-wide or personal
     CustomEventType with the same slug; otherwise creates a new
-    personal one owned by whoever typed it, so it shows up in their
-    own flow-builder dropdown without a separate trip to
-    Settings > Milestones."""
+    personal one owned by whoever typed it, flagged
+    is_important_date_type=True so it shows up in that agent's own
+    flow-builder dropdown but is excluded from the Timeline "Event
+    type" dropdown (see _visible_event_types) -- Important Dates are a
+    separate, one-time-labeled concept and shouldn't leak into the
+    Timeline milestone list."""
     slug = slugify_event_key(label)
     existing = CustomEventType.query.filter_by(org_id=org_id, key=slug).first()
     if existing:
         return existing.key
     event_type = CustomEventType(
         org_id=org_id, scope="personal", owner_user_id=user.id,
-        key=slug, label=label,
+        key=slug, label=label, is_important_date_type=True,
     )
     db.session.add(event_type)
     db.session.flush()

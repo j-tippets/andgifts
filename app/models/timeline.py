@@ -192,6 +192,18 @@ class CustomEventType(db.Model):
     key = db.Column(db.String(60), nullable=False)
     label = db.Column(db.String(100), nullable=False)
 
+    # True when this row was auto-created by an Important Date's
+    # freeform label (see routes/contacts._resolve_event_type_for_label)
+    # rather than a genuine Timeline milestone an admin/agent added on
+    # purpose. Exists purely so _visible_event_types() (the Timeline
+    # "Event type" dropdown) can exclude these -- Important Dates are a
+    # separate, one-time, freeform-labeled concept and shouldn't leak
+    # into the Timeline milestone list an agent picks from. Rows still
+    # need a real CustomEventType so flows can target the label by
+    # event_type, same as any other milestone; they just aren't offered
+    # as a Timeline choice.
+    is_important_date_type = db.Column(db.Boolean, default=False, nullable=False)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     owner = db.relationship("User", foreign_keys=[owner_user_id])
