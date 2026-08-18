@@ -172,7 +172,7 @@
 </form>
 
 {% include "campaigns/_preview_results.html" %}
-<script src="{{ url_for('static', filename='js/condition-builder.js') }}" defer></script>
+<script src="{{ versioned_static('js/condition-builder.js') }}" defer></script>
 
 <div class="form-section" style="margin-top:28px;">
   <h3 class="form-section-title">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }} this flow</h3>

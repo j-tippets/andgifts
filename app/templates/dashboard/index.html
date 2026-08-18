@@ -224,7 +224,7 @@
   </div>
 {% endif %}
 
-<script src="{{ url_for('static', filename='js/today.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/dashboard-view-toggle.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/dashboard-gift-select.js') }}" defer></script>
+<script src="{{ versioned_static('js/today.js') }}" defer></script>
+<script src="{{ versioned_static('js/dashboard-view-toggle.js') }}" defer></script>
+<script src="{{ versioned_static('js/dashboard-gift-select.js') }}" defer></script>
 {% endblock %}

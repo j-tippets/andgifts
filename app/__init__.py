@@ -4,6 +4,37 @@ from config import config_by_name
 from app.extensions import db, migrate, login_manager, limiter
 
 
+def _compute_static_asset_version(app):
+    """Hash of every filename+mtime under static/css, static/js, and
+    static/icons. Used two ways: (1) as sw.js's CACHE_VERSION, so the
+    service worker's cache bucket changes whenever any of those files
+    change, and (2) appended as a ?v= query string on every CSS/JS
+    <link>/<script> tag via the versioned_static() Jinja global below.
+
+    The ?v= part is what actually matters for correctness -- it
+    changes the REQUEST URL itself on a deploy, so a stale cache (the
+    browser's HTTP cache, an old still-active service worker, or a CDN
+    in front of the app) simply can't have an entry for it and has to
+    fetch fresh, regardless of whether the service worker's own
+    install/activate handoff has completed yet. Relying on the SW
+    cache-bucket versioning alone left a real window where a page
+    still controlled by an old SW would keep serving old CSS/JS on
+    every normal navigation until that handoff finished."""
+    import hashlib
+
+    hasher = hashlib.sha1()
+    for subdir in ("css", "js", "icons"):
+        dir_path = os.path.join(app.static_folder, subdir)
+        if not os.path.isdir(dir_path):
+            continue
+        for name in sorted(os.listdir(dir_path)):
+            file_path = os.path.join(dir_path, name)
+            if os.path.isfile(file_path):
+                hasher.update(name.encode())
+                hasher.update(str(os.path.getmtime(file_path)).encode())
+    return hasher.hexdigest()[:12]
+
+
 def create_app(config_name=None):
     config_name = config_name or os.environ.get("FLASK_ENV", "production")
     app = Flask(__name__)
@@ -13,6 +44,16 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
+
+    # Computed once per process (a real deploy is a new process, so
+    # this is never stale in production); see
+    # _compute_static_asset_version's docstring for why this exists.
+    app.config["STATIC_ASSET_VERSION"] = _compute_static_asset_version(app)
+
+    @app.template_global()
+    def versioned_static(filename):
+        from flask import url_for
+        return f"{url_for('static', filename=filename)}?v={app.config['STATIC_ASSET_VERSION']}"
 
     # Import models so Flask-Migrate can see them for autogenerate
     from app import models  # noqa: F401
@@ -80,24 +121,10 @@ def create_app(config_name=None):
         # service worker scope is "/" instead of "/static/" -- without
         # this, the SW would never control /dashboard (the manifest's
         # start_url) and the app would fail PWA installability checks.
-        import hashlib
-        import os
         from flask import render_template
 
-        hasher = hashlib.sha1()
-        for subdir in ("css", "js", "icons"):
-            dir_path = os.path.join(app.static_folder, subdir)
-            if not os.path.isdir(dir_path):
-                continue
-            for name in sorted(os.listdir(dir_path)):
-                file_path = os.path.join(dir_path, name)
-                if os.path.isfile(file_path):
-                    hasher.update(name.encode())
-                    hasher.update(str(os.path.getmtime(file_path)).encode())
-        cache_version = hasher.hexdigest()[:12]
-
         response = app.response_class(
-            render_template("sw.js.jinja", cache_version=cache_version),
+            render_template("sw.js.jinja", cache_version=app.config["STATIC_ASSET_VERSION"]),
             mimetype="application/javascript",
         )
         response.headers["Cache-Control"] = "no-cache"
