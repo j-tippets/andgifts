@@ -65,19 +65,22 @@ def _org_event_type_choices():
     else. Personal milestones are deliberately excluded -- a local
     recipe is a shared team template any agent can copy, so it can't
     rely on a milestone that's private to whichever admin happened to
-    author it."""
-    org_types = (
-        CustomEventType.query.filter_by(org_id=current_user.org_id, scope="org")
-        .order_by(CustomEventType.label).all()
-    )
+    author it. Sorted case-insensitively in Python rather than via SQL
+    ORDER BY -- most DB collations sort uppercase before lowercase, so
+    a mixed-case label like "showing" would otherwise land after every
+    capitalized one instead of where it alphabetically belongs."""
+    org_types = CustomEventType.query.filter_by(org_id=current_user.org_id, scope="org").all()
+    org_types.sort(key=lambda t: t.label.lower())
     return [(t.key, t.label) for t in org_types]
 
 
 def _personal_event_type_choices():
     """(key, label) pairs for a personal flow's trigger dropdown: this
-    org's shared milestones plus this agent's own personal milestones."""
+    org's shared milestones plus this agent's own personal milestones.
+    Same case-insensitive sort as _org_event_type_choices above."""
     query = CustomEventType.query.filter_by(org_id=current_user.org_id)
-    visible = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
+    visible = CustomEventType.visible_to(query, current_user).all()
+    visible.sort(key=lambda t: t.label.lower())
     return [(t.key, t.label) for t in visible]
 
 

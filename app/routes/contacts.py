@@ -223,9 +223,12 @@ def _visible_event_types():
     freeform label by event_type (see _resolve_event_type_for_label);
     they were never meant to be pickable here, since Important Dates
     are a separate one-time concept from a repeatable Timeline
-    milestone type."""
+    milestone type. Sorted case-insensitively in Python -- see
+    routes/campaigns._org_event_type_choices for why this doesn't
+    trust SQL ORDER BY for it."""
     query = CustomEventType.query.filter_by(org_id=current_user.org_id, is_important_date_type=False)
-    custom = CustomEventType.visible_to(query, current_user).order_by(CustomEventType.label).all()
+    custom = CustomEventType.visible_to(query, current_user).all()
+    custom.sort(key=lambda t: t.label.lower())
     return [(c.key, c.label) for c in custom] + [(CUSTOM_MILESTONE_KEY, "Custom")]
 
 

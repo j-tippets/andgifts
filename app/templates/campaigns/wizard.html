@@ -18,7 +18,7 @@
   </div>
 </div>
 
-<div class="flow-sentence-bar">
+<div class="flow-sentence-bar" id="flow-sentence-bar" style="{{ 'display:none;' if not campaign else '' }}">
   <span class="flow-sentence-bar-label">Your flow, so far</span>
   <span id="flow-sentence"></span>
 </div>
@@ -632,6 +632,26 @@
     // of which listener was attached first.
     wizardForm.addEventListener('click', function () { setTimeout(updateSentence, 0); });
     updateSentence();
+
+    // "Your flow, so far" starts hidden for a brand-new flow (see the
+    // inline style on #flow-sentence-bar) -- with nothing chosen yet
+    // it would otherwise show a full, oddly-specific sentence built
+    // entirely from default option values the agent never actually
+    // picked. Reveal it the moment they interact with the form at all;
+    // editing an existing flow always shows it from the start, since
+    // every value already reflects something real.
+    var sentenceBar = document.getElementById('flow-sentence-bar');
+    if (sentenceBar && sentenceBar.style.display === 'none') {
+      var revealSentenceBar = function () {
+        sentenceBar.style.display = '';
+        wizardForm.removeEventListener('input', revealSentenceBar);
+        wizardForm.removeEventListener('change', revealSentenceBar);
+        wizardForm.removeEventListener('click', revealSentenceBar);
+      };
+      wizardForm.addEventListener('input', revealSentenceBar);
+      wizardForm.addEventListener('change', revealSentenceBar);
+      wizardForm.addEventListener('click', revealSentenceBar);
+    }
 
     // The form spans all 4 panes at once but only one is visible at a
     // time, so native HTML5 validation (which the browser can't run on
