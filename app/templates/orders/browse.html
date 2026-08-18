@@ -3,14 +3,9 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <div class="eyebrow">For {{ contact.household_name }}</div>
     <h1>Send a gift</h1>
   </div>
 </div>
-
-<p class="subdued" style="margin-top:-8px; margin-bottom:20px;">
-  <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}">&larr; Back to {{ contact.household_name }}</a>
-</p>
 
 {% if items %}
   <div class="catalog-grid">

@@ -16,7 +16,6 @@
       </small>
     </p>
   </div>
-  <a href="{{ url_for('campaigns.campaign_detail', campaign_id=campaign.id) if campaign else (url_for('campaigns.recipe_book') if scope == 'library' else url_for('campaigns.list_campaigns')) }}" class="btn btn-ghost">&larr; {{ 'Back to Flow' if campaign else ('Back to Flow Library' if scope == 'library' else 'Back to Flows') }}</a>
 </div>
 
 <div class="flow-sentence-bar">

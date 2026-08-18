@@ -3,12 +3,10 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
-    <div class="eyebrow">App Admin</div>
     <h1>Global Flow Library</h1>
     <p class="subdued" style="margin-top:4px;"><small>Global flows shown in every agency's Flow Library. Agencies manage their own local flows separately, from within their own library. Editing one here never changes flows already copied from it.</small></p>
   </div>
   <div style="display:flex; gap:8px;">
-    <a href="{{ url_for('app_admin.dashboard') }}" class="btn btn-ghost">&larr; App Admin</a>
     <a href="{{ url_for('app_admin.recipe_new') }}" class="btn btn-primary">+ Add flow</a>
   </div>
 </div>

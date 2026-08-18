@@ -11,7 +11,6 @@
     <p class="subdued" style="margin-top:4px;"><small>{{ flow_sentence }}</small></p>
   </div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-ghost">&larr; Back to Flows</a>
     <a href="{{ url_for('campaigns.campaign_edit', campaign_id=campaign.id) }}" class="btn btn-primary">Edit flow</a>
   </div>
 </div>

@@ -3,14 +3,9 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <div class="eyebrow">For {{ contact.household_name }}</div>
     <h1>{{ item.name }}</h1>
   </div>
 </div>
-
-<p class="subdued" style="margin-top:-8px; margin-bottom:20px;">
-  <a href="{{ url_for('contacts.browse_gifts', contact_id=contact.id) }}">&larr; Back to gifts</a>
-</p>
 
 <div class="contact-card" style="max-width:480px;">
   <div style="display:flex; gap:14px; align-items:center; margin-bottom:20px;">

@@ -3,13 +3,11 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <div class="eyebrow">App Admin</div>
     <h1>{{ practice_type.name }}</h1>
     <p class="subdued" style="margin-top:4px;">
       <small>{{ org_count }} org{{ 's' if org_count != 1 }} on this practice type</small>
     </p>
   </div>
-  <a href="{{ url_for('app_admin.practice_type_list') }}" class="btn btn-ghost">&larr; Practice Types</a>
 </div>
 
 <div class="contact-card" style="max-width:480px; margin-bottom:28px;">
