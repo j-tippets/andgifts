@@ -198,42 +198,55 @@
 
 <div class="contact-card">
   <h2>Important Dates</h2>
-  {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
+  {% from "contacts/_important_date_form_macro.html" import important_date_form %}
   {% if contact.important_dates %}
     <div class="checkbox-grid" style="margin-bottom:8px;">
       {% for date in contact.important_dates %}
-        <details style="border:1px solid var(--line); border-radius:8px; padding:8px 12px; flex:1; min-width:160px;">
-          <summary style="cursor:pointer;">
-            <strong>{{ date.display_label() }}</strong>
-            <div class="subdued">{{ date.display_date() }}{% if date.years_since() is not none %} · {{ date.years_since() }} yrs{% endif %}</div>
-          </summary>
-          {{ timeline_event_form(
+        <button type="button" class="btn btn-ghost btn-small important-date-chip"
+                style="border:1px solid var(--line); border-radius:8px; padding:8px 12px; flex:1; min-width:160px;"
+                onclick="document.getElementById('edit-important-date-{{ date.id }}').showModal()">
+          <strong>{{ date.display_label() }}</strong>
+          <div class="subdued">{{ date.display_date() }}{% if date.years_since() is not none %} · {{ date.years_since() }} yrs{% endif %}</div>
+        </button>
+
+        <dialog id="edit-important-date-{{ date.id }}" class="app-modal">
+          <div class="app-modal-header">
+            <h3>Edit important date</h3>
+            <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
+          </div>
+          {{ important_date_form(
             url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=date.id),
-            event_types, event=date, submit_label='Save changes', button_class='btn-primary btn-small'
+            event=date, submit_label='Save changes'
           ) }}
           <form method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=date.id) }}"
                 style="margin-top:8px;"
                 onsubmit="return confirm('Delete this important date? This can\'t be undone.');">
             <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete</button>
           </form>
-        </details>
+        </dialog>
       {% endfor %}
     </div>
   {% else %}
     <p class="subdued">No important dates yet.</p>
   {% endif %}
 
-  <details style="margin-top:8px;">
-    <summary class="timeline-summary" style="font-weight:600; color:var(--evergreen);">+ Add important date</summary>
-    {{ timeline_event_form(
+  <button type="button" class="btn btn-tertiary" onclick="document.getElementById('add-important-date-modal').showModal()">+ Add important date</button>
+
+  <dialog id="add-important-date-modal" class="app-modal">
+    <div class="app-modal-header">
+      <h3>Add an important date</h3>
+      <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
+    </div>
+    {{ important_date_form(
       url_for('contacts.add_timeline_event', contact_id=contact.id),
-      event_types, submit_label='Add important date', default_important=true
+      submit_label='Add important date'
     ) }}
-  </details>
+  </dialog>
 </div>
 
 <div class="contact-card">
   <h2>Timeline</h2>
+  {% from "contacts/_timeline_form_macro.html" import timeline_event_form %}
   <div class="timeline" id="contact-timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
     {% for event in contact.timeline_events if not event.is_important_date %}
       <div class="timeline-item">

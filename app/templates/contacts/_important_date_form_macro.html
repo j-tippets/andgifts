@@ -1,0 +1,28 @@
+{% macro important_date_form(action_url, event=none, submit_label='Add important date', button_class='btn-primary') %}
+  {# Deliberately no Event type dropdown and no "Important Date"/"Repeats
+     annually" checkboxes here (see _timeline_form_macro.html for the
+     ordinary Timeline-milestone version that still has those) --
+     everything reachable through this form IS an Important Date, so
+     the route always sets is_important_date=1 via the hidden field
+     below, always annual, and the label is freeform text rather than
+     picked from the org's managed milestone list. #}
+  <form method="POST" action="{{ action_url }}">
+    <input type="hidden" name="is_important_date" value="1">
+    <div class="field">
+      <label>What is it?</label>
+      <input type="text" name="label" placeholder="e.g. Birthday, Anniversary, Kid's graduation"
+             value="{{ event.label if event and event.label else '' }}" required>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Date</label><input type="date" name="event_date" value="{{ event.event_date.isoformat() if event else '' }}" required></div>
+      <div class="field">
+        <label class="checkbox-chip"><input type="checkbox" name="year_unknown" value="1" {{ 'checked' if event and not event.year_known else '' }}> I don't know the year</label>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea name="notes" rows="2">{{ event.notes if event and event.notes else '' }}</textarea>
+    </div>
+    <button type="submit" class="btn {{ button_class }}">{{ submit_label }}</button>
+  </form>
+{% endmacro %}

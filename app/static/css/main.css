@@ -1186,3 +1186,47 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .flow-when-then-sub { font-size: 11.5px; color: rgba(42,26,69,.55); margin-top: 1px; }
 
 .flow-card-menu { position: absolute; top: 16px; right: 16px; }
+
+/* --- App modal (native <dialog>-based) ---
+   First real modal in the app -- used for Add/Edit Important Date.
+   Relies on <dialog>'s built-in top-layer rendering + backdrop, so no
+   JS is needed beyond calling .showModal()/.close(). */
+.app-modal {
+  border: none;
+  border-radius: 14px;
+  padding: 22px;
+  width: 100%;
+  max-width: 440px;
+  background: var(--paper-raised);
+  box-shadow: 0 12px 40px rgba(42,26,69,0.25);
+}
+.app-modal::backdrop {
+  background: rgba(42,26,69,0.45);
+}
+.app-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.app-modal-header h3 {
+  font-family: var(--font-display);
+  color: var(--evergreen);
+  margin: 0;
+}
+.app-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--evergreen-light);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.app-modal-close:hover { color: var(--evergreen); }
+.important-date-chip {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
