@@ -250,40 +250,50 @@
   <div class="timeline" id="contact-timeline" style="max-height:420px; overflow-y:auto; padding-right:8px;">
     {% for event in contact.timeline_events if not event.is_important_date %}
       <div class="timeline-item">
-        <details>
-          <summary class="timeline-summary">
-            <div class="timeline-date">{{ event.display_date() }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
-            <strong>{{ event.display_label() }}</strong>
-            {% if event.display_amount() %}<span class="subdued"> — {{ event.display_amount() }}</span>{% endif %}
-            {% if event.id in completed_by_event_id %}
-              {% set log = completed_by_event_id[event.id] %}
-              <span class="badge badge-success" title="{{ log.detail or log.action_type|capitalize }} on {{ log.sent_at.strftime('%b %-d, %Y') }}">✓ {{ log.action_type|capitalize }} sent</span>
-            {% endif %}
-            {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
-          </summary>
+        <button type="button" class="timeline-item-btn timeline-summary" onclick="document.getElementById('edit-timeline-event-{{ event.id }}').showModal()">
+          <div class="timeline-date">{{ event.display_date() }}{% if event.is_recurring %} · repeats annually{% endif %}</div>
+          <strong>{{ event.display_label() }}</strong>
+          {% if event.display_amount() %}<span class="subdued"> — {{ event.display_amount() }}</span>{% endif %}
+          {% if event.id in completed_by_event_id %}
+            {% set log = completed_by_event_id[event.id] %}
+            <span class="badge badge-success" title="{{ log.detail or log.action_type|capitalize }} on {{ log.sent_at.strftime('%b %-d, %Y') }}">✓ {{ log.action_type|capitalize }} sent</span>
+          {% endif %}
+          {% if event.notes %}<div class="subdued">{{ event.notes }}</div>{% endif %}
+        </button>
+
+        <dialog id="edit-timeline-event-{{ event.id }}" class="app-modal">
+          <div class="app-modal-header">
+            <h3>Edit timeline event</h3>
+            <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
+          </div>
           {{ timeline_event_form(
             url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
-            event_types, event=event, submit_label='Save changes', button_class='btn-primary btn-small'
+            event_types, event=event, submit_label='Save changes'
           ) }}
           <form method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=event.id) }}"
                 style="margin-top:8px;"
                 onsubmit="return confirm('Delete this timeline event? This can\'t be undone.');">
             <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete event</button>
           </form>
-        </details>
+        </dialog>
       </div>
     {% else %}
       <p class="subdued">No timeline events yet.</p>
     {% endfor %}
   </div>
 
-  <details style="margin-top:16px;">
-    <summary class="timeline-summary" style="font-weight:600; color:var(--evergreen);">+ Add timeline event</summary>
+  <button type="button" class="btn btn-tertiary" style="margin-top:16px;" onclick="document.getElementById('add-timeline-event-modal').showModal()">+ Add timeline event</button>
+
+  <dialog id="add-timeline-event-modal" class="app-modal">
+    <div class="app-modal-header">
+      <h3>Add a timeline event</h3>
+      <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
+    </div>
     {{ timeline_event_form(
       url_for('contacts.add_timeline_event', contact_id=contact.id),
       event_types, submit_label='Add event'
     ) }}
-  </details>
+  </dialog>
 </div>
 
 <div class="contact-card">

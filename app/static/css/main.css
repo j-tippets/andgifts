@@ -542,6 +542,20 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
 }
 .timeline-summary::-webkit-details-marker { display: none; }
 .timeline-summary::marker { content: ""; }
+/* Button version of .timeline-summary -- used once Timeline items
+   became modal triggers instead of <details>/<summary> (see
+   Important Dates for the same pattern). Resets default button
+   chrome so it reads the same as the old <summary> did. */
+.timeline-item-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
 .badge {
   display: inline-block;
   font-size: 11px;
