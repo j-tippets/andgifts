@@ -116,7 +116,7 @@ def add_payment_method():
     finish the order they were placing instead of stranding them on
     the generic Settings page -- see add_payment_method_return, which
     carries it through Stripe's round trip and honors it on return."""
-    next_url = request.form.get("next_url", "").strip() or url_for("settings.payment_methods")
+    next_url = request.form.get("next_url", "").strip() or url_for("settings.payment_methods", _external=True)
 
     stripe, customer_id = payments.get_or_create_stripe_customer(current_user)
     if not stripe:
