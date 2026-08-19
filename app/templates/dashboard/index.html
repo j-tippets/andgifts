@@ -24,6 +24,30 @@
   {% endif %}
 </div>
 
+{% if flow_recommendations %}
+  <div style="margin-bottom:28px;">
+    {% for rec in flow_recommendations %}
+      <div class="contact-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--evergreen-light); margin-bottom:4px;">Flow recommendation</div>
+          <p style="margin:0;">
+            <strong>{{ rec.contact_count }} contact{{ 's' if rec.contact_count != 1 else '' }}</strong>
+            {{ 'have' if rec.contact_count != 1 else 'has' }} a <strong>{{ rec.event_label }}</strong> milestone, but no flow covers it yet.
+          </p>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <form method="post" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=rec.id) }}">
+            <button type="submit" class="btn btn-ghost btn-small">Not now</button>
+          </form>
+          <form method="post" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=rec.id) }}">
+            <button type="submit" class="btn btn-primary btn-small">Build this flow</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
 {% if suggestions %}
   <div class="view-panel" id="cardsView">
     <div class="progress-label" id="progressLabel">1 of {{ suggestions|length }}</div>

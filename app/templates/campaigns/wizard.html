@@ -46,8 +46,8 @@
   {% set use_llm_copy_checked = (request.form.get('use_llm_copy') if is_post else (campaign and campaign.use_llm_copy)) %}
   {% set action_type_value = request.form.get('action_type', campaign.action_type if campaign else '') %}
   {% set timing_unit_value = request.form.get('timing_unit', campaign.timing_unit if campaign else 'day') %}
-  {% set timing_direction_value = request.form.get('timing_direction', campaign.timing_direction if campaign else 'after') %}
-  {% set event_type_value = request.form.get('event_type', campaign.event_type if campaign else '') %}
+  {% set timing_direction_value = request.values.get('timing_direction', campaign.timing_direction if campaign else 'after') %}
+  {% set event_type_value = request.values.get('event_type', campaign.event_type if campaign else '') %}
   {% set recur_interval_unit_value = request.form.get('recur_interval_unit', campaign.recur_interval_unit if campaign else 'year') %}
   {% set suggested_gift_id_value = request.form.get('suggested_gift_id', campaign.suggested_gift_id if campaign else '') %}
   <div id="wizard-validation-error" class="flash flash-error" style="display:none;"></div>
@@ -56,7 +56,7 @@
       <h3 class="form-section-title">Name this flow</h3>
       <div class="field">
         <label>Name</label>
-        <input type="text" name="name" value="{{ request.form.get('name', campaign.name if campaign else '') }}" placeholder="e.g. Post-showing feedback ask" required>
+        <input type="text" name="name" value="{{ request.values.get('name', campaign.name if campaign else '') }}" placeholder="e.g. Post-showing feedback ask" required>
       </div>
       <div class="field">
         <label>Description (optional)</label>

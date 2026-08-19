@@ -2,10 +2,11 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models import SuggestedAction, ActionLog, ContactAuditLog
+from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation
 from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
+from app.services.flow_recommendations import generate_flow_recommendations_for_user
 from app.services.email import send_flow_action_email
 from app.services.payments import charge_saved_card
 
@@ -23,6 +24,7 @@ def index():
         generate_suggestions_for_org(org)
         generate_campaign_suggestions_for_org(org)
         expire_stale_suggestions(org)
+        generate_flow_recommendations_for_user(current_user)
 
     pending = (
         SuggestedAction.query
@@ -30,7 +32,52 @@ def index():
         .order_by(SuggestedAction.target_date)
         .all()
     )
-    return render_template("dashboard/index.html", suggestions=pending, ai_enabled=org.feature_enabled("ai_dashboard"))
+    flow_recommendations = (
+        FlowRecommendation.query
+        .filter_by(user_id=current_user.id, status="pending")
+        .order_by(FlowRecommendation.contact_count.desc())
+        .all()
+        if org.feature_enabled("ai_dashboard")
+        else []
+    )
+    return render_template(
+        "dashboard/index.html",
+        suggestions=pending,
+        ai_enabled=org.feature_enabled("ai_dashboard"),
+        flow_recommendations=flow_recommendations,
+    )
+
+
+@dashboard_bp.route("/flow-recommendations/<recommendation_id>/dismiss", methods=["POST"])
+@login_required
+def dismiss_flow_recommendation(recommendation_id):
+    rec = FlowRecommendation.query.filter_by(id=recommendation_id, user_id=current_user.id).first_or_404()
+    rec.status = "dismissed"
+    rec.resolved_at = datetime.utcnow()
+    db.session.commit()
+    return redirect(request.referrer or url_for("dashboard.index"))
+
+
+@dashboard_bp.route("/flow-recommendations/<recommendation_id>/accept", methods=["POST"])
+@login_required
+def accept_flow_recommendation(recommendation_id):
+    """Marks the recommendation accepted and sends the agent into the
+    flow wizard with the trigger pre-filled -- see campaigns.campaign_new,
+    which reads these same field names from request.values (query
+    string on this GET redirect) the same way it already re-populates
+    the form from request.form after a validation error. Nothing about
+    the flow is actually created here; the agent still reviews and
+    saves it themselves in the wizard, same as any other new flow."""
+    rec = FlowRecommendation.query.filter_by(id=recommendation_id, user_id=current_user.id).first_or_404()
+    rec.status = "accepted"
+    rec.resolved_at = datetime.utcnow()
+    db.session.commit()
+    return redirect(url_for(
+        "campaigns.campaign_new",
+        event_type=rec.event_type,
+        name=f"{rec.event_label} outreach",
+        timing_direction="same_day",
+    ))
 
 
 @dashboard_bp.route("/actions/<action_id>/approve", methods=["POST"])
