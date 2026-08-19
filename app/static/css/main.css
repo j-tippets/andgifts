@@ -817,6 +817,23 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 @keyframes s-pop { from { transform: scale(0); } 60% { transform: scale(1.15); } to { transform: scale(1); } }
 .confetti-dot { position: absolute; border-radius: 3px; opacity: 0; }
 
+/* Generic inline button spinner -- shown next to a button's label while
+   a form submits, so a full-page POST/redirect (no other loading
+   feedback) doesn't read as "did that actually do anything?" during
+   the round trip. White border/top-color assumes it sits on a
+   btn-primary (coral) background; swap if reused on a lighter button. */
+.btn-spinner {
+  display: inline-block;
+  width: 13px; height: 13px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin .7s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
 .empty-state { text-align: center; padding: 60px 20px; color: rgba(42,26,69,.5); border:1px solid black; border-radius:10px;}
 .empty-state h3 { color: var(--ink); margin-bottom: 8px; }
 

@@ -46,7 +46,7 @@
       </div>
     {% endfor %}
   </div>
-  <button type="submit" class="btn btn-primary btn-small">Save order</button>
+  <button type="submit" class="btn btn-primary btn-small" id="save-order-btn">Save order</button>
 </form>
 
 <script>
@@ -169,6 +169,18 @@
         input.value = item.dataset.key;
         form.appendChild(input);
       });
+
+      // The button's own feedback for the POST/redirect round trip --
+      // save_milestone_priority() already flashes "Milestone priority
+      // order saved." on the page that comes back, but a full-page
+      // navigation with nothing changing in the meantime can look like
+      // the click didn't register. No need to re-enable the button
+      // afterward: the page is navigating away either way.
+      var saveBtn = document.getElementById('save-order-btn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>Saving\u2026';
+      }
     });
   })();
 </script>
