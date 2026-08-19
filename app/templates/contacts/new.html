@@ -66,6 +66,23 @@
   </fieldset>
 
   <fieldset>
+    <legend>Shipping address</legend>
+    <div class="field">
+      <label>Address line 1</label>
+      <input type="text" name="shipping_address_line1" placeholder="123 Main St">
+    </div>
+    <div class="field">
+      <label>Address line 2 (optional)</label>
+      <input type="text" name="shipping_address_line2" placeholder="Apt, suite, etc.">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>City</label><input type="text" name="shipping_city"></div>
+      <div class="field"><label>State</label><input type="text" name="shipping_state" maxlength="2" placeholder="UT"></div>
+      <div class="field"><label>ZIP</label><input type="text" name="shipping_zip"></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend>Head of household</legend>
     <div class="field-row">
       <div class="field"><label>First name</label><input type="text" name="head_first_name" required></div>

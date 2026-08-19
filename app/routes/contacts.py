@@ -114,6 +114,11 @@ def new_contact():
         status=request.form.get("status", "new"),
         notes=request.form.get("notes", "").strip() or None,
         owner_user_id=current_user.id if request.form.get("keep_private") else None,
+        shipping_address_line1=request.form.get("shipping_address_line1", "").strip() or None,
+        shipping_address_line2=request.form.get("shipping_address_line2", "").strip() or None,
+        shipping_city=request.form.get("shipping_city", "").strip() or None,
+        shipping_state=request.form.get("shipping_state", "").strip().upper() or None,
+        shipping_zip=request.form.get("shipping_zip", "").strip() or None,
     )
     db.session.add(contact)
     db.session.flush()
