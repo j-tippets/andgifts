@@ -10,7 +10,7 @@
       {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
     </p>
   </div>
-  <button type="button" class="btn btn-primary" onclick="document.getElementById('add-milestone-modal').showModal()">+ Add personal milestone</button>
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('add-milestone-modal').showModal()">+ Add milestone</button>
 </div>
 
 <form method="POST" action="{{ url_for('contacts.save_milestone_priority') }}" id="priority-form">
