@@ -448,12 +448,10 @@ def edit_contact(contact_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     custom_fields = _visible_custom_fields()
-    badges = _visible_badges()
 
     if request.method == "GET":
         spouse = next((p for p in contact.people if p.household_role == "spouse"), None)
         custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
-        contact_badge_ids = {b.id for b in contact.badges}
         action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
         org_members = (
             User.query.filter_by(org_id=current_user.org_id, status="active")
@@ -469,8 +467,6 @@ def edit_contact(contact_id):
             spouse=spouse,
             custom_fields=custom_fields,
             custom_values=custom_values,
-            badges=badges,
-            contact_badge_ids=contact_badge_ids,
             action_log_count=action_log_count,
             org_members=org_members,
         )
@@ -545,7 +541,6 @@ def edit_contact(contact_id):
         db.session.delete(spouse)
 
     _save_custom_field_values(contact, request.form, custom_fields)
-    _save_contact_badges(contact, request.form, badges)
 
     changes = []
     if old_household_name != contact.household_name:

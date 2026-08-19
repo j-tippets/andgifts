@@ -24,7 +24,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>
       Send a gift
     </a>
-    <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn btn-ghost">Edit</a>
   </div>
 </div>
 
@@ -50,7 +49,7 @@
               {% for badge in badges %}
                 <label class="badge-toggle" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">
                   <input type="checkbox" name="badge_ids" value="{{ badge.id }}" {{ 'checked' if badge.id in contact_badge_ids else '' }}>
-                  {{ badge.label }}{% if badge.scope == 'personal' %} <span class="badge-toggle-scope">personal</span>{% endif %}
+                  {{ badge.label }}
                 </label>
               {% endfor %}
             </div>
@@ -126,7 +125,10 @@
 
 <div class="contact-card" style="margin-top:28px;">
   <div class="contact-card-section">
-    <h2>Household</h2>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+      <h2>Household</h2>
+      <a href="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" class="btn btn-ghost btn-small">Edit</a>
+    </div>
     {% for person in contact.people %}
       <div style="margin-bottom:14px;">
         <strong>{{ person.full_name }}</strong> <span class="subdued">({{ person.household_role }})</span>
