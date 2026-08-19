@@ -55,6 +55,16 @@ def create_app(config_name=None):
         from flask import url_for
         return f"{url_for('static', filename=filename)}?v={app.config['STATIC_ASSET_VERSION']}"
 
+    @app.template_global()
+    def condition_value_less_operators():
+        # Single source of truth stays campaign_rules.VALUE_LESS_OPERATORS --
+        # exposed as a template global (rather than threaded through every
+        # condition_builder() call site) so the macro and its JS can both
+        # know which operators (is_empty, is_checked, etc.) need no value
+        # box without every caller having to remember to pass it.
+        from app.services.campaign_rules import VALUE_LESS_OPERATORS
+        return sorted(VALUE_LESS_OPERATORS)
+
     # Import models so Flask-Migrate can see them for autogenerate
     from app import models  # noqa: F401
 

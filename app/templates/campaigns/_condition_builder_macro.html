@@ -1,13 +1,20 @@
 {% macro condition_builder(condition_fields, condition_operator_map, existing_conditions, container_id='condition-rows') %}
 {% set field_options_by_key = {} %}
+{% set field_value_type_by_key = {} %}
 {% for key, label, value_type, options in condition_fields %}
   {% set _ = field_options_by_key.update({key: options}) %}
+  {% set _ = field_value_type_by_key.update({key: value_type}) %}
 {% endfor %}
+{% set value_less_ops = condition_value_less_operators() %}
 <div class="condition-rows" id="{{ container_id }}"
      data-operator-map='{{ condition_operator_map|tojson }}'
-     data-field-options='{{ condition_fields | map("list") | list | tojson }}'>
+     data-field-options='{{ condition_fields | map("list") | list | tojson }}'
+     data-value-less-operators='{{ value_less_ops|tojson }}'>
   {% for c in existing_conditions %}
     {% set value_options = field_options_by_key.get(c.field, []) %}
+    {% set value_type = field_value_type_by_key.get(c.field, 'text') %}
+    {% set saved_operator = c.config.get('operator') if c.config else none %}
+    {% set is_value_less = saved_operator in value_less_ops %}
     <div class="condition-row">
       <select name="condition_field" class="condition-field-select">
         {% for key, label, value_type, options in condition_fields %}
@@ -19,12 +26,25 @@
           <option value="{{ op }}" {{ 'selected' if c.config and c.config.get('operator') == op else '' }}>{{ op_label }}</option>
         {% endfor %}
       </select>
-      {% if value_options %}
+      {% if is_value_less %}
+        {# hidden, not disabled: a disabled input isn't submitted at all,
+           which would desync condition_field[]/condition_operator[]/
+           condition_value[] (they're zipped positionally server-side in
+           _conditions_from_form) -- this still posts an empty value,
+           which VALUE_LESS_OPERATORS already treats as fine. #}
+        <input type="text" name="condition_value" class="condition-value-input" value="" style="display:none;">
+      {% elif value_options %}
         <select name="condition_value" class="condition-value-input">
           {% for val, val_label in value_options %}
             <option value="{{ val }}" {{ 'selected' if c.config and c.config.get('value') == val else '' }}>{{ val_label }}</option>
           {% endfor %}
         </select>
+      {% elif value_type == 'date' %}
+        <input type="date" name="condition_value" class="condition-value-input"
+               value="{{ c.config.get('value', '') if c.config else '' }}">
+      {% elif value_type == 'number' %}
+        <input type="number" step="any" name="condition_value" class="condition-value-input"
+               value="{{ c.config.get('value', '') if c.config else '' }}" placeholder="value">
       {% else %}
         <input type="text" name="condition_value" class="condition-value-input"
                value="{{ c.config.get('value', '') if c.config else '' }}" placeholder="value">

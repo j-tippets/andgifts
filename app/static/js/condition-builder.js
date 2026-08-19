@@ -13,12 +13,16 @@
     return JSON.parse(container.dataset.fieldOptions || '[]'); // [[key, label, valueType, options], ...]
   }
 
-  function valueOptionsFor(container, fieldKey) {
+  function valueLessOperators(container) {
+    return JSON.parse(container.dataset.valueLessOperators || '[]');
+  }
+
+  function fieldMetaFor(container, fieldKey) {
     var fields = fieldOptionsFor(container);
     for (var i = 0; i < fields.length; i++) {
-      if (fields[i][0] === fieldKey) return fields[i][3] || [];
+      if (fields[i][0] === fieldKey) return { valueType: fields[i][2], options: fields[i][3] || [] };
     }
-    return [];
+    return { valueType: 'text', options: [] };
   }
 
   function populateOperatorSelect(container, opSelect, fieldKey, keepValue) {
@@ -33,25 +37,44 @@
     });
   }
 
-  // The value control swaps between a free-text <input> and a <select>
-  // depending on whether the currently-chosen field has a fixed,
-  // known set of valid values (badges, interest tags, select-type
-  // custom fields, checkbox) -- see campaign_rules.condition_field_choices.
-  // Since that can change every time a different field is picked, this
-  // replaces the control outright rather than trying to morph one
-  // element's type in place.
-  function buildValueControl(container, fieldKey, keepValue) {
-    var valueOptions = valueOptionsFor(container, fieldKey);
+  // The value control swaps between a free-text/number/date <input> and
+  // a <select> depending on the currently-chosen field's value_type and
+  // fixed-options list (badges, interest tags, select-type custom
+  // fields -- see campaign_rules.condition_field_choices), or is hidden
+  // entirely when the currently-chosen operator is value-less (is_empty,
+  // is_checked, etc. -- see campaign_rules.VALUE_LESS_OPERATORS). Since
+  // any of that can change every time a different field or operator is
+  // picked, this replaces the control outright rather than trying to
+  // morph one element in place.
+  function buildValueControl(container, fieldKey, operatorKey, keepValue) {
+    var meta = fieldMetaFor(container, fieldKey);
     var control;
-    if (valueOptions.length) {
+    var isValueLess = valueLessOperators(container).indexOf(operatorKey) !== -1;
+
+    if (isValueLess) {
+      control = document.createElement('input');
+      control.type = 'text';
+      control.style.display = 'none';
+      control.value = '';
+    } else if (meta.options.length) {
       control = document.createElement('select');
-      valueOptions.forEach(function (pair) {
+      meta.options.forEach(function (pair) {
         var opt = document.createElement('option');
         opt.value = pair[0];
         opt.textContent = pair[1];
         if (pair[0] === keepValue) opt.selected = true;
         control.appendChild(opt);
       });
+    } else if (meta.valueType === 'date') {
+      control = document.createElement('input');
+      control.type = 'date';
+      if (keepValue != null) control.value = keepValue;
+    } else if (meta.valueType === 'number') {
+      control = document.createElement('input');
+      control.type = 'number';
+      control.step = 'any';
+      control.placeholder = 'value';
+      if (keepValue != null) control.value = keepValue;
     } else {
       control = document.createElement('input');
       control.type = 'text';
@@ -63,9 +86,9 @@
     return control;
   }
 
-  function replaceValueControl(row, container, fieldKey, keepValue) {
+  function replaceValueControl(row, container, fieldKey, operatorKey, keepValue) {
     var old = row.querySelector('.condition-value-input');
-    var replacement = buildValueControl(container, fieldKey, keepValue);
+    var replacement = buildValueControl(container, fieldKey, operatorKey, keepValue);
     if (old) {
       old.replaceWith(replacement);
     } else {
@@ -90,15 +113,28 @@
     refreshEveryoneIndicator(container);
 
     container.addEventListener('change', function (e) {
-      if (!e.target.classList.contains('condition-field-select')) return;
       var row = e.target.closest('.condition-row');
-      var opSelect = row.querySelector('.condition-operator-select');
-      populateOperatorSelect(container, opSelect, e.target.value, null);
-      // A field change means the value's meaning changed entirely
-      // (e.g. switching from a badge to a number field), so the old
-      // typed/selected value doesn't carry over -- same as the
-      // operator reset just above.
-      replaceValueControl(row, container, e.target.value, null);
+      if (!row) return;
+
+      if (e.target.classList.contains('condition-field-select')) {
+        var opSelect = row.querySelector('.condition-operator-select');
+        populateOperatorSelect(container, opSelect, e.target.value, null);
+        // A field change means the value's meaning changed entirely
+        // (e.g. switching from a badge to a number field), so the old
+        // typed/selected value doesn't carry over -- same as the
+        // operator reset just above. The operator select was just
+        // rebuilt, so its first option is whatever ends up selected.
+        replaceValueControl(row, container, e.target.value, opSelect.value, null);
+        return;
+      }
+
+      if (e.target.classList.contains('condition-operator-select')) {
+        // Field didn't change, only the operator -- e.g. switching
+        // "is greater than" to "is empty" should hide the value box
+        // without touching the field.
+        var fieldSelect = row.querySelector('.condition-field-select');
+        replaceValueControl(row, container, fieldSelect.value, e.target.value, null);
+      }
     });
 
     container.addEventListener('click', function (e) {
@@ -141,11 +177,11 @@
 
       row.appendChild(fieldSelect);
       row.appendChild(opSelect);
-      row.appendChild(buildValueControl(container, fields[0][0], null));
+      populateOperatorSelect(container, opSelect, fields[0][0], null);
+      row.appendChild(buildValueControl(container, fields[0][0], opSelect.value, null));
       row.appendChild(removeBtn);
       container.appendChild(row);
 
-      populateOperatorSelect(container, opSelect, fields[0][0], null);
       refreshEveryoneIndicator(container);
     });
   });

@@ -28,15 +28,22 @@ from datetime import timedelta
 
 
 BUILT_IN_FIELDS = {
+    # These two deliberately don't reuse OPERATORS_BY_VALUE_TYPE's
+    # "text" list even though value_type is "text" -- their value box
+    # is always a closed dropdown of exact tag/badge names (see
+    # condition_field_choices below), not free text, so "contains"
+    # doesn't make sense here the way it does for a real free-typed
+    # text field. is_empty/is_not_empty still apply ("has no badges
+    # at all" / "has at least one interest tag").
     "interest_tag": {
         "label": "Contact has interest tag",
         "value_type": "text",
-        "operators": ["equals", "not_equals"],
+        "operators": ["equals", "not_equals", "is_empty", "is_not_empty"],
     },
     "has_badge": {
         "label": "Contact has badge",
         "value_type": "text",
-        "operators": ["equals", "not_equals"],
+        "operators": ["equals", "not_equals", "is_empty", "is_not_empty"],
     },
     "gift_cooldown_days": {
         "label": "Days since their last suggestion (any flow)",
@@ -53,28 +60,37 @@ BUILT_IN_FIELDS = {
     "event_amount": {
         "label": "This event's amount",
         "value_type": "number",
-        "operators": ["greater_than", "less_than", "is_empty", "is_not_empty"],
+        "operators": ["greater_than", "less_than", "equals", "not_equals", "is_empty", "is_not_empty"],
     },
 }
 
-# Which operators make sense for each custom-field type. Date fields are
-# intentionally left out of the condition builder for now -- "older
-# than" already covers the one date-shaped comparison that comes up in
-# practice (gift_cooldown_days above); a general date condition can be
-# added here later without touching anything else.
+# Which operators make sense for each custom-field type. interest_tag
+# and has_badge (above) deliberately do NOT pull from this table even
+# though their value_type is "text" -- their value box is always a
+# closed dropdown of exact tag/badge names (see condition_field_choices),
+# not free text, so "contains" doesn't make sense there the way it does
+# for a genuinely free-typed custom text field; they get their own
+# explicit operator list instead.
 OPERATORS_BY_VALUE_TYPE = {
-    "text": ["equals", "not_equals", "contains", "is_empty", "is_not_empty"],
-    "number": ["equals", "not_equals", "greater_than", "less_than", "is_empty", "is_not_empty"],
-    "checkbox": ["equals"],
+    "text": ["contains", "not_contains", "equals", "not_equals", "is_empty", "is_not_empty"],
+    "number": ["greater_than", "less_than", "equals", "not_equals", "is_empty", "is_not_empty"],
+    "date": ["before", "on", "after", "is_empty", "is_not_empty"],
+    "checkbox": ["is_checked", "is_not_checked"],
 }
 
 OPERATOR_LABELS = {
-    "equals": "is",
-    "not_equals": "is not",
+    "equals": "equals",
+    "not_equals": "does not equal",
     "contains": "contains",
+    "not_contains": "does not contain",
     "greater_than": "is greater than",
     "less_than": "is less than",
     "older_than": "is more than",
+    "before": "is before",
+    "on": "is on",
+    "after": "is after",
+    "is_checked": "is checked",
+    "is_not_checked": "is not checked",
     "is_empty": "is empty",
     "is_not_empty": "is not empty",
 }
@@ -82,8 +98,11 @@ OPERATOR_LABELS = {
 # Operators that don't take a value -- everything else needs one, and a
 # saved condition with a blank value doesn't error, it just can never
 # match anyone (e.g. "interest tag equals ''" checks membership in a
-# set, and "" is never a member). See _conditions_from_form.
-VALUE_LESS_OPERATORS = {"is_empty", "is_not_empty"}
+# set, and "" is never a member). See _conditions_from_form. The
+# condition builder's JS also hides/disables the value box for any
+# operator in this set, since asking for a value nobody can fill in
+# meaningfully (what would you type for "is checked"?) is confusing.
+VALUE_LESS_OPERATORS = {"is_empty", "is_not_empty", "is_checked", "is_not_checked"}
 
 
 def condition_field_choices(org):
@@ -121,7 +140,9 @@ def condition_field_choices(org):
 
     custom_fields = (
         CustomFieldDefinition.query.filter_by(org_id=org.id)
-        .filter(CustomFieldDefinition.field_type.in_(["text", "number", "currency", "checkbox", "select"]))
+        .filter(CustomFieldDefinition.field_type.in_(
+            ["text", "textarea", "number", "currency", "date", "checkbox", "select"]
+        ))
         .order_by(CustomFieldDefinition.label)
         .all()
     )
@@ -134,11 +155,11 @@ def condition_field_choices(org):
 def _custom_field_options(field):
     """(value, label) pairs for a CustomFieldDefinition with a fixed
     set of valid values -- empty list for anything freeform (text,
-    number, currency)."""
+    number, currency) and for checkbox, whose only operators
+    (is_checked/is_not_checked) are value-less so there's nothing to
+    pick from a dropdown for."""
     if field.field_type == "select":
         return [(opt, opt) for opt in field.option_list()]
-    if field.field_type == "checkbox":
-        return [("1", "Yes"), ("0", "No")]
     return []
 
 
@@ -146,8 +167,11 @@ def _custom_field_value_type(field_type):
     """Which condition-builder value_type a CustomFieldDefinition.field_type
     maps to. currency reuses the "number" comparators as-is -- the value
     is stored as a plain numeric string same as "number" fields, dollar
-    formatting is a display-only concern in the templates."""
-    if field_type in ("text", "select"):
+    formatting is a display-only concern in the templates. textarea
+    reuses "text" (contains/equals/etc. all still make sense on a longer
+    free-typed field). date and checkbox pass straight through to their
+    own entries in OPERATORS_BY_VALUE_TYPE."""
+    if field_type in ("text", "select", "textarea"):
         return "text"
     if field_type == "currency":
         return "number"
@@ -206,6 +230,13 @@ def _compare(operator, actual, expected):
         return not actual
     if operator == "is_not_empty":
         return bool(actual)
+    # Checkbox custom fields store "1"/"0" (see
+    # contacts._save_custom_field_values) -- anything else (missing
+    # value, "0") counts as unchecked.
+    if operator == "is_checked":
+        return actual == "1"
+    if operator == "is_not_checked":
+        return actual != "1"
 
     if isinstance(actual, set):
         if operator == "equals":
@@ -217,8 +248,25 @@ def _compare(operator, actual, expected):
     if operator in ("equals", "not_equals"):
         matches = (actual or "").strip().lower() == (expected or "").strip().lower()
         return matches if operator == "equals" else not matches
-    if operator == "contains":
-        return (expected or "").strip().lower() in (actual or "").lower()
+    if operator in ("contains", "not_contains"):
+        is_in = (expected or "").strip().lower() in (actual or "").lower()
+        return is_in if operator == "contains" else not is_in
+
+    if operator in ("before", "on", "after"):
+        # Date custom fields store an ISO "YYYY-MM-DD" string (see
+        # contacts/_custom_fields_macro.html's <input type="date">).
+        from datetime import date
+
+        try:
+            actual_date = date.fromisoformat(actual)
+            expected_date = date.fromisoformat(expected)
+        except (TypeError, ValueError):
+            return False
+        if operator == "before":
+            return actual_date < expected_date
+        if operator == "on":
+            return actual_date == expected_date
+        return actual_date > expected_date
 
     # Numeric comparisons -- a blank/non-numeric actual value never
     # satisfies a greater/less-than condition (fails closed, not open).
