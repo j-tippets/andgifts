@@ -5,61 +5,63 @@
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
     <h1>Badges</h1>
+    <p class="subdued">Short labels you can attach to a contact -- global badges are managed by &amp;Gifts and available on every contact; personal badges are yours alone, visible only to you.</p>
   </div>
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('add-badge-modal').showModal()">+ Add personal badge</button>
 </div>
 
-<h2>Global badges</h2>
-<p class="subdued">Available on every contact. Managed by &amp;Gifts, not editable here.</p>
-
-{% if global_badges %}
-  <div style="margin-bottom:32px;">
-    {% for badge in global_badges %}
-      <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
-    {% endfor %}
-  </div>
-{% else %}
-  <p class="subdued" style="margin-bottom:32px;">No global badges yet.</p>
-{% endif %}
-
-<h2>My badges</h2>
-<p class="subdued">Only visible to you, on any contact you can see.</p>
-
-{% if my_badges %}
-  {% for badge in my_badges %}
-    <div class="team-row static-row" style="flex-direction:column; align-items:stretch; gap:10px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+{% if global_badges or my_badges %}
+  {% for badge in global_badges %}
+    <div class="team-row static-row">
+      <div style="display:flex; align-items:center; gap:10px;">
         <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
-        <div style="display:flex; gap:8px;">
-          <details>
-            <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
-            <form method="post" action="{{ url_for('contacts.edit_badge', badge_id=badge.id) }}" style="margin-top:10px;">
-              <div class="field-row">
-                <div class="field"><label>Badge name</label><input type="text" name="label" value="{{ badge.label }}" required></div>
-                <div class="field"><label>Color</label>{{ badge_color_swatches(badge.color) }}</div>
-              </div>
-              <button type="submit" class="btn btn-primary btn-small">Save</button>
-            </form>
-          </details>
-          <form method="post" action="{{ url_for('contacts.delete_badge', badge_id=badge.id) }}"
-                onsubmit="return confirm('Remove your ' + {{ badge.label|tojson }} + ' badge from every contact? This cannot be undone.');">
-            <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+        <span class="subdued"><small>Global</small></span>
+      </div>
+    </div>
+  {% endfor %}
+  {% for badge in my_badges %}
+    <div class="team-row static-row">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="badge-pill" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">{{ badge.label }}</span>
+        <span class="subdued"><small>Personal</small></span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <details>
+          <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
+          <form method="post" action="{{ url_for('contacts.edit_badge', badge_id=badge.id) }}" style="margin-top:10px;">
+            <div class="field-row">
+              <div class="field"><label>Badge name</label><input type="text" name="label" value="{{ badge.label }}" required></div>
+              <div class="field"><label>Color</label>{{ badge_color_swatches(badge.color) }}</div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-small">Save</button>
           </form>
-        </div>
+        </details>
+        <form method="post" action="{{ url_for('contacts.delete_badge', badge_id=badge.id) }}"
+              onsubmit="return confirm('Remove your ' + {{ badge.label|tojson }} + ' badge from every contact? This cannot be undone.');">
+          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+        </form>
       </div>
     </div>
   {% endfor %}
 {% else %}
-  <p class="subdued">You haven't added any personal badges yet.</p>
+  <p class="subdued">No badges yet -- add a personal one to get started.</p>
 {% endif %}
 
-<details style="margin-top:12px;">
-  <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add personal badge</summary>
-  <form method="post" action="{{ url_for('contacts.new_badge') }}" style="margin-top:14px;">
-    <div class="field-row">
-      <div class="field"><label>Badge name</label><input type="text" name="label" placeholder="e.g. Past Client Referral Source" required></div>
-      <div class="field"><label>Color</label>{{ badge_color_swatches(None) }}</div>
+<dialog id="add-badge-modal" class="app-modal">
+  <div class="app-modal-header">
+    <h3>Add a personal badge</h3>
+    <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
+  </div>
+  <form method="post" action="{{ url_for('contacts.new_badge') }}">
+    <div class="field">
+      <label>Badge name</label>
+      <input type="text" name="label" placeholder="e.g. Past Client Referral Source" required>
+    </div>
+    <div class="field">
+      <label>Color</label>
+      {{ badge_color_swatches(None) }}
     </div>
     <button type="submit" class="btn btn-primary">Add badge</button>
   </form>
-</details>
+</dialog>
 {% endblock %}
