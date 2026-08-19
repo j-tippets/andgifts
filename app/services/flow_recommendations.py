@@ -23,8 +23,6 @@ of that (what to send, which is what generate_campaign_suggestions_for_org
 already does once a flow exists) rather than inventing the "should I
 reach out at all" judgment call from nothing.
 """
-from datetime import datetime
-
 from app.extensions import db
 from app.models import (
     Contact, TimelineEvent, Campaign, CustomEventType, FlowRecommendation,

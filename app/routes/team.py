@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash
-from flask_login import login_required, current_user, login_user
+from flask_login import current_user, login_user
 
 from app.extensions import db
 from app.models import User, ContactAuditLog

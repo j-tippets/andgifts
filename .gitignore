@@ -9,3 +9,13 @@ venv/
 __pycache__/
 *.pyc
 
+# Stray local artifacts that have snuck into commits before -- a full
+# zipped snapshot of the repo (7-8-26-938.zip, included compiled .pyc
+# files) and a patch file whose changes were already merged as a real
+# commit (team_ui_changes.diff). Neither belongs in version control;
+# .diff/.patch files especially are meant to be applied and discarded,
+# not committed alongside the commit they produced.
+*.zip
+*.diff
+*.patch
+

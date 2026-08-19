@@ -413,7 +413,6 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
 .badge-toggle input {
   position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer;
 }
-.badge-toggle-scope { font-weight: 400; text-transform: none; letter-spacing: normal; opacity: 0.65; }
 
 /* ---- Team list ---- */
 .team-row {
@@ -566,7 +565,6 @@ legend { font-family: var(--font-display); font-weight: 700; padding: 0 8px; col
   vertical-align: middle;
 }
 .badge-success { background: var(--mint); color: var(--mint-ink); }
-.badge-pending { background: var(--gold-soft); color: var(--gold-ink); }
 
 .catalog-caret { display:inline-block; transition: transform 0.15s ease; color: #9A9686; }
 details[open] > summary .catalog-caret { transform: rotate(90deg); }
@@ -737,7 +735,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   transform: rotate(45deg); transition: transform .16s var(--ease);
 }
 .s-edit-disclosure[open] > .s-edit-toggle::before { transform: rotate(-135deg); margin-top: 2px; }
-.s-edit-hint { font-size: 12.5px; margin: 8px 0; }
+
 .s-edit-textarea {
   width: 100%; box-sizing: border-box; font-family: var(--font-body); font-size: 13.5px; line-height: 1.5;
   padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper-raised);
@@ -1014,8 +1012,6 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .flow-card .flow-desc { margin: 0 0 6px; font-size: 13.5px; color: rgba(42,26,69,.75); }
 .flow-card .flow-meta { font-size: 12.5px; color: rgba(42,26,69,.55); }
 .flow-card .flow-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-
-.flow-owner-group { margin: 16px 0 4px; font-family: var(--font-rounded); font-weight: 700; font-size: 12.5px; color: rgba(42,26,69,.55); }
 
 .info-icon {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
