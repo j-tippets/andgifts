@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 
 from app.extensions import db, limiter
-from app.models import Campaign, CampaignRecipe, CampaignRule, SuggestedAction, ActionLog, Contact, User
+from app.models import Campaign, CampaignRecipe, CampaignRecipeRule, CampaignRule, SuggestedAction, ActionLog, Contact, User
 from app.models.campaigns import _timing_label as timing_label_phrase
 from app.models.timeline import CustomEventType
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
