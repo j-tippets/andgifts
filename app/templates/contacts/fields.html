@@ -4,31 +4,79 @@
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
     <h1>Custom fields</h1>
-    <p class="subdued">Extra fields on your contacts, visible only to you.</p>
+    <p class="subdued">Extra fields on your contacts -- organization fields are managed by an admin and available to every agent; personal fields are yours alone, visible only to you.</p>
   </div>
-  <button type="button" class="btn btn-primary" onclick="document.getElementById('add-field-modal').showModal()">+ Add field</button>
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('add-field-modal').showModal()">+ Add personal field</button>
 </div>
 
-{% if my_fields %}
+{% if org_fields or my_fields %}
+  {% for field in org_fields %}
+    <div class="team-row static-row">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div>
+          <strong>{{ field.label }}</strong>
+          <span class="subdued"> — {{ field.field_type|capitalize }}{% if field.field_type == 'select' %}: {{ field.option_list()|join(', ') }}{% endif %}</span>
+        </div>
+        <span class="subdued"><small>Org</small></span>
+      </div>
+      {% if current_user.is_admin %}
+        <div style="display:flex; gap:8px;">
+          <details>
+            <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
+            <form method="post" action="{{ url_for('contacts.edit_field', field_id=field.id) }}" style="margin-top:10px;">
+              <div class="field-row">
+                <div class="field"><label>Field name</label><input type="text" name="label" value="{{ field.label }}" required></div>
+                {% if field.field_type == 'select' %}
+                  <div class="field"><label>Options</label><input type="text" name="options" value="{{ field.option_list()|join(', ') }}" placeholder="Comma-separated"></div>
+                {% endif %}
+              </div>
+              <button type="submit" class="btn btn-primary btn-small">Save</button>
+            </form>
+          </details>
+          <form method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
+                onsubmit="return confirm('Remove the {{ field.label }} field from every contact? This cannot be undone.');">
+            <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
   {% for field in my_fields %}
     <div class="team-row static-row">
-      <div>
-        <strong>{{ field.label }}</strong>
-        <span class="subdued"> — {{ field.field_type|capitalize }}{% if field.field_type == 'select' %}: {{ field.option_list()|join(', ') }}{% endif %}</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div>
+          <strong>{{ field.label }}</strong>
+          <span class="subdued"> — {{ field.field_type|capitalize }}{% if field.field_type == 'select' %}: {{ field.option_list()|join(', ') }}{% endif %}</span>
+        </div>
+        <span class="subdued"><small>Personal</small></span>
       </div>
-      <form method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
-            onsubmit="return confirm('Remove your {{ field.label }} field from every contact? This cannot be undone.');">
-        <button type="submit" class="btn btn-ghost btn-small">Remove</button>
-      </form>
+      <div style="display:flex; gap:8px;">
+        <details>
+          <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
+          <form method="post" action="{{ url_for('contacts.edit_field', field_id=field.id) }}" style="margin-top:10px;">
+            <div class="field-row">
+              <div class="field"><label>Field name</label><input type="text" name="label" value="{{ field.label }}" required></div>
+              {% if field.field_type == 'select' %}
+                <div class="field"><label>Options</label><input type="text" name="options" value="{{ field.option_list()|join(', ') }}" placeholder="Comma-separated"></div>
+              {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary btn-small">Save</button>
+          </form>
+        </details>
+        <form method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
+              onsubmit="return confirm('Remove your {{ field.label }} field from every contact? This cannot be undone.');">
+          <button type="submit" class="btn btn-ghost btn-small">Remove</button>
+        </form>
+      </div>
     </div>
   {% endfor %}
 {% else %}
-  <p class="subdued">You haven't added any custom fields yet.</p>
+  <p class="subdued">No fields yet -- add a personal one to get started.</p>
 {% endif %}
 
 <dialog id="add-field-modal" class="app-modal">
   <div class="app-modal-header">
-    <h3>Add a custom field</h3>
+    <h3>Add a personal field</h3>
     <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
   </div>
   <form method="post" action="{{ url_for('contacts.new_field') }}">

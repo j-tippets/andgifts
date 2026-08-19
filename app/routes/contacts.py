@@ -690,6 +690,41 @@ def new_field():
     return redirect(url_for("contacts.manage_fields"))
 
 
+@contacts_bp.route("/fields/<field_id>/edit", methods=["POST"])
+@login_required
+def edit_field(field_id):
+    """Rename a field and/or update its Select options -- deliberately
+    does NOT allow changing field_type once created. The value itself
+    is always stored as plain text (CustomFieldValue.value) regardless
+    of type, so a type change can't corrupt anything, but it'd silently
+    change how every existing saved value on every contact is
+    interpreted and rendered from then on, which is a much bigger
+    surprise than a label rename. Same edit-in-place pattern as
+    edit_badge/edit_event_type."""
+    field = CustomFieldDefinition.query.filter_by(
+        id=field_id, org_id=current_user.org_id
+    ).first_or_404()
+
+    if field.scope == "org" and not current_user.is_admin:
+        flash("Only an admin can edit an organization-wide field.", "error")
+        return redirect(url_for("contacts.manage_fields"))
+    if field.scope == "personal" and field.owner_user_id != current_user.id:
+        flash("You can only edit your own personal fields.", "error")
+        return redirect(url_for("contacts.manage_fields"))
+
+    label = request.form.get("label", "").strip()
+    if not label:
+        flash("Give the field a name.", "error")
+        return redirect(url_for("contacts.manage_fields"))
+
+    field.label = label
+    if field.field_type == "select":
+        field.options = request.form.get("options", "").strip() or None
+    db.session.commit()
+    flash(f"Saved '{field.label}'.", "success")
+    return redirect(url_for("contacts.manage_fields"))
+
+
 @contacts_bp.route("/fields/<field_id>/delete", methods=["POST"])
 @login_required
 def delete_field(field_id):

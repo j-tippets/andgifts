@@ -4,14 +4,14 @@
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
     <h1>Milestones</h1>
+    <p class="subdued">
+      Every milestone you can currently use. Drag to reorder: when a contact qualifies for more than one on the same day, whichever is higher here wins.
+      This order is just yours &mdash; other agents can order theirs differently.
+      {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
+    </p>
   </div>
+  <button type="button" class="btn btn-primary" onclick="document.getElementById('add-milestone-modal').showModal()">+ Add personal milestone</button>
 </div>
-
-<p class="subdued">
-  Every milestone you can currently use. Drag to reorder: when a contact qualifies for more than one on the same day, whichever is higher here wins.
-  This order is just yours &mdash; other agents can order theirs differently.
-  {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
-</p>
 
 <form method="POST" action="{{ url_for('contacts.save_milestone_priority') }}" id="priority-form">
   <div id="priority-list" style="margin-bottom:12px;">
@@ -174,19 +174,19 @@
 </script>
 
 <div style="margin-top:24px;">
-  <a href="#" onclick="document.getElementById('add-milestone-dialog').showModal(); return false;" class="btn btn-primary">+ Add Milestone</a>
-</div>
-
-<dialog id="add-milestone-dialog" class="confirm-dialog">
-  <form method="post" action="{{ url_for('contacts.new_event_type') }}">
-    <h2>Add a milestone</h2>
-    <input type="hidden" name="scope" value="personal">
-    <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. Kid started kindergarten" required autofocus></div>
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-ghost"
-              onclick="document.getElementById('add-milestone-dialog').close();">Cancel</button>
-      <button type="submit" class="btn btn-primary">Add milestone</button>
+  <dialog id="add-milestone-modal" class="app-modal">
+    <div class="app-modal-header">
+      <h3>Add a personal milestone</h3>
+      <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
     </div>
-  </form>
-</dialog>
+    <form method="post" action="{{ url_for('contacts.new_event_type') }}">
+      <input type="hidden" name="scope" value="personal">
+      <div class="field">
+        <label>Milestone name</label>
+        <input type="text" name="label" placeholder="e.g. Kid started kindergarten" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-primary">Add milestone</button>
+    </form>
+  </dialog>
+</div>
 {% endblock %}
