@@ -5,47 +5,64 @@
   <h1>Settings</h1>
 </div>
 
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-  <a href="{{ url_for('contacts.manage_fields') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-    <strong>Custom fields</strong>
-    <span class="subdued"><small>Add fields for your own contacts, or &mdash; if you're an admin &mdash; fields every agent in {{ current_user.org.name }} sees.</small></span>
-  </a>
-
-  <a href="{{ url_for('contacts.manage_event_types') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-    <strong>Milestone events</strong>
-    <span class="subdued"><small>Add your own timeline milestones on top of the built-ins, or &mdash; if you're an admin &mdash; ones every agent shares.</small></span>
-  </a>
-
-  <a href="{{ url_for('contacts.manage_badges') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-    <strong>Badges</strong>
-    <span class="subdued"><small>Tag your contacts (e.g. VIP) and use them as flow conditions. Add your own personal badges here.</small></span>
-  </a>
-
-  <a href="{{ url_for('profile.edit_profile') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-    <strong>Profile</strong>
-    <span class="subdued"><small>Your name, email, photo, and password.</small></span>
-  </a>
-
-  <a href="{{ url_for('settings.payment_methods') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-    <strong>Payment methods</strong>
-    <span class="subdued"><small>Saved cards for gift purchases — one-off orders and automated flows both charge here.</small></span>
-  </a>
-
-  {% if current_user.is_admin %}
-    <a href="{{ url_for('team.list_members') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-      <strong>Team</strong>
-      <span class="subdued"><small>Invite agents, manage roles and access.</small></span>
+<section style="margin-bottom:28px;">
+  <h2 style="font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--evergreen-light); margin-bottom:12px;">Contacts</h2>
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <a href="{{ url_for('contacts.manage_fields') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Custom fields</strong>
+      <span class="subdued"><small>Add fields for your own contacts, or &mdash; if you're an admin &mdash; fields every agent in {{ current_user.org.name }} sees.</small></span>
     </a>
 
+    <a href="{{ url_for('contacts.manage_event_types') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Milestones</strong>
+      <span class="subdued"><small>Add your own timeline milestones on top of the built-ins, or &mdash; if you're an admin &mdash; ones every agent shares.</small></span>
+    </a>
+
+    <a href="{{ url_for('contacts.manage_badges') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Badges</strong>
+      <span class="subdued"><small>Tag your contacts (e.g. VIP) and use them as flow conditions. Add your own personal badges here.</small></span>
+    </a>
+  </div>
+</section>
+
+{% if current_user.is_admin %}
+<section style="margin-bottom:28px;">
+  <h2 style="font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--evergreen-light); margin-bottom:12px;">Messaging</h2>
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
     <a href="{{ url_for('settings.sender_identity') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
       <strong>Sender email</strong>
       <span class="subdued"><small>The address flow emails send from on behalf of your agents.</small></span>
     </a>
+  </div>
+</section>
+{% endif %}
 
-    <a href="{{ url_for('settings.billing') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
-      <strong>Billing</strong>
-      <span class="subdued"><small>Your plan, usage, and payment details.</small></span>
+<section style="margin-bottom:28px;">
+  <h2 style="font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--evergreen-light); margin-bottom:12px;">Billing</h2>
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <a href="{{ url_for('settings.payment_methods') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Payment methods</strong>
+      <span class="subdued"><small>Saved cards for gift purchases — one-off orders and automated flows both charge here.</small></span>
     </a>
-  {% endif %}
-</div>
+
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('settings.billing') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+        <strong>Billing</strong>
+        <span class="subdued"><small>Your plan, usage, and payment details.</small></span>
+      </a>
+    {% endif %}
+  </div>
+</section>
+
+{% if current_user.is_admin %}
+<section>
+  <h2 style="font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--evergreen-light); margin-bottom:12px;">Team</h2>
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <a href="{{ url_for('team.list_members') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+      <strong>Team</strong>
+      <span class="subdued"><small>Invite agents, manage roles and access.</small></span>
+    </a>
+  </div>
+</section>
+{% endif %}
 {% endblock %}
