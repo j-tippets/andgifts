@@ -195,10 +195,20 @@ def generate_suggestions_for_org(org, today=None):
             continue
 
         gift_trigger = _match_gift_trigger(org.id, event, available_item_ids)
+        if gift_trigger is None:
+            # No org-specific or global GiftTrigger configured for this
+            # event type -- previously this fell back to a contentless
+            # "email" suggestion (no gift, no generated_message) that
+            # offered nothing actionable; skip instead of creating noise.
+            # The Flow/Campaign engine (generate_campaign_suggestions_for_org)
+            # is the actual mechanism for AI-assisted outreach now -- this
+            # legacy path only still pulls its weight when a real
+            # GiftTrigger exists to point it at an actual gift.
+            continue
         reason = _build_reason_text(event, occurrence_date, gift_trigger)
 
         note = None
-        if gift_trigger and gift_trigger.suggested_gift:
+        if gift_trigger.suggested_gift:
             note = llm.generate_gift_note(event.contact, event, gift_trigger.suggested_gift)
 
         suggestion = SuggestedAction(
@@ -206,8 +216,8 @@ def generate_suggestions_for_org(org, today=None):
             contact_id=event.contact_id,
             triggering_event_id=event.id,
             source_campaign_id=None,
-            action_type="gift" if gift_trigger else "email",
-            suggested_gift_id=gift_trigger.suggested_gift_id if gift_trigger else None,
+            action_type="gift",
+            suggested_gift_id=gift_trigger.suggested_gift_id,
             reason_text=reason,
             generated_message=note,
             target_date=occurrence_date,
