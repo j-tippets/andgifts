@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Payment methods — Settings{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+  <div>
+    <h1>Payment methods</h1>
+    <p class="subdued">Saved cards for gift purchases. Your default card is what automated flows charge when a suggestion is approved — one-off orders let you pick a card each time.</p>
+  </div>
+</div>
+
+{% if not stripe_configured %}
+  <div class="flash flash-error">Payments aren't configured yet.</div>
+{% endif %}
+
+{% if cards %}
+  {% for card in cards %}
+    <div class="team-row static-row">
+      <div>
+        <strong>{{ card.display_label() }}</strong>
+        {% if card.is_default %}<span class="badge badge-success">Default</span>{% endif %}
+        {% if card.card_exp_month and card.card_exp_year %}
+          <span class="subdued"> — expires {{ '%02d' % card.card_exp_month }}/{{ card.card_exp_year }}</span>
+        {% endif %}
+      </div>
+      <div style="display:flex; gap:8px;">
+        {% if not card.is_default %}
+          <form method="POST" action="{{ url_for('settings.make_default_payment_method', payment_method_id=card.id) }}">
+            <button type="submit" class="btn btn-ghost btn-small">Make default</button>
+          </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('settings.remove_payment_method', payment_method_id=card.id) }}"
+              onsubmit="return confirm('Remove {{ card.display_label() }}? This can\'t be undone.');">
+          <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Remove</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="subdued">No cards saved yet. Add one below — you'll need at least one for automated flows to be able to purchase gifts.</p>
+{% endif %}
+
+<form method="POST" action="{{ url_for('settings.add_payment_method') }}" style="margin-top:16px;">
+  <button type="submit" class="btn btn-primary" {{ 'disabled' if not stripe_configured else '' }}>+ Add a card</button>
+</form>
+{% endblock %}

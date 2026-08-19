@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Confirm order — {{ order.gift_name_snapshot }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Confirm order</h1>
+  </div>
+</div>
+
+<div class="contact-card" style="max-width:480px;">
+  <table role="presentation" style="width:100%; border-collapse: collapse; margin-bottom:16px;">
+    <tr><td style="padding:6px 0; color:#6B6459;">Contact</td><td style="text-align:right;">{{ order.contact.household_name }}</td></tr>
+    <tr><td style="padding:6px 0; color:#6B6459;">Gift</td><td style="text-align:right;">{{ order.gift_name_snapshot }}</td></tr>
+    <tr><td style="padding:6px 0; color:#6B6459;">Delivery</td>
+      <td style="text-align:right;">
+        {% if order.fulfillment_method == 'shipping' %}Ship
+        {% elif order.fulfillment_method == 'pickup' %}Pickup at {{ order.pickup_location or 'your shop' }}
+        {% else %}Drop off at {{ order.dropoff_location or 'your office' }}
+        {% endif %}
+      </td>
+    </tr>
+    {% if order.fulfillment_method == 'shipping' %}
+      <tr><td style="padding:6px 0; color:#6B6459;">Address</td>
+        <td style="text-align:right; white-space:pre-line;">{{ order.contact.formatted_shipping_address() }}</td></tr>
+    {% endif %}
+    <tr><td style="padding:6px 0; color:#6B6459;">Payment</td>
+      <td style="text-align:right;">{{ order.payment_method.display_label() if order.payment_method else 'No card selected' }}</td></tr>
+    <tr style="border-top:1px solid var(--line); font-weight:bold;">
+      <td style="padding:10px 0 0;">Total</td><td style="text-align:right; padding:10px 0 0;">${{ '%.2f'|format(order.total_cents / 100) }}</td></tr>
+  </table>
+
+  <form method="post">
+    <button type="submit" class="btn btn-primary">Charge ${{ '%.2f'|format(order.total_cents / 100) }} and place order</button>
+    <a href="{{ url_for('orders.choose_payment', order_id=order.id) }}" class="btn btn-ghost">Back</a>
+  </form>
+</div>
+{% endblock %}

@@ -130,6 +130,16 @@ class ActionLog(db.Model):
     delivery_status = db.Column(db.Enum("sent", "failed", "blocked", name="action_log_delivery_status"), nullable=True)
     delivery_error = db.Column(db.Text, nullable=True)
 
+    # Set when this is a gift action that actually charged a saved card
+    # (see services.payments.charge_saved_card) -- automated flow
+    # approvals only reach this ActionLog-creation step at all once the
+    # charge has already succeeded (a decline blocks the approval
+    # entirely and leaves the suggestion pending, so no ActionLog row
+    # is ever created for a failed charge). NULL for manual one-off
+    # orders (those get their own Order row instead) and for action
+    # types that don't involve payment.
+    stripe_payment_intent_id = db.Column(db.String(255), nullable=True)
+
     # Which agent actually approved this -- used for the "who did what"
     # column/filter on the org-wide actions report. Nullable because it's
     # only set going forward (backfilled from ContactAuditLog for existing

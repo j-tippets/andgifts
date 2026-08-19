@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Shipping address — {{ order.gift_name_snapshot }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Where should this ship?</h1>
+    <p class="subdued">No address on file yet for {{ contact.household_name }} — this gets saved to their contact record so you won't need to enter it again.</p>
+  </div>
+</div>
+
+<div class="contact-card" style="max-width:480px;">
+  <form method="post">
+    <div class="field">
+      <label>Address line 1</label>
+      <input type="text" name="shipping_address_line1" value="{{ contact.shipping_address_line1 or '' }}" placeholder="123 Main St" required>
+    </div>
+    <div class="field">
+      <label>Address line 2 (optional)</label>
+      <input type="text" name="shipping_address_line2" value="{{ contact.shipping_address_line2 or '' }}" placeholder="Apt, suite, etc.">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>City</label><input type="text" name="shipping_city" value="{{ contact.shipping_city or '' }}" required></div>
+      <div class="field"><label>State</label><input type="text" name="shipping_state" value="{{ contact.shipping_state or '' }}" maxlength="2" placeholder="UT" required></div>
+      <div class="field"><label>ZIP</label><input type="text" name="shipping_zip" value="{{ contact.shipping_zip or '' }}" required></div>
+    </div>
+    <button type="submit" class="btn btn-primary">Continue</button>
+    <a href="{{ url_for('orders.order_cancelled', order_id=order.id) }}" class="btn btn-ghost">Cancel order</a>
+  </form>
+</div>
+{% endblock %}

@@ -29,7 +29,8 @@
       <label class="checkbox-chip" style="margin-bottom:10px;">
         <input type="radio" name="fulfillment_method" value="shipping" checked
                onchange="document.getElementById('pickup-field').style.display='none';">
-        Ship it &mdash; ${{ '%.2f'|format(flat_rate_cents / 100) }} flat-rate shipping, address collected at checkout
+        Ship it &mdash; ${{ '%.2f'|format(flat_rate_cents / 100) }} flat-rate shipping
+        {% if contact.has_shipping_address %}, to the address on file{% else %}, address collected next{% endif %}
       </label>
       <label class="checkbox-chip" {% if can_dropoff %}style="margin-bottom:10px;"{% endif %}>
         <input type="radio" name="fulfillment_method" value="pickup"

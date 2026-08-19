@@ -34,6 +34,17 @@ class Contact(db.Model):
     )
     notes = db.Column(db.Text, nullable=True)
 
+    # Shipping address for gift orders -- one per household, editable like
+    # any other contact field (not just set-once during checkout; people
+    # move). Used by the gift order flow: if blank when a shipping order
+    # is placed, the agent is asked for it once and it's saved back here
+    # for next time; if already set, it's just used without asking again.
+    shipping_address_line1 = db.Column(db.String(255), nullable=True)
+    shipping_address_line2 = db.Column(db.String(255), nullable=True)
+    shipping_city = db.Column(db.String(100), nullable=True)
+    shipping_state = db.Column(db.String(50), nullable=True)
+    shipping_zip = db.Column(db.String(20), nullable=True)
+
     # Marketing opt-out: stop including this household in bulk/marketing
     # sends. Relationship-driven milestone gifts (birthdays, closing
     # anniversaries, etc.) are NOT marketing and are unaffected by this flag.
@@ -72,6 +83,19 @@ class Contact(db.Model):
             (e for e in self.timeline_events if e.is_important_date),
             key=lambda e: (e.event_date.month, e.event_date.day),
         )
+
+    @property
+    def has_shipping_address(self):
+        return bool(self.shipping_address_line1 and self.shipping_city and self.shipping_state and self.shipping_zip)
+
+    def formatted_shipping_address(self):
+        if not self.has_shipping_address:
+            return None
+        lines = [self.shipping_address_line1]
+        if self.shipping_address_line2:
+            lines.append(self.shipping_address_line2)
+        lines.append(f"{self.shipping_city}, {self.shipping_state} {self.shipping_zip}")
+        return "\n".join(lines)
 
     def primary_person(self):
         return next((p for p in self.people if p.household_role == "head"), self.people[0] if self.people else None)

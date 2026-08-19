@@ -11,7 +11,6 @@ from app.models import (
     GiftCatalogItem, Order, Badge,
 )
 from app.decorators import admin_required
-from app.services.stripe_client import get_stripe
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
@@ -425,50 +424,9 @@ def new_order(contact_id, item_id):
         db.session.add(order)
         db.session.commit()
 
-        stripe = get_stripe()
-        if not stripe:
-            flash("Stripe isn't configured yet — add STRIPE_SECRET_KEY to enable checkout.", "error")
-            return redirect(url_for("contacts.view_contact", contact_id=contact.id))
-
-        session_kwargs = dict(
-            mode="payment",
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {"name": item.name},
-                    "unit_amount": item.price_cents,
-                },
-                "quantity": 1,
-            }],
-            success_url=(
-                url_for("orders.order_success", order_id=order.id, _external=True)
-                + "?session_id={CHECKOUT_SESSION_ID}"
-            ),
-            cancel_url=url_for("orders.order_cancelled", order_id=order.id, _external=True),
-            metadata={"order_id": order.id},
-        )
-
-        if fulfillment_method == "shipping":
-            session_kwargs["shipping_address_collection"] = {"allowed_countries": ["US"]}
-            session_kwargs["shipping_options"] = [{
-                "shipping_rate_data": {
-                    "type": "fixed_amount",
-                    "fixed_amount": {"amount": flat_rate, "currency": "usd"},
-                    "display_name": "Standard shipping",
-                }
-            }]
-
-        try:
-            checkout_session = stripe.checkout.Session.create(**session_kwargs)
-        except Exception as e:
-            current_app.logger.error("Stripe checkout session creation failed: %s", e)
-            flash("Couldn't start checkout — please try again.", "error")
-            return redirect(url_for("contacts.view_contact", contact_id=contact.id))
-
-        order.stripe_checkout_session_id = checkout_session.id
-        db.session.commit()
-
-        return redirect(checkout_session.url, code=303)
+        if fulfillment_method == "shipping" and not contact.has_shipping_address:
+            return redirect(url_for("orders.collect_address", order_id=order.id))
+        return redirect(url_for("orders.choose_payment", order_id=order.id))
 
     return render_template(
         "orders/new.html",
@@ -524,6 +482,11 @@ def edit_contact(contact_id):
     contact.notes = request.form.get("notes", "").strip() or None
     contact.marketing_opt_out = bool(request.form.get("marketing_opt_out"))
     contact.do_not_contact = bool(request.form.get("do_not_contact"))
+    contact.shipping_address_line1 = request.form.get("shipping_address_line1", "").strip() or None
+    contact.shipping_address_line2 = request.form.get("shipping_address_line2", "").strip() or None
+    contact.shipping_city = request.form.get("shipping_city", "").strip() or None
+    contact.shipping_state = request.form.get("shipping_state", "").strip().upper() or None
+    contact.shipping_zip = request.form.get("shipping_zip", "").strip() or None
 
     if request.form.get("remove_photo") == "1" and contact.photo_url:
         delete_contact_photo(contact.photo_url)

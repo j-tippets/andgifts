@@ -79,6 +79,23 @@
   </fieldset>
 
   <fieldset>
+    <legend>Shipping address</legend>
+    <div class="field">
+      <label>Address line 1</label>
+      <input type="text" name="shipping_address_line1" value="{{ contact.shipping_address_line1 or '' }}" placeholder="123 Main St">
+    </div>
+    <div class="field">
+      <label>Address line 2 (optional)</label>
+      <input type="text" name="shipping_address_line2" value="{{ contact.shipping_address_line2 or '' }}" placeholder="Apt, suite, etc.">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>City</label><input type="text" name="shipping_city" value="{{ contact.shipping_city or '' }}"></div>
+      <div class="field"><label>State</label><input type="text" name="shipping_state" value="{{ contact.shipping_state or '' }}" maxlength="2" placeholder="UT"></div>
+      <div class="field"><label>ZIP</label><input type="text" name="shipping_zip" value="{{ contact.shipping_zip or '' }}"></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend>Head of household</legend>
     <div class="field-row">
       <div class="field"><label>First name</label><input type="text" name="head_first_name" value="{{ head.first_name if head else '' }}" required></div>

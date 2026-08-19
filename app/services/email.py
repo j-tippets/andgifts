@@ -318,7 +318,8 @@ def send_order_confirmation(order):
     elif order.fulfillment_method == "dropoff":
         fulfillment_line = f"We'll drop this off at: {order.dropoff_location or 'your office'}"
     else:
-        fulfillment_line = "Shipping to the address collected at checkout."
+        address = (order.shipping_address_snapshot or "").replace("\n", "<br>")
+        fulfillment_line = f"Shipping to:<br>{address}" if address else "Shipping — address on file for this contact."
 
     body = f"""
       <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">Order confirmed</h2>
@@ -337,5 +338,37 @@ def send_order_confirmation(order):
     return send_email(
         order.ordered_by.email,
         f"Order confirmed: {order.gift_name_snapshot} for {order.contact.household_name}",
+        html,
+    )
+
+
+def send_wdf_fulfillment_notice(order):
+    """Notifies Wild Dog Fulfillment that a paid order needs to be
+    built/shipped. Placeholder implementation per Jeremiah: WDF doesn't
+    have a real intake system yet, so this just emails the order info
+    to jtippets@outlook.com -- same "email for now, real feedback loop
+    eventually" pattern as everything else fulfillment-related. Only
+    called for orders that actually need physical fulfillment (skip for
+    pickup/dropoff, which don't involve WDF)."""
+    if order.fulfillment_method not in ("shipping",):
+        return False
+
+    address = (order.shipping_address_snapshot or "").replace("\n", "<br>")
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">New order to fulfill</h2>
+      <table role="presentation" style="width:100%; border-collapse: collapse; margin: 0 0 16px;">
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Order ID</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.id}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Gift</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.gift_name_snapshot}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Contact</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.contact.household_name}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Agency</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.contact.org.name}</td></tr>
+      </table>
+      <p style="margin:0 0 6px; color:#6B6459; font-size:13px;">Ship to</p>
+      <p style="margin:0 0 16px; color:#2A1A45; font-size:15px;">{address or 'No address on file'}</p>
+    """
+    html = _wrap_email(body, preheader=f"New order to fulfill: {order.gift_name_snapshot}")
+
+    return send_email(
+        "jtippets@outlook.com",
+        f"WDF fulfillment: {order.gift_name_snapshot} for {order.contact.household_name}",
         html,
     )

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Payment — {{ order.gift_name_snapshot }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>How should this be paid for?</h1>
+  </div>
+</div>
+
+<div class="contact-card" style="max-width:480px;">
+  {% if not stripe_configured %}
+    <div class="flash flash-error">Payments aren't configured yet.</div>
+  {% elif not cards %}
+    <p class="subdued">No cards saved yet — you'll need one on file to place this order.</p>
+  {% else %}
+    <form method="post" style="margin-bottom:20px;">
+      {% for card in cards %}
+        <label class="checkbox-chip" style="margin-bottom:10px;">
+          <input type="radio" name="payment_method_id" value="{{ card.id }}" {{ 'checked' if card.is_default else '' }}>
+          {{ card.display_label() }}
+          {% if card.is_default %}<span class="subdued">(default)</span>{% endif %}
+        </label>
+      {% endfor %}
+      <div style="margin-top:12px;">
+        <button type="submit" class="btn btn-primary">Continue</button>
+      </div>
+    </form>
+  {% endif %}
+
+  {% if stripe_configured %}
+    <form method="POST" action="{{ url_for('settings.add_payment_method') }}">
+      <input type="hidden" name="next_url" value="{{ url_for('orders.choose_payment', order_id=order.id, _external=True) }}">
+      <button type="submit" class="btn btn-ghost btn-small">+ Add a new card</button>
+    </form>
+  {% endif %}
+
+  <div style="margin-top:16px;">
+    <a href="{{ url_for('orders.order_cancelled', order_id=order.id) }}" class="btn btn-ghost btn-small">Cancel order</a>
+  </div>
+</div>
+{% endblock %}

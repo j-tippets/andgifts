@@ -1,25 +1,147 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, current_app, abort
+from flask import Blueprint, render_template, request, current_app, abort, redirect, url_for, flash
 from flask_login import login_required, current_user
 
 from app.extensions import db
-from app.models import Order, ActionLog, ContactAuditLog, Org
+from app.models import Order, ActionLog, ContactAuditLog, Org, PaymentMethod
 from app.services.stripe_client import get_stripe
-from app.services.email import send_order_confirmation
+from app.services.payments import charge_saved_card
+from app.services.email import send_order_confirmation, send_wdf_fulfillment_notice
 from app.services.org_events import record_org_event
 
 orders_bp = Blueprint("orders", __name__)
 
 
+def _own_pending_order(order_id):
+    """Fetches an order this agent's org owns and that's still pending
+    (i.e. mid-checkout) -- every step route in this flow needs the same
+    guard, so it's centralized here rather than repeated per route."""
+    return Order.query.filter_by(id=order_id, org_id=current_user.org_id).first_or_404()
+
+
+@orders_bp.route("/orders/<order_id>/address", methods=["GET", "POST"])
+@login_required
+def collect_address(order_id):
+    """Step 2 of the in-app checkout, only reached for a shipping order
+    when the contact doesn't already have an address on file. Saves
+    straight onto the Contact (not just this order) so it's there for
+    next time -- see Contact.shipping_address_* and the "check the
+    contact, ask once if blank" flow this was built around."""
+    order = _own_pending_order(order_id)
+    if order.status != "pending":
+        return redirect(url_for("orders.order_success", order_id=order.id))
+    contact = order.contact
+
+    if request.method == "POST":
+        contact.shipping_address_line1 = request.form.get("shipping_address_line1", "").strip() or None
+        contact.shipping_address_line2 = request.form.get("shipping_address_line2", "").strip() or None
+        contact.shipping_city = request.form.get("shipping_city", "").strip() or None
+        contact.shipping_state = request.form.get("shipping_state", "").strip().upper() or None
+        contact.shipping_zip = request.form.get("shipping_zip", "").strip() or None
+        if not contact.has_shipping_address:
+            flash("Fill in the full address to continue.", "error")
+            return redirect(url_for("orders.collect_address", order_id=order.id))
+        db.session.commit()
+        return redirect(url_for("orders.choose_payment", order_id=order.id))
+
+    return render_template("orders/address.html", order=order, contact=contact)
+
+
+@orders_bp.route("/orders/<order_id>/payment", methods=["GET", "POST"])
+@login_required
+def choose_payment(order_id):
+    """Step 3: pick a saved card (or bounce to Settings to add one --
+    see settings.add_payment_method's next_url support, which is what
+    brings the agent back here afterward instead of stranding them on
+    the Settings page mid-order)."""
+    order = _own_pending_order(order_id)
+    if order.status != "pending":
+        return redirect(url_for("orders.order_success", order_id=order.id))
+    if order.fulfillment_method == "shipping" and not order.contact.has_shipping_address:
+        return redirect(url_for("orders.collect_address", order_id=order.id))
+
+    if request.method == "POST":
+        payment_method_id = request.form.get("payment_method_id", "").strip()
+        card = PaymentMethod.query.filter_by(id=payment_method_id, user_id=current_user.id).first()
+        if not card:
+            flash("Choose a card to continue.", "error")
+            return redirect(url_for("orders.choose_payment", order_id=order.id))
+        order.payment_method_id = card.id
+        db.session.commit()
+        return redirect(url_for("orders.confirm_order", order_id=order.id))
+
+    return render_template(
+        "orders/payment.html", order=order, cards=current_user.payment_methods,
+        stripe_configured=get_stripe() is not None,
+    )
+
+
+@orders_bp.route("/orders/<order_id>/confirm", methods=["GET", "POST"])
+@login_required
+def confirm_order(order_id):
+    """Step 4: review contact/address/gift/payment, then charge on
+    submit. A failed charge (see services.payments.charge_saved_card)
+    leaves the order pending with the decline reason shown -- per
+    Jeremiah's call, a failed charge blocks the approval/order rather
+    than going through with an unpaid gift WDF would ship for free."""
+    order = _own_pending_order(order_id)
+    if order.status != "pending":
+        return redirect(url_for("orders.order_success", order_id=order.id))
+    if not order.payment_method_id:
+        return redirect(url_for("orders.choose_payment", order_id=order.id))
+
+    if request.method == "POST":
+        success, intent_id, error = charge_saved_card(
+            current_user, order.total_cents,
+            description=f"{order.gift_name_snapshot} for {order.contact.household_name}",
+            metadata={"order_id": order.id},
+        )
+        if not success:
+            flash(f"Payment failed: {error}", "error")
+            return redirect(url_for("orders.confirm_order", order_id=order.id))
+
+        order.status = "paid"
+        order.paid_at = datetime.utcnow()
+        order.stripe_payment_intent_id = intent_id
+        if order.fulfillment_method == "shipping":
+            order.shipping_address_snapshot = order.contact.formatted_shipping_address()
+
+        db.session.add(ActionLog(
+            org_id=order.org_id,
+            contact_id=order.contact_id,
+            action_type="gift",
+            detail=f"{order.gift_name_snapshot} (one-off order, {order.fulfillment_method})",
+            cost_cents=order.total_cents,
+        ))
+        db.session.add(ContactAuditLog(
+            org_id=order.org_id,
+            contact_id=order.contact_id,
+            contact_name_snapshot=order.contact.household_name,
+            actor_user_id=order.ordered_by_user_id,
+            actor_name_snapshot=order.ordered_by.full_name if order.ordered_by else "Unknown",
+            action="gift_ordered",
+            summary=(
+                f"{order.gift_name_snapshot} ordered and paid ({order.fulfillment_method}). "
+                f"Total ${order.total_cents / 100:.2f}."
+            ),
+        ))
+        db.session.commit()
+        send_order_confirmation(order)
+        send_wdf_fulfillment_notice(order)
+        return redirect(url_for("orders.order_success", order_id=order.id))
+
+    return render_template("orders/confirm.html", order=order)
+
+
 @orders_bp.route("/orders/<order_id>/success")
 @login_required
 def order_success(order_id):
-    """Landing page after Stripe Checkout. This is a courtesy screen only
-    -- the order isn't marked paid here. The checkout.session.completed
-    webhook (verified via Stripe's signature) is the only thing allowed
-    to flip status to 'paid', since a browser hitting this URL proves
-    nothing on its own."""
+    """Landing page after a successful in-app charge (see confirm_order,
+    which sets status='paid' synchronously right before redirecting
+    here -- unlike the old Stripe-Checkout-redirect flow, there's no
+    webhook this needs to wait on, since the charge already happened
+    server-side in the same request)."""
     order = Order.query.filter_by(id=order_id, org_id=current_user.org_id).first_or_404()
     return render_template("orders/success.html", order=order)
 

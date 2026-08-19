@@ -26,6 +26,11 @@
     <span class="subdued"><small>Your name, email, photo, and password.</small></span>
   </a>
 
+  <a href="{{ url_for('settings.payment_methods') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
+    <strong>Payment methods</strong>
+    <span class="subdued"><small>Saved cards for gift purchases — one-off orders and automated flows both charge here.</small></span>
+  </a>
+
   {% if current_user.is_admin %}
     <a href="{{ url_for('team.list_members') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
       <strong>Team</strong>

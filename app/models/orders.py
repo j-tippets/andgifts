@@ -6,11 +6,17 @@ from app.models.org import gen_uuid
 class Order(db.Model):
     """
     A one-off gift purchase placed directly by an agent for a contact,
-    outside the automated suggestion/campaign flow. Paid via Stripe
-    Checkout (hosted). Status is driven by the checkout.session.completed
-    webhook, not by the success-page redirect -- a browser landing on the
-    success URL is not proof of payment, only the webhook (with Stripe's
-    signature) is.
+    outside the automated suggestion/campaign flow. Paid by charging the
+    agent's saved card directly (see services/payments.charge_saved_card)
+    at confirm time -- routes/orders.confirm_order sets status to "paid"
+    synchronously right after a successful charge, since there's no
+    Stripe Checkout redirect in this flow to wait on a webhook for.
+
+    stripe_checkout_session_id is a holdover from the original Stripe-
+    Checkout-based flow and stays unpopulated for orders created through
+    the current flow; left in place since routes/orders.stripe_webhook's
+    "mode == payment" branch is harmless dead code rather than something
+    worth surgically removing from a shared webhook endpoint.
     """
     __tablename__ = "orders"
 
@@ -45,12 +51,19 @@ class Order(db.Model):
     stripe_checkout_session_id = db.Column(db.String(255), nullable=True, index=True)
     stripe_payment_intent_id = db.Column(db.String(255), nullable=True)
 
+    # Which saved card (see PaymentMethod) this was charged on -- set
+    # once the agent picks a card during checkout, before the actual
+    # charge happens. Nullable because it doesn't exist yet for the
+    # brief window between order creation and payment-method selection.
+    payment_method_id = db.Column(db.String(36), db.ForeignKey("payment_methods.id"), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     paid_at = db.Column(db.DateTime, nullable=True)
 
     contact = db.relationship("Contact")
     gift_catalog_item = db.relationship("GiftCatalogItem")
-    ordered_by = db.relationship("User")
+    ordered_by = db.relationship("User", foreign_keys=[ordered_by_user_id])
+    payment_method = db.relationship("PaymentMethod")
 
     @property
     def total_cents(self):

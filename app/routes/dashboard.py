@@ -7,6 +7,7 @@ from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
 from app.services.email import send_flow_action_email
+from app.services.payments import charge_saved_card
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -36,6 +37,7 @@ def index():
 @login_required
 def approve_action(action_id):
     action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
+    org = current_user.org
 
     # Gift suggestions can be swapped for a different catalog item right from
     # the dashboard before approving -- only trust an id that's actually
@@ -47,28 +49,63 @@ def approve_action(action_id):
             if chosen_gift_id in available_ids:
                 action.suggested_gift_id = chosen_gift_id
 
-    action.status = "approved"
-    action.resolved_at = datetime.utcnow()
-
+    gift_payment_intent_id = None
     if action.action_type == "gift" and action.suggested_gift:
         detail = f"{action.suggested_gift.name} (${action.suggested_gift.price_cents / 100:.2f})"
         if action.generated_message:
             detail += f" \u2014 note: {action.generated_message}"
         cost_cents = action.suggested_gift.price_cents
+
+        # Charging happens BEFORE the action is marked approved -- per
+        # Jeremiah's call, a failed charge blocks the approval entirely
+        # (stays pending, decline reason shown) rather than approving
+        # anyway with the payment flagged failed, since WDF would
+        # otherwise ship something nobody's actually paid for.
+        #
+        # owning_agent (see SuggestedAction) is who gets billed: the
+        # flow's owner for a campaign-triggered suggestion, or the
+        # contact's own owner for the older non-flow suggestion engine.
+        # Neither exists for a shared contact with no owning flow --
+        # there's no agent to charge, so this blocks the same as a
+        # decline would, with its own clear reason.
+        billing_agent = action.owning_agent
+        if not billing_agent:
+            flash(
+                "Can't approve — this suggestion has no clear owning agent to bill "
+                "(a shared contact with no personal flow behind it). Assign the "
+                "contact to an agent, or the flow to an agent, first.",
+                "error",
+            )
+            return redirect(request.referrer or url_for("dashboard.index"))
+
+        success, intent_id, error = charge_saved_card(
+            billing_agent, cost_cents,
+            description=f"{action.suggested_gift.name} for {action.contact.household_name}",
+            metadata={"suggested_action_id": action.id},
+        )
+        if not success:
+            flash(f"Can't approve — payment failed: {error}", "error")
+            return redirect(request.referrer or url_for("dashboard.index"))
+
+        gift_payment_intent_id = intent_id
     else:
         detail = action.generated_message or action.reason_text
         cost_cents = None
 
-    # "email" is the first action type wired up to an actual send (the
-    # others -- gift fulfillment, text, handwritten_note -- are still
-    # manual for now). A failed send does NOT block the approval or roll
-    # anything back: the agent's decision to approve stands, we just
-    # record that it didn't go out automatically so it surfaces in the
-    # reports and they know to follow up by hand. A blocked send (plan
-    # limit hit) follows the exact same approve-but-don't-send pattern --
-    # see Org.can_send_email_now for why this is a monthly cap +
-    # per-contact cooldown rather than a per-tier channel gate.
-    delivery_status = None
+    action.status = "approved"
+    action.resolved_at = datetime.utcnow()
+
+    # "email" and "gift" are the two action types wired up to an actual
+    # automated send/charge (text and handwritten_note are still manual
+    # for now). For email, a failed send does NOT block the approval --
+    # the agent's decision to approve stands, we just record that it
+    # didn't go out automatically so it surfaces in reports and they
+    # know to follow up by hand. Gift is the opposite (see the charge
+    # block above, which already returned early on failure before this
+    # point) -- a failed charge blocks approval entirely rather than
+    # approving with payment flagged failed, so by the time we get
+    # here a gift's delivery_status can only ever be "sent".
+    delivery_status = "sent" if gift_payment_intent_id else None
     delivery_error = None
     if action.action_type == "email":
         allowed, block_reason = org.can_send_email_now(action.contact_id)
@@ -81,8 +118,8 @@ def approve_action(action_id):
             delivery_error = block_reason
             flash(f"Approved, but not sent automatically: {block_reason}", "error")
 
-    # MVP: log it immediately. Real send (email/SMS/gift fulfillment API call)
-    # gets wired in as its own service once channels are built.
+    # MVP: log it immediately. Real send (SMS/handwritten note) gets
+    # wired in as its own service once those channels are built.
     db.session.add(ActionLog(
         org_id=action.org_id,
         contact_id=action.contact_id,
@@ -93,6 +130,7 @@ def approve_action(action_id):
         delivery_status=delivery_status,
         delivery_error=delivery_error,
         approved_by_user_id=current_user.id,
+        stripe_payment_intent_id=gift_payment_intent_id,
     ))
     audit_summary = _action_summary_for_log(action, "Approved")
     if delivery_status == "failed":

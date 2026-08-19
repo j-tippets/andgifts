@@ -281,8 +281,22 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_at = db.Column(db.DateTime, nullable=True)
 
+    # --- Saved payment methods (gift purchases, not subscription billing --
+    # see Org.stripe_customer_id for that, a separate Stripe Customer) ---
+    # Created lazily the first time this agent adds a card (see
+    # services.payments.get_or_create_stripe_customer), not at signup.
+    stripe_customer_id = db.Column(db.String(255), nullable=True)
+
     org = db.relationship("Org", back_populates="users")
     invited_by = db.relationship("User", remote_side=[id], foreign_keys=[invited_by_user_id])
+    payment_methods = db.relationship(
+        "PaymentMethod", back_populates="user", cascade="all, delete-orphan",
+        order_by="PaymentMethod.created_at",
+    )
+
+    @property
+    def default_payment_method(self):
+        return next((pm for pm in self.payment_methods if pm.is_default), None)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
