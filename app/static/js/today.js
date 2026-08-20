@@ -224,14 +224,25 @@
       });
       return;
     }
-    // A recommendation card swiped the "wrong" way for its only two
-    // forms (e.g. left with no dismissForm because this direction
-    // check already failed above) falls through to the block below --
-    // harmless no-op for it, since submitApprove()/the skip branch
-    // both require forms it doesn't have; kept simple rather than
-    // adding a third early-return that can't actually be reached given
-    // every card currently has exactly one of (approve+skip) or
-    // (build+dismiss).
+
+    // A suggestion card with readiness_blocked_reason set (see
+    // SuggestedAction.readiness_blocked_reason -- missing email or
+    // shipping address) renders with no .s-form-approve at all, so a
+    // right-swipe has nothing to submit. Without this guard the drag
+    // falls through to the approve branch below, where
+    // submitApprove() finds no form, resolves false, finds no form to
+    // fall back to either, and the existing "not ok" handling still
+    // silently removes the card from the queue as if it had been
+    // approved. Snap it back and do nothing instead. Skip (left) on a
+    // blocked card is unaffected and works normally via the branch
+    // below.
+    if (direction === 'right' && kind === 'approve' && !card.querySelector('.s-form-approve')) {
+      busy = false;
+      resetVisualState(card);
+      card.style.transition = 'transform .35s var(--ease)';
+      card.style.transform = 'translate(0,0) rotate(0deg)';
+      return;
+    }
 
     flyOut(card, direction, kind);
 

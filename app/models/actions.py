@@ -68,6 +68,23 @@ class SuggestedAction(db.Model):
         return self.contact.owner if self.contact else None
 
     @property
+    def readiness_blocked_reason(self):
+        """None if this action can actually be carried out as-is;
+        otherwise a short, agent-facing reason it can't be -- checked
+        both to disable Approve on the dashboard card (so the agent
+        isn't surprised by a failure after already committing to
+        approve, especially since the swipe gesture approves via a
+        background fetch() and wouldn't visibly surface a failure on
+        the current page at all) and again server-side in
+        approve_action itself as the actual enforcement; the card-side
+        check is UX only and isn't trusted on its own."""
+        if self.action_type == "email" and not self.contact.primary_email():
+            return "This contact doesn't have an email address on file yet."
+        if self.action_type == "gift" and not self.contact.has_shipping_address:
+            return "This contact doesn't have a shipping address on file yet."
+        return None
+
+    @property
     def expires_on(self):
         """The date after which, if still pending, the nightly job will
         auto-expire this suggestion (see expire_stale_suggestions in

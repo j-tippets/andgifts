@@ -2,12 +2,12 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation
+from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation, Order
 from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
 from app.services.flow_recommendations import generate_flow_recommendations_for_user
-from app.services.email import send_flow_action_email
+from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice
 from app.services.payments import charge_saved_card
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -92,6 +92,17 @@ def approve_action(action_id):
     action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
     org = current_user.org
 
+    # Server-side enforcement of the same check the dashboard card
+    # already shows/disables Approve for -- the card-side check is UX
+    # only (and is bypassed entirely by a raw POST or a stale page), so
+    # this is what actually stops an email flow from trying to send to
+    # no address, or a gift from charging a card for something that
+    # has nowhere to ship.
+    blocked_reason = action.readiness_blocked_reason
+    if blocked_reason:
+        flash(f"Can't approve — {blocked_reason} Add it on the contact's page, then try again.", "error")
+        return redirect(request.referrer or url_for("dashboard.index"))
+
     # Gift suggestions can be swapped for a different catalog item right from
     # the dashboard before approving -- only trust an id that's actually
     # available to this org (respects catalog curation).
@@ -141,6 +152,34 @@ def approve_action(action_id):
             return redirect(request.referrer or url_for("dashboard.index"))
 
         gift_payment_intent_id = intent_id
+
+        # Charging the card was never the finish line -- WDF still needs
+        # to actually hear about this so they can build/ship it. This
+        # was previously missing entirely: approving a gift suggestion
+        # charged the card and stopped there, with no Order row and no
+        # WDF notice at all (unlike the manual one-off order flow in
+        # routes/orders.py, which does both). Mirrors that flow: create
+        # a real Order (paid, fulfillment_method is always "shipping"
+        # here -- there's no pickup/dropoff choice step in an automated
+        # approval the way there is in the manual flow) and send the
+        # same WDF notice.
+        order = Order(
+            org_id=org.id,
+            contact_id=action.contact_id,
+            ordered_by_user_id=billing_agent.id,
+            gift_catalog_item_id=action.suggested_gift_id,
+            gift_name_snapshot=action.suggested_gift.name,
+            gift_price_cents=action.suggested_gift.price_cents,
+            fulfillment_method="shipping",
+            shipping_address_snapshot=action.contact.formatted_shipping_address(),
+            status="paid",
+            stripe_payment_intent_id=intent_id,
+            payment_method_id=billing_agent.default_payment_method.id if billing_agent.default_payment_method else None,
+            paid_at=datetime.utcnow(),
+        )
+        db.session.add(order)
+        db.session.flush()  # order.id, for the notice and for linking ActionLog below
+        send_wdf_fulfillment_notice(order)
     else:
         detail = action.generated_message or action.reason_text
         cost_cents = None

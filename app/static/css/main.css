@@ -631,6 +631,20 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   font-size: 11.5px; color: #8A8375; margin: 4px 0 0;
 }
 
+/* Shown on a suggestion card in place of Approve when
+   SuggestedAction.readiness_blocked_reason is set (missing email or
+   shipping address) -- see app/models/actions.py. Deliberately louder
+   than .s-card-expires (this blocks approval outright, not just a
+   deadline) but not as alarming as .flash-error, since it's a normal
+   everyday gap to fill in, not something that went wrong. */
+.s-readiness-warning {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--gold-soft); color: #8A5A00; border-radius: 10px;
+  padding: 10px 12px; margin: 0 0 14px; font-size: 13px; line-height: 1.45;
+}
+.s-readiness-warning svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.s-readiness-warning a { color: inherit; text-decoration: underline; }
+
 .s-gift-box {
   background: var(--paper); border-radius: 14px; padding: 12px 14px; margin: 0 0 14px;
   display: flex; flex-direction: column; gap: 10px;

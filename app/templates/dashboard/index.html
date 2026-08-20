@@ -64,6 +64,7 @@
             </div>
           {% else %}
           <div class="s-card" data-index="{{ loop.index0 }}">
+            {% set blocked_reason = s.readiness_blocked_reason %}
             <div class="stamp approve">&#10003;</div>
             <div class="stamp skip">&#10005;</div>
 
@@ -91,6 +92,16 @@
 
             <p class="s-card-reason">{{ s.reason_text }}</p>
 
+            {% if blocked_reason %}
+              <div class="s-readiness-warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>
+                  {{ blocked_reason }}
+                  <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}">Add it on their contact page</a>, then come back to approve this.
+                </span>
+              </div>
+            {% endif %}
+
             {% if s.action_type == 'gift' %}
               <div class="s-gift-box">
                 <div class="s-gift-info">
@@ -105,16 +116,18 @@
                   </div>
                 </div>
                 {{ gift_timing_badge(s.gift_timing) }}
-                <label class="s-gift-select-label">
-                  <span>Change gift</span>
-                  <select name="gift_catalog_item_id" form="s-approve-{{ s.id }}" class="s-gift-select">
-                    <option value="">Keep as shown</option>
-                    {% for item in current_user.org.available_catalog_items() %}
-                      <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <button type="submit" class="btn btn-save-gift" form="s-approve-{{ s.id }}">Save &amp; approve</button>
+                {% if not blocked_reason %}
+                  <label class="s-gift-select-label">
+                    <span>Change gift</span>
+                    <select name="gift_catalog_item_id" form="s-approve-{{ s.id }}" class="s-gift-select">
+                      <option value="">Keep as shown</option>
+                      {% for item in current_user.org.available_catalog_items() %}
+                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <button type="submit" class="btn btn-save-gift" form="s-approve-{{ s.id }}">Save &amp; approve</button>
+                {% endif %}
               </div>
             {% endif %}
 
@@ -148,12 +161,14 @@
                 <button class="s-skip-link" type="submit">Skip for now</button>
               </form>
 
-              <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">{%- if s.action_type != 'gift' -%}
-                  <button class="btn btn-primary s-approve-btn" type="submit">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    Approve &amp; Send
-                  </button>
-              {%- endif %}</form>
+              {% if not blocked_reason %}
+                <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">{%- if s.action_type != 'gift' -%}
+                    <button class="btn btn-primary s-approve-btn" type="submit">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      Approve &amp; Send
+                    </button>
+                {%- endif %}</form>
+              {% endif %}
 
               <div class="s-card-menu">
                 <button type="button" class="s-kebab-btn" aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#8942;</button>
@@ -203,6 +218,7 @@
             </div>
           </div>
         {% else %}
+        {% set blocked_reason = s.readiness_blocked_reason %}
         <div class="list-row">
           <span class="status-pill s-type-pill pill-type-{{ s.action_type }}">
             {{ type_icon(s.action_type) }}
@@ -215,6 +231,12 @@
               &middot; {{ s.target_date.strftime('%b %-d') }}
               &middot; <span class="s-card-expires">expires {{ s.expires_on.strftime('%b %-d') }}</span>
             </div>
+            {% if blocked_reason %}
+              <div class="s-readiness-warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>{{ blocked_reason }} <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}">Add it on their contact page</a>.</span>
+              </div>
+            {% endif %}
             {% if s.action_type == 'gift' %}
               <div class="s-gift-box">
                 <div class="s-gift-info">
@@ -229,16 +251,18 @@
                   </div>
                 </div>
                 {{ gift_timing_badge(s.gift_timing) }}
-                <label class="s-gift-select-label">
-                  <span>Change gift</span>
-                  <select name="gift_catalog_item_id" form="list-approve-{{ s.id }}" class="s-gift-select">
-                    <option value="">Keep as shown</option>
-                    {% for item in current_user.org.available_catalog_items() %}
-                      <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <button type="submit" class="btn btn-save-gift" form="list-approve-{{ s.id }}">Save &amp; approve</button>
+                {% if not blocked_reason %}
+                  <label class="s-gift-select-label">
+                    <span>Change gift</span>
+                    <select name="gift_catalog_item_id" form="list-approve-{{ s.id }}" class="s-gift-select">
+                      <option value="">Keep as shown</option>
+                      {% for item in current_user.org.available_catalog_items() %}
+                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <button type="submit" class="btn btn-save-gift" form="list-approve-{{ s.id }}">Save &amp; approve</button>
+                {% endif %}
               </div>
             {% endif %}
             {% if s.generated_message %}
@@ -255,9 +279,11 @@
             </details>
           </div>
           <div class="list-row-actions">
-            <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" id="list-approve-{{ s.id }}">
-              <button class="btn btn-primary btn-small" type="submit">Approve</button>
-            </form>
+            {% if not blocked_reason %}
+              <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" id="list-approve-{{ s.id }}">
+                <button class="btn btn-primary btn-small" type="submit">Approve</button>
+              </form>
+            {% endif %}
             <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}">
               <button class="btn btn-skip btn-small" type="submit">Deny</button>
             </form>
