@@ -114,11 +114,18 @@ class Config:
     # here for when text sending actually gets wired up to a real send
     # (still manual today -- see dashboard.approve_action) so the limit
     # exists in config ahead of the code that will enforce it.
+    # flow_triggers (running existing flows/campaigns to generate
+    # SuggestedActions) is universal across every tier including free --
+    # ai_recommendations (the engine that suggests NEW flows an agent
+    # doesn't have yet, via generate_flow_recommendations_for_user) is
+    # the paid-only feature. See app/routes/dashboard.py and
+    # jobs/generate_daily_suggestions.py, which gate on these
+    # independently rather than as a single combined flag.
     TIER_LIMITS = {
-        "free": {"contacts": 25, "seats": 1, "ai_dashboard": False, "email_monthly_cap": 100, "sms_monthly_cap": 25, "contact_cooldown_days": 5},
-        "starter": {"contacts": 100, "seats": 1, "ai_dashboard": False, "email_monthly_cap": 300, "sms_monthly_cap": 50, "contact_cooldown_days": 5},
-        "pro": {"contacts": 1000, "seats": 5, "ai_dashboard": True, "email_monthly_cap": 1000, "sms_monthly_cap": 200, "contact_cooldown_days": 5},
-        "team": {"contacts": None, "seats": None, "ai_dashboard": True, "email_monthly_cap": None, "sms_monthly_cap": None, "contact_cooldown_days": 5},
+        "free": {"contacts": 25, "seats": 1, "flow_triggers": True, "ai_recommendations": False, "email_monthly_cap": 100, "sms_monthly_cap": 25, "contact_cooldown_days": 5},
+        "starter": {"contacts": 100, "seats": 1, "flow_triggers": True, "ai_recommendations": True, "email_monthly_cap": 300, "sms_monthly_cap": 50, "contact_cooldown_days": 5},
+        "pro": {"contacts": 1000, "seats": 5, "flow_triggers": True, "ai_recommendations": True, "email_monthly_cap": 1000, "sms_monthly_cap": 200, "contact_cooldown_days": 5},
+        "team": {"contacts": None, "seats": None, "flow_triggers": True, "ai_recommendations": True, "email_monthly_cap": None, "sms_monthly_cap": None, "contact_cooldown_days": 5},
     }
 
     # Low-to-high ordering of tiers -- lets webhook handlers tell an

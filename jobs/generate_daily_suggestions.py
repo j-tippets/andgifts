@@ -1,17 +1,18 @@
 """
 Entry point for the nightly scheduled job on DigitalOcean App Platform.
-Runs the full suggestion/recommendation pipeline for every org on a
-plan that has the AI dashboard feature enabled -- the same three
-things dashboard.index() runs on-demand when an agent loads Today, so
-an agent who doesn't open the app for a day still comes back to
-suggestions and flow recommendations waiting for them rather than
-everything only catching up retroactively on their next visit:
+Runs the same suggestion/recommendation pipeline dashboard.index() runs
+on-demand when an agent loads Today, so an agent who doesn't open the
+app for a day still comes back to suggestions and flow recommendations
+waiting for them rather than everything only catching up retroactively
+on their next visit:
   1. generate_suggestions_for_org -- legacy GiftTrigger path
-  2. generate_campaign_suggestions_for_org -- the Flow engine (this
-     was missing here until now -- see the chat this got fixed in)
+  2. generate_campaign_suggestions_for_org -- the Flow engine
+  Both of the above run for EVERY org regardless of tier (flow_triggers
+  is universal, including free -- see TIER_LIMITS in config.py).
   3. generate_flow_recommendations_for_user -- per-agent, so this one
      loops over each org's active users rather than running once per
-     org like the other two
+     org like the other two. Gated on ai_recommendations, the paid-only
+     tier feature (Solo/Pro/Team, not Free).
 Safe to re-run (idempotent per contact/event/date, and per
 (user, event_type) for recommendations).
 """
@@ -35,7 +36,7 @@ def main():
         total_suggestions = 0
         total_recommendations = 0
         for org in orgs:
-            if not org.feature_enabled("ai_dashboard"):
+            if not org.feature_enabled("flow_triggers"):
                 continue
 
             created = generate_suggestions_for_org(org)
@@ -45,8 +46,9 @@ def main():
 
             recommendations_created = 0
             active_users = User.query.filter_by(org_id=org.id, status="active").all()
-            for user in active_users:
-                recommendations_created += len(generate_flow_recommendations_for_user(user))
+            if org.feature_enabled("ai_recommendations"):
+                for user in active_users:
+                    recommendations_created += len(generate_flow_recommendations_for_user(user))
             total_recommendations += recommendations_created
 
             print(

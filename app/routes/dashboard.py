@@ -20,10 +20,13 @@ def index():
 
     # For MVP we generate on-demand rather than requiring a cron job to have
     # already run. Cheap because it's idempotent (skips dates already covered).
-    if org.feature_enabled("ai_dashboard"):
+    # flow_triggers is universal (every tier, including free); ai_recommendations
+    # is the paid-only upsell and only gates the recommendation engine below.
+    if org.feature_enabled("flow_triggers"):
         generate_suggestions_for_org(org)
         generate_campaign_suggestions_for_org(org)
         expire_stale_suggestions(org)
+    if org.feature_enabled("ai_recommendations"):
         generate_flow_recommendations_for_user(current_user)
 
     pending = (
@@ -37,7 +40,7 @@ def index():
         .filter_by(user_id=current_user.id, status="pending")
         .order_by(FlowRecommendation.contact_count.desc())
         .all()
-        if org.feature_enabled("ai_dashboard")
+        if org.feature_enabled("ai_recommendations")
         else []
     )
     # One merged, swipeable stack rather than two separate UI blocks --
@@ -50,7 +53,7 @@ def index():
     return render_template(
         "dashboard/index.html",
         cards=cards,
-        ai_enabled=org.feature_enabled("ai_dashboard"),
+        ai_enabled=org.feature_enabled("ai_recommendations"),
     )
 
 
