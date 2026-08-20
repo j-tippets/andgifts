@@ -636,14 +636,20 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
    shipping address) -- see app/models/actions.py. Deliberately louder
    than .s-card-expires (this blocks approval outright, not just a
    deadline) but not as alarming as .flash-error, since it's a normal
-   everyday gap to fill in, not something that went wrong. */
+   everyday gap to fill in, not something that went wrong. The whole
+   banner is a single <a> (not a div with a small nested link) so the
+   tap target on mobile is the full block, not just a few underlined
+   words -- text-decoration/color reset here since it's a real anchor. */
 .s-readiness-warning {
   display: flex; align-items: flex-start; gap: 8px;
   background: var(--gold-soft); color: #8A5A00; border-radius: 10px;
   padding: 10px 12px; margin: 0 0 14px; font-size: 13px; line-height: 1.45;
+  text-decoration: none; cursor: pointer;
+  transition: background .15s var(--ease);
 }
+.s-readiness-warning:hover, .s-readiness-warning:active { background: #F3DFAE; }
 .s-readiness-warning svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
-.s-readiness-warning a { color: inherit; text-decoration: underline; }
+.s-readiness-warning strong { text-decoration: underline; }
 
 .s-gift-box {
   background: var(--paper); border-radius: 14px; padding: 12px 14px; margin: 0 0 14px;

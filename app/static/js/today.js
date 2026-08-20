@@ -331,7 +331,7 @@
     var card = topEl();
     if (!card) return;
     if (e.target.closest('.s-card') !== card) return;
-    if (e.target.closest('.s-form') || e.target.closest('.s-loop-btn') || e.target.closest('.s-edit-disclosure') || e.target.closest('.s-gift-box') || e.target.closest('.s-card-menu')) return; // let real buttons work untouched
+    if (e.target.closest('.s-form') || e.target.closest('.s-loop-btn') || e.target.closest('.s-edit-disclosure') || e.target.closest('.s-gift-box') || e.target.closest('.s-card-menu') || e.target.closest('.s-readiness-warning')) return; // let real buttons/links work untouched
     dragging = true;
     activeCard = card;
     startX = e.touches ? e.touches[0].clientX : e.clientX;
