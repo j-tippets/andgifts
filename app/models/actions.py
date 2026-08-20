@@ -17,6 +17,11 @@ class SuggestedAction(db.Model):
     """
     __tablename__ = "suggested_actions"
 
+    # Lets dashboard/index.html's merged card stack (suggestions +
+    # FlowRecommendation, sorted together by created_at) branch on type
+    # without checking __class__ in the template.
+    item_kind = "suggestion"
+
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
     contact_id = db.Column(db.String(36), db.ForeignKey("contacts.id"), nullable=False, index=True)
@@ -187,6 +192,9 @@ class FlowRecommendation(db.Model):
     __table_args__ = (
         db.UniqueConstraint("user_id", "event_type", name="uq_flow_recommendation_user_event"),
     )
+
+    # See SuggestedAction.item_kind's comment -- same purpose.
+    item_kind = "recommendation"
 
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)

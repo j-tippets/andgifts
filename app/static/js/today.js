@@ -142,6 +142,20 @@
     }).then(function (res) { return res.ok; }).catch(function () { return false; });
   }
 
+  // Same as submitApprove, generalized to any form -- used for
+  // dismissing a flow-recommendation card, which (unlike a suggestion's
+  // ephemeral Skip) really does need to hit the server: dismissal is
+  // permanent and the card should never come back (see
+  // FlowRecommendation's docstring).
+  function submitForm(form) {
+    return fetch(form.getAttribute('action'), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: new FormData(form)
+    }).then(function (res) { return res.ok; }).catch(function () { return false; });
+  }
+
   function flyOut(card, direction, kind) {
     var flyX = direction === 'right' ? window.innerWidth : -window.innerWidth;
     var rot = direction === 'right' ? 18 : -18;
@@ -180,6 +194,45 @@
     }
 
     var kind = direction === 'right' ? 'approve' : 'skip';
+
+    // Flow-recommendation cards (see dashboard/index.html) don't fit
+    // the suggestion approve/skip model: "Build this flow" needs a
+    // real page navigation into the wizard (not a background fetch --
+    // there's nothing to animate back to, the page is leaving), and
+    // "Not now" needs to actually hit the server, unlike a
+    // suggestion's Skip which is purely client-side. Checked by form
+    // presence rather than a data-kind attribute so a card just needs
+    // to carry the right form to opt into this behavior.
+    var buildForm = card.querySelector('.s-form-build');
+    var dismissForm = card.querySelector('.s-form-dismiss');
+
+    if (direction === 'right' && buildForm) {
+      flyOut(card, 'right', 'approve');
+      setTimeout(function () { buildForm.submit(); }, delay);
+      return;
+    }
+    if (direction === 'left' && dismissForm) {
+      flyOut(card, 'left', 'skip');
+      submitForm(dismissForm).then(function () {
+        setTimeout(function () {
+          queue.shift();
+          approvedCount++; // counts toward "handled" same as an approval
+          maybeQueueLoop();
+          busy = false;
+          layout();
+        }, delay);
+      });
+      return;
+    }
+    // A recommendation card swiped the "wrong" way for its only two
+    // forms (e.g. left with no dismissForm because this direction
+    // check already failed above) falls through to the block below --
+    // harmless no-op for it, since submitApprove()/the skip branch
+    // both require forms it doesn't have; kept simple rather than
+    // adding a third early-return that can't actually be reached given
+    // every card currently has exactly one of (approve+skip) or
+    // (build+dismiss).
+
     flyOut(card, direction, kind);
 
     if (kind === 'approve') {
@@ -220,11 +273,13 @@
     var form = e.target;
     var isApprove = form.classList.contains('s-form-approve');
     var isSkip = form.classList.contains('s-form-skip');
-    if (!isApprove && !isSkip) return;
+    var isBuild = form.classList.contains('s-form-build');
+    var isDismiss = form.classList.contains('s-form-dismiss');
+    if (!isApprove && !isSkip && !isBuild && !isDismiss) return;
     e.preventDefault();
     var card = form.closest('.s-card');
     if (!card || card !== topEl()) return;
-    completeTop(isApprove ? 'right' : 'left', false);
+    completeTop((isApprove || isBuild) ? 'right' : 'left', false);
   });
 
   loopBtn.addEventListener('click', function () { completeTop('right', false); });

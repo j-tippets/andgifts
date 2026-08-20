@@ -40,11 +40,17 @@ def index():
         if org.feature_enabled("ai_dashboard")
         else []
     )
+    # One merged, swipeable stack rather than two separate UI blocks --
+    # sorted by created_at so neither type is systematically pushed to
+    # the front or back; see dashboard/index.html and today.js, which
+    # both branch on item.item_kind (SuggestedAction vs
+    # FlowRecommendation, see app/models/actions.py) to render/handle
+    # each card's own action buttons.
+    cards = sorted(pending + flow_recommendations, key=lambda item: item.created_at)
     return render_template(
         "dashboard/index.html",
-        suggestions=pending,
+        cards=cards,
         ai_enabled=org.feature_enabled("ai_dashboard"),
-        flow_recommendations=flow_recommendations,
     )
 
 

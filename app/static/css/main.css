@@ -868,6 +868,13 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .pill-type-email { background: #E4EEF7; color: #2A5D8A; }
 .pill-type-text { background: var(--mint); color: var(--mint-ink); }
 .pill-type-handwritten_note { background: #F3E4F7; color: #6A2D8A; }
+/* Flow recommendation cards share the s-card/s-badge/pill shape used by
+   suggestion cards (see dashboard/index.html + today.js, which treats
+   both as one merged, sortable stack) but get their own accent -- a
+   soft lavender tying back to --evergreen-light, distinct from every
+   pill-type-* above so a recommendation never reads as a 4th action
+   type by mistake. */
+.s-card-icon-recommendation { background: #EDE8F5; color: var(--evergreen-light); }
 
 /* ---- Contact detail header ---- */
 .contact-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }

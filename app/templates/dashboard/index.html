@@ -10,7 +10,7 @@
       <p class="subdued" style="margin-bottom:0;">Upgrade to a Pro plan to unlock daily AI-suggested gifts and outreach.</p>
     {% endif %}
   </div>
-  {% if suggestions %}
+  {% if cards %}
     <div class="view-toggle" id="viewToggle" role="tablist">
       <button type="button" class="view-toggle-btn active" data-view="cards" role="tab" aria-selected="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="13" height="16" rx="2"/><path d="M9 3h11a2 2 0 0 1 2 2v11"/></svg>
@@ -24,38 +24,45 @@
   {% endif %}
 </div>
 
-{% if flow_recommendations %}
-  <div style="margin-bottom:28px;">
-    {% for rec in flow_recommendations %}
-      <div class="contact-card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
-        <div>
-          <div style="font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--evergreen-light); margin-bottom:4px;">Flow recommendation</div>
-          <p style="margin:0;">
-            <strong>{{ rec.contact_count }} contact{{ 's' if rec.contact_count != 1 else '' }}</strong>
-            {{ 'have' if rec.contact_count != 1 else 'has' }} a <strong>{{ rec.event_label }}</strong> milestone, but no flow covers it yet.
-          </p>
-        </div>
-        <div style="display:flex; gap:8px; flex-shrink:0;">
-          <form method="post" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=rec.id) }}">
-            <button type="submit" class="btn btn-ghost btn-small">Not now</button>
-          </form>
-          <form method="post" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=rec.id) }}">
-            <button type="submit" class="btn btn-primary btn-small">Build this flow</button>
-          </form>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-{% endif %}
-
-{% if suggestions %}
+{% if cards %}
   <div class="view-panel" id="cardsView">
-    <div class="progress-label" id="progressLabel">1 of {{ suggestions|length }}</div>
+    <div class="progress-label" id="progressLabel">1 of {{ cards|length }}</div>
     <div class="progress" id="progress"></div>
 
     <div class="stack-wrap" id="stackWrap">
       <div class="stack" id="stack">
-        {% for s in suggestions %}
+        {% for s in cards %}
+          {% if s.item_kind == 'recommendation' %}
+            <div class="s-card s-card-recommendation" data-index="{{ loop.index0 }}">
+              <div class="stamp approve">&#10003;</div>
+              <div class="stamp skip">&#10005;</div>
+
+              <div class="s-card-top">
+                <div class="s-card-icon s-card-icon-recommendation" title="Flow recommendation">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2Z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+                </div>
+                <span class="s-badge">{{ s.contact_count }} contact{{ 's' if s.contact_count != 1 else '' }}</span>
+              </div>
+
+              <div class="s-card-who">
+                <h3>Flow recommendation</h3>
+              </div>
+
+              <p class="s-card-reason">
+                <strong>{{ s.contact_count }} contact{{ 's' if s.contact_count != 1 else '' }}</strong>
+                {{ 'have' if s.contact_count != 1 else 'has' }} a <strong>{{ s.event_label }}</strong> milestone, but no flow covers it yet.
+              </p>
+
+              <div class="s-card-footer">
+                <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-dismiss">
+                  <button class="s-skip-link" type="submit">Not now</button>
+                </form>
+                <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-build">
+                  <button class="btn btn-primary s-approve-btn" type="submit">Build this flow</button>
+                </form>
+              </div>
+            </div>
+          {% else %}
           <div class="s-card" data-index="{{ loop.index0 }}">
             <div class="stamp approve">&#10003;</div>
             <div class="stamp skip">&#10005;</div>
@@ -159,6 +166,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
         {% endfor %}
 
         <div class="empty-state-flip" id="emptyState">
@@ -172,7 +180,29 @@
 
   <div class="view-panel" id="listView" hidden>
     <div class="list-rows">
-      {% for s in suggestions %}
+      {% for s in cards %}
+        {% if s.item_kind == 'recommendation' %}
+          <div class="list-row">
+            <span class="status-pill s-type-pill s-card-icon-recommendation">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2Z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+              Flow recommendation
+            </span>
+            <div class="list-row-info">
+              <h4>
+                <strong>{{ s.contact_count }} contact{{ 's' if s.contact_count != 1 else '' }}</strong>
+                {{ 'have' if s.contact_count != 1 else 'has' }} a <strong>{{ s.event_label }}</strong> milestone, but no flow covers it yet.
+              </h4>
+            </div>
+            <div class="list-row-actions">
+              <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}">
+                <button class="btn btn-primary btn-small" type="submit">Build this flow</button>
+              </form>
+              <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}">
+                <button class="btn btn-skip btn-small" type="submit">Not now</button>
+              </form>
+            </div>
+          </div>
+        {% else %}
         <div class="list-row">
           <span class="status-pill s-type-pill pill-type-{{ s.action_type }}">
             {{ type_icon(s.action_type) }}
@@ -237,10 +267,11 @@
             </form>
           </div>
         </div>
+        {% endif %}
       {% endfor %}
     </div>
   </div>
-{% elif not flow_recommendations %}
+{% else %}
   <div class="empty-state">
     <h3>Nothing needs your attention right now</h3>
     <p>New suggestions will show up here as timeline events approach.</p>
