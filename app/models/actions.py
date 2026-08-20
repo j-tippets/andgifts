@@ -67,6 +67,56 @@ class SuggestedAction(db.Model):
             return self.source_campaign.owner if self.source_campaign else None
         return self.contact.owner if self.contact else None
 
+    @staticmethod
+    def visible_to(query, user):
+        """Scope a SuggestedAction query to what `user` is allowed to see
+        on their Today dashboard: admins see every pending suggestion in
+        the org; agents see only ones with no specific owning agent (a
+        shared contact, or a team-wide flow -- see owning_agent) plus
+        their own. Mirrors Contact.visible_to's shared-vs-private split,
+        just computed from owning_agent instead of a single column since
+        a suggestion's owner can come from either the contact or the
+        triggering flow."""
+        if user.is_admin:
+            return query
+        from app.models.contact import Contact
+        from app.models.campaigns import Campaign
+        return (
+            query
+            .outerjoin(Contact, SuggestedAction.contact_id == Contact.id)
+            .outerjoin(Campaign, SuggestedAction.source_campaign_id == Campaign.id)
+            .filter(db.or_(
+                db.and_(
+                    SuggestedAction.source_campaign_id.is_(None),
+                    db.or_(Contact.owner_user_id.is_(None), Contact.owner_user_id == user.id),
+                ),
+                db.and_(
+                    SuggestedAction.source_campaign_id.isnot(None),
+                    db.or_(Campaign.owner_user_id.is_(None), Campaign.owner_user_id == user.id),
+                ),
+            ))
+        )
+
+    @staticmethod
+    def owned_by(query, agent_id):
+        """Scope a SuggestedAction query to suggestions specifically owned
+        by one agent (see owning_agent) -- used by the admin dashboard's
+        per-agent filter dropdown. Unlike visible_to, this excludes
+        shared/team-wide items with no specific owner, since the admin
+        asked to see one agent's queue specifically, not everything that
+        agent happens to be allowed to see."""
+        from app.models.contact import Contact
+        from app.models.campaigns import Campaign
+        return (
+            query
+            .outerjoin(Contact, SuggestedAction.contact_id == Contact.id)
+            .outerjoin(Campaign, SuggestedAction.source_campaign_id == Campaign.id)
+            .filter(db.or_(
+                db.and_(SuggestedAction.source_campaign_id.is_(None), Contact.owner_user_id == agent_id),
+                db.and_(SuggestedAction.source_campaign_id.isnot(None), Campaign.owner_user_id == agent_id),
+            ))
+        )
+
     @property
     def readiness_blocked_reason(self):
         """None if this action can actually be carried out as-is;

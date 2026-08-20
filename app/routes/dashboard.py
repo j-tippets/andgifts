@@ -2,7 +2,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation, Order
+from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation, Order, User
 from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
@@ -11,6 +11,31 @@ from app.services.email import send_flow_action_email, send_wdf_fulfillment_noti
 from app.services.payments import charge_saved_card
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
+
+
+def _get_visible_action(action_id, status=None):
+    """Fetch a SuggestedAction the current user is allowed to act on --
+    the same ownership scope as the dashboard's own query (see
+    SuggestedAction.visible_to), so an agent can't approve/skip/delete a
+    card for a contact they can't even see, e.g. via a raw POST to a
+    stale/copied form. Admins are unrestricted, same as everywhere else."""
+    query = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id)
+    if status:
+        query = query.filter_by(status=status)
+    if not current_user.is_admin:
+        query = SuggestedAction.visible_to(query, current_user)
+    return query.first_or_404()
+
+
+def _get_recommendation_or_404(recommendation_id):
+    """Fetch a FlowRecommendation the current user is allowed to act on:
+    your own, or (admin only) any agent's -- needed so an admin viewing
+    another agent's queue via the dashboard's agent picker can actually
+    dismiss/accept their recommendation cards."""
+    query = FlowRecommendation.query.filter_by(id=recommendation_id, org_id=current_user.org_id)
+    if not current_user.is_admin:
+        query = query.filter_by(user_id=current_user.id)
+    return query.first_or_404()
 
 
 @dashboard_bp.route("/")
@@ -29,15 +54,35 @@ def index():
     if org.feature_enabled("ai_recommendations"):
         generate_flow_recommendations_for_user(current_user)
 
-    pending = (
-        SuggestedAction.query
-        .filter_by(org_id=org.id, status="pending")
-        .order_by(SuggestedAction.target_date)
-        .all()
-    )
+    # Admin-only agent picker: narrows the dashboard to one agent's queue
+    # (see SuggestedAction.owned_by). No selection (the default) keeps the
+    # existing admin behavior of seeing the whole org's queue unfiltered --
+    # this is deliberately NOT extended to non-admins, who are always
+    # scoped by SuggestedAction.visible_to below regardless of query params.
+    viewing_agent = None
+    if current_user.is_admin:
+        agent_id = request.args.get("agent_id", "").strip()
+        if agent_id:
+            viewing_agent = User.query.filter_by(id=agent_id, org_id=org.id).first()
+
+    pending_query = SuggestedAction.query.filter_by(org_id=org.id, status="pending")
+    if current_user.is_admin:
+        if viewing_agent:
+            pending_query = SuggestedAction.owned_by(pending_query, viewing_agent.id)
+        # else: no extra filter -- admin sees every agent's pending suggestions.
+    else:
+        pending_query = SuggestedAction.visible_to(pending_query, current_user)
+    pending = pending_query.order_by(SuggestedAction.target_date).all()
+
+    # Flow recommendations are inherently per-agent (one row per user+event
+    # type -- see FlowRecommendation's docstring), so there's no sensible
+    # "recommendations for the whole org" merged view. Default to your own
+    # (matches pre-existing behavior); an admin viewing a specific agent
+    # sees that agent's instead.
+    recommendations_for = viewing_agent or current_user
     flow_recommendations = (
         FlowRecommendation.query
-        .filter_by(user_id=current_user.id, status="pending")
+        .filter_by(user_id=recommendations_for.id, status="pending")
         .order_by(FlowRecommendation.contact_count.desc())
         .all()
         if org.feature_enabled("ai_recommendations")
@@ -50,17 +95,24 @@ def index():
     # FlowRecommendation, see app/models/actions.py) to render/handle
     # each card's own action buttons.
     cards = sorted(pending + flow_recommendations, key=lambda item: item.created_at)
+
+    agents = (
+        User.query.filter_by(org_id=org.id, status="active").order_by(User.first_name, User.last_name).all()
+        if current_user.is_admin else []
+    )
     return render_template(
         "dashboard/index.html",
         cards=cards,
         ai_enabled=org.feature_enabled("ai_recommendations"),
+        agents=agents,
+        viewing_agent=viewing_agent,
     )
 
 
 @dashboard_bp.route("/flow-recommendations/<recommendation_id>/dismiss", methods=["POST"])
 @login_required
 def dismiss_flow_recommendation(recommendation_id):
-    rec = FlowRecommendation.query.filter_by(id=recommendation_id, user_id=current_user.id).first_or_404()
+    rec = _get_recommendation_or_404(recommendation_id)
     rec.status = "dismissed"
     rec.resolved_at = datetime.utcnow()
     db.session.commit()
@@ -77,7 +129,7 @@ def accept_flow_recommendation(recommendation_id):
     the form from request.form after a validation error. Nothing about
     the flow is actually created here; the agent still reviews and
     saves it themselves in the wizard, same as any other new flow."""
-    rec = FlowRecommendation.query.filter_by(id=recommendation_id, user_id=current_user.id).first_or_404()
+    rec = _get_recommendation_or_404(recommendation_id)
     rec.status = "accepted"
     rec.resolved_at = datetime.utcnow()
     db.session.commit()
@@ -92,7 +144,7 @@ def accept_flow_recommendation(recommendation_id):
 @dashboard_bp.route("/actions/<action_id>/approve", methods=["POST"])
 @login_required
 def approve_action(action_id):
-    action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
+    action = _get_visible_action(action_id)
     org = current_user.org
 
     # Server-side enforcement of the same check the dashboard card
@@ -254,7 +306,7 @@ def approve_action(action_id):
 @dashboard_bp.route("/actions/<action_id>/skip", methods=["POST"])
 @login_required
 def skip_action(action_id):
-    action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
+    action = _get_visible_action(action_id)
     action.status = "skipped"
     action.resolved_at = datetime.utcnow()
     db.session.commit()
@@ -271,7 +323,7 @@ def delete_action(action_id):
     a deleted purchase-anniversary gift this year still lets the contact
     qualify for next year's anniversary. Logged to the contact's activity
     feed so it can be undone from there if it was a mistake."""
-    action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
+    action = _get_visible_action(action_id)
     action.status = "deleted"
     action.resolved_at = datetime.utcnow()
 
@@ -295,9 +347,7 @@ def delete_action(action_id):
 def undelete_action(action_id):
     """Restores a deleted suggestion back to pending -- called from the
     contact's recent-activity list, not from the Today tab."""
-    action = SuggestedAction.query.filter_by(
-        id=action_id, org_id=current_user.org_id, status="deleted"
-    ).first_or_404()
+    action = _get_visible_action(action_id, status="deleted")
     action.status = "pending"
     action.resolved_at = None
 
@@ -329,9 +379,7 @@ def unapprove_action(action_id):
     suggestion. Only called from the contact's Recent Activity list,
     next to the action_approved entry it's undoing -- same pattern as
     undelete_action next to action_deleted."""
-    action = SuggestedAction.query.filter_by(
-        id=action_id, org_id=current_user.org_id, status="approved"
-    ).first_or_404()
+    action = _get_visible_action(action_id, status="approved")
 
     ActionLog.query.filter_by(suggested_action_id=action.id).delete(synchronize_session=False)
 
@@ -360,7 +408,7 @@ def edit_action(action_id):
     swap the gift before ever approving/deleting it. Saves in place and
     stays pending -- this is deliberately separate from approve, which is
     still required to actually queue/send it."""
-    action = SuggestedAction.query.filter_by(id=action_id, org_id=current_user.org_id).first_or_404()
+    action = _get_visible_action(action_id)
     if action.status != "pending":
         flash("Only pending suggestions can be edited.", "error")
         return redirect(url_for("dashboard.index"))
