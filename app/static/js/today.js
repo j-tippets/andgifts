@@ -65,8 +65,8 @@
     card.style.opacity = '';
     var approveStamp = card.querySelector('.stamp.approve');
     var skipStamp = card.querySelector('.stamp.skip');
-    if (approveStamp) { approveStamp.style.transition = ''; approveStamp.style.opacity = ''; approveStamp.style.transform = ''; }
-    if (skipStamp) { skipStamp.style.transition = ''; skipStamp.style.opacity = ''; skipStamp.style.transform = ''; }
+    if (approveStamp) { approveStamp.style.transition = ''; approveStamp.style.opacity = ''; }
+    if (skipStamp) { skipStamp.style.transition = ''; skipStamp.style.opacity = ''; }
   }
 
   // Card view (this whole file) and List view (dashboard/index.html's
@@ -187,7 +187,7 @@
     card.style.opacity = 0;
     if (kind) {
       var stamp = card.querySelector('.stamp.' + kind);
-      if (stamp) { stamp.style.transition = 'none'; stamp.style.opacity = 1; stamp.style.transform = 'scale(1) rotate(0deg)'; }
+      if (stamp) { stamp.style.transition = 'none'; stamp.style.opacity = 1; }
     }
   }
 
@@ -378,12 +378,10 @@
     if (approveStamp) {
       approveStamp.style.transition = 'none';
       approveStamp.style.opacity = Math.max(0, Math.min(1, dx / 90));
-      approveStamp.style.transform = 'scale(' + (.6 + Math.min(1, dx / 90) * .4) + ') rotate(0deg)';
     }
     if (skipStamp) {
       skipStamp.style.transition = 'none';
       skipStamp.style.opacity = Math.max(0, Math.min(1, -dx / 90));
-      skipStamp.style.transform = 'scale(' + (.6 + Math.min(1, -dx / 90) * .4) + ') rotate(0deg)';
     }
   }
   function pointerUp() {

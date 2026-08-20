@@ -45,8 +45,14 @@
         {% for s in cards %}
           {% if s.item_kind == 'recommendation' %}
             <div class="s-card s-card-recommendation" data-index="{{ loop.index0 }}" data-id="{{ s.id }}">
-              <div class="stamp approve">&#10003;</div>
-              <div class="stamp skip">&#10005;</div>
+              <div class="stamp approve">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Build flow
+              </div>
+              <div class="stamp skip">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Not now
+              </div>
 
               <div class="s-card-top">
                 <div class="s-card-icon s-card-icon-recommendation" title="Flow recommendation">
@@ -76,8 +82,14 @@
           {% else %}
           <div class="s-card" data-index="{{ loop.index0 }}" data-id="{{ s.id }}">
             {% set blocked_reason = s.readiness_blocked_reason %}
-            <div class="stamp approve">&#10003;</div>
-            <div class="stamp skip">&#10005;</div>
+            <div class="stamp approve">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Approve
+            </div>
+            <div class="stamp skip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Skip
+            </div>
 
             <div class="s-card-top">
               <div class="s-card-icon pill-type-{{ s.action_type }}" title="{{ s.action_type.replace('_', ' ')|capitalize }}">
