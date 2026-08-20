@@ -240,7 +240,7 @@
       {% endfor %}
     </div>
   </div>
-{% else %}
+{% elif not flow_recommendations %}
   <div class="empty-state">
     <h3>Nothing needs your attention right now</h3>
     <p>New suggestions will show up here as timeline events approach.</p>
