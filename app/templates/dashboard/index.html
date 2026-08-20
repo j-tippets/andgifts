@@ -33,7 +33,7 @@
       <div class="stack" id="stack">
         {% for s in cards %}
           {% if s.item_kind == 'recommendation' %}
-            <div class="s-card s-card-recommendation" data-index="{{ loop.index0 }}">
+            <div class="s-card s-card-recommendation" data-index="{{ loop.index0 }}" data-id="{{ s.id }}">
               <div class="stamp approve">&#10003;</div>
               <div class="stamp skip">&#10005;</div>
 
@@ -63,7 +63,7 @@
               </div>
             </div>
           {% else %}
-          <div class="s-card" data-index="{{ loop.index0 }}">
+          <div class="s-card" data-index="{{ loop.index0 }}" data-id="{{ s.id }}">
             {% set blocked_reason = s.readiness_blocked_reason %}
             <div class="stamp approve">&#10003;</div>
             <div class="stamp skip">&#10005;</div>
@@ -197,7 +197,7 @@
     <div class="list-rows">
       {% for s in cards %}
         {% if s.item_kind == 'recommendation' %}
-          <div class="list-row">
+          <div class="list-row" data-id="{{ s.id }}">
             <span class="status-pill s-type-pill s-card-icon-recommendation">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2Z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
               Flow recommendation
@@ -219,7 +219,7 @@
           </div>
         {% else %}
         {% set blocked_reason = s.readiness_blocked_reason %}
-        <div class="list-row">
+        <div class="list-row" data-id="{{ s.id }}">
           <span class="status-pill s-type-pill pill-type-{{ s.action_type }}">
             {{ type_icon(s.action_type) }}
             {{ s.action_type.replace('_', ' ')|capitalize }}
@@ -295,6 +295,10 @@
         </div>
         {% endif %}
       {% endfor %}
+      <div class="empty-state" id="listViewEmptyState" hidden>
+        <h3>You're all caught up</h3>
+        <p>New suggestions will show up here as timeline events approach.</p>
+      </div>
     </div>
   </div>
 {% else %}

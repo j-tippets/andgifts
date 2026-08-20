@@ -68,6 +68,26 @@
     if (skipStamp) { skipStamp.style.transition = ''; skipStamp.style.opacity = ''; skipStamp.style.transform = ''; }
   }
 
+  // Card view (this whole file) and List view (dashboard/index.html's
+  // #listView, no JS of its own) are rendered from the SAME `cards`
+  // list at page load, matched up by data-id on both .s-card and
+  // .list-row. Approving/dismissing in card view only ever updates
+  // this file's in-memory `queue` + the card-view DOM -- without this,
+  // switching to List view afterward (a client-side show/hide, not a
+  // reload -- see dashboard-view-toggle.js) would still show the
+  // now-resolved item, since List view's DOM was only ever rendered
+  // once. Not called for Skip: that's purely client-side (nothing
+  // changed server-side), so the List view row is still accurate.
+  function syncListRow(id) {
+    var row = document.querySelector('#listView .list-row[data-id="' + id + '"]');
+    if (!row) return;
+    row.remove();
+    var listView = document.getElementById('listView');
+    var remaining = listView && listView.querySelectorAll('.list-row').length;
+    var listEmptyState = document.getElementById('listViewEmptyState');
+    if (listEmptyState) listEmptyState.hidden = remaining !== 0;
+  }
+
   function layout() {
     cards.forEach(function (card) { card.style.display = 'none'; });
     loopCard.style.display = 'none';
@@ -217,6 +237,7 @@
         setTimeout(function () {
           queue.shift();
           approvedCount++; // counts toward "handled" same as an approval
+          syncListRow(card.dataset.id);
           maybeQueueLoop();
           busy = false;
           layout();
@@ -255,6 +276,7 @@
         setTimeout(function () {
           queue.shift();
           approvedCount++;
+          syncListRow(card.dataset.id);
           maybeQueueLoop();
           busy = false;
           layout();
