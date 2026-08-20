@@ -17,6 +17,7 @@
   var stack = document.getElementById('stack');
   var cards = Array.prototype.slice.call(stack.querySelectorAll('.s-card'));
   var emptyState = document.getElementById('emptyState');
+  var swipeHint = document.getElementById('swipeHint');
   var progressWrap = document.getElementById('progress');
   var progressLabel = document.getElementById('progressLabel');
 
@@ -96,11 +97,13 @@
 
     if (list.length === 0) {
       emptyState.classList.add('show');
+      if (swipeHint) swipeHint.classList.add('hide');
       launchConfetti();
       updateProgress();
       return;
     }
 
+    if (swipeHint) swipeHint.classList.remove('hide');
     stackWrap.classList.toggle('js-loop', showingLoop);
 
     list.forEach(function (card, rel) {

@@ -587,6 +587,25 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .progress { display: flex; gap: 6px; margin: 0 0 22px; }
 .progress span { flex: 1; height: 5px; border-radius: 4px; background: rgba(42,26,69,.12); overflow: hidden; position: relative; }
 .progress span::after {
+
+/* Always-visible swipe affordance above the card stack -- deliberately its
+   own row rather than overlaid on the top card, so variable card heights
+   (recommendation cards, gift cards with the catalog select, etc.) can
+   never grow up under it and hide it like the old overlay hint did. */
+.swipe-hint {
+  display: flex; justify-content: space-between; align-items: center;
+  max-width: 640px; margin: 0 auto 14px; padding: 0 4px;
+  font-family: var(--font-rounded); font-weight: 700; font-size: 12.5px;
+  color: rgba(42,26,69,.45);
+}
+.swipe-hint.hide { display: none; }
+.swipe-hint-side { display: flex; align-items: center; gap: 5px; }
+.swipe-hint-side svg { width: 14px; height: 14px; flex-shrink: 0; }
+.swipe-hint-approve { color: var(--mint-ink); }
+@media (max-width: 480px) {
+  .swipe-hint { font-size: 11px; }
+}
+
   content: ""; position: absolute; inset: 0; background: var(--mint);
   transform: scaleX(0); transform-origin: left; transition: transform .5s var(--ease);
 }
