@@ -86,6 +86,17 @@ class Config:
     TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
     ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
+    # --- Wild Dog Fulfillment ops handoff ---
+    # WDF's order-tracking tool is a deliberately separate product/repo
+    # (not part of this app, not sharing this database) -- see the WDF
+    # entity-separation notes. This is the only coupling point: a
+    # best-effort webhook POST alongside the existing WDF email, same
+    # "degrade gracefully if unset" pattern as Stripe/SendGrid above.
+    # Unset in any environment where the WDF tool isn't deployed yet --
+    # send_wdf_webhook() just logs and no-ops.
+    WDF_WEBHOOK_URL = os.environ.get("WDF_WEBHOOK_URL", "")
+    WDF_WEBHOOK_SECRET = os.environ.get("WDF_WEBHOOK_SECRET", "")
+
     # --- One-off gift orders ---
     # Flat-rate shipping charged on top of the gift price when the agent
     # picks "ship it" instead of "pickup" at checkout. Pickup is free.

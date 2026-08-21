@@ -10,6 +10,7 @@ from app.services.suggestion_engine import (
 from app.services.flow_recommendations import generate_flow_recommendations_for_user
 from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice, send_wdf_handwritten_note_notice
 from app.services.payments import charge_saved_card
+from app.services.wdf_client import send_wdf_webhook
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -237,6 +238,14 @@ def approve_action(action_id):
         db.session.add(order)
         db.session.flush()  # order.id, for the notice and for linking ActionLog below
         send_wdf_fulfillment_notice(order)
+        gift_timing = action.gift_timing
+        send_wdf_webhook(
+            "gift", order.id, action.contact, billing_agent,
+            item_description=action.suggested_gift.name,
+            price_cents=action.suggested_gift.price_cents,
+            note_text=action.generated_message,
+            target_date=gift_timing["order_by"] if gift_timing else action.target_date,
+        )
     elif action.action_type == "handwritten_note":
         detail = f"Handwritten note (${HANDWRITTEN_NOTE_PRICE_CENTS / 100:.2f})"
         if action.generated_message:
@@ -266,6 +275,13 @@ def approve_action(action_id):
 
         note_payment_intent_id = intent_id
         send_wdf_handwritten_note_notice(action, billing_agent)
+        send_wdf_webhook(
+            "handwritten_note", action.id, action.contact, billing_agent,
+            item_description="Handwritten note",
+            price_cents=HANDWRITTEN_NOTE_PRICE_CENTS,
+            note_text=action.generated_message,
+            target_date=action.target_date,
+        )
     else:
         detail = action.generated_message or action.reason_text
         cost_cents = None
