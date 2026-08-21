@@ -39,7 +39,7 @@ LOOKAHEAD_DAYS = 14
 # When a contact has more than one timeline event qualifying in the same
 # window (e.g. the first_contact event auto-seeded on creation, plus a
 # closing date backfilled the same day), only the single most significant
-# one should ever generate a suggestion -- see _winning_events_for_contact,
+# one should ever generate a suggestion -- see _winning_event_for_contact,
 # used by both generation paths below.
 #
 # Priority is entirely agent-owned (see MilestonePriority) -- there's no
@@ -52,44 +52,25 @@ def _event_type_priority(owner, event_type):
     return MilestonePriority.priority_for(owner, event_type)
 
 
-def _winning_events_for_contact(contact, today, window_end):
+def _winning_event_for_contact(contact, today, window_end):
     """Among this contact's timeline events with a qualifying occurrence
-    in [today, window_end] (see _next_occurrence), groups them by
-    occurrence DATE and returns the single highest-priority event
-    within each date-group (per the contact owner's own ranking -- see
-    _event_type_priority). Returns a dict {occurrence_date: event}.
+    in [today, window_end] (see _next_occurrence), returns the single
+    highest-priority one (per the contact owner's own ranking -- see
+    _event_type_priority) -- or None if nothing qualifies.
 
-    This only forces a winner when two or more events genuinely
-    collide on the same calendar date -- e.g. the auto-seeded First
-    Contact event landing on the same day as a backfilled closing date.
-    Events on different dates (a Referral Given today, a Showing next
-    week) are NOT in competition with each other and each gets its own
-    entry, so unrelated flows tied to different milestones can both
-    still qualify. Previously this picked one winner for the contact's
-    entire timeline, which meant any later or lower-priority milestone
-    (commonly First Contact, since it's the earliest-created event on
-    almost every contact) silently blocked every other flow forever.
-
-    Ties within a date (equal priority) go to whichever event was
-    created first, so the pick is stable and repeatable across runs
-    rather than depending on query ordering.
+    Ties (equal priority) go to whichever occurrence is sooner, then to
+    whichever event was created first, so the pick is stable and
+    repeatable across runs rather than depending on query ordering.
     """
-    groups = {}
+    best, best_key = None, None
     for event in contact.timeline_events:
         occurrence_date = _next_occurrence(event, today, window_end)
         if occurrence_date is None:
             continue
-        groups.setdefault(occurrence_date, []).append(event)
-
-    winners = {}
-    for occurrence_date, events in groups.items():
-        best, best_key = None, None
-        for event in events:
-            key = (-_event_type_priority(contact.owner, event.event_type), event.created_at or datetime.min)
-            if best_key is None or key < best_key:
-                best, best_key = event, key
-        winners[occurrence_date] = best
-    return winners
+        key = (-_event_type_priority(contact.owner, event.event_type), occurrence_date, event.created_at or datetime.min)
+        if best_key is None or key < best_key:
+            best, best_key = event, key
+    return best
 
 
 def _log_qualified(suggestion, contact):
@@ -163,41 +144,33 @@ def _log_superseded(action, contact, winning_event):
     ))
 
 
-def _expire_superseded_suggestions(contact, winners, org):
-    """winners is the {occurrence_date: event} dict from
-    _winning_events_for_contact. Any still-pending suggestion whose
-    target_date lands on a date where a DIFFERENT, higher-priority
-    event won the same-day tie-break is for a milestone that's since
-    been outranked -- expire it rather than leaving it to sit alongside
-    the suggestion that actually matters now for that date. This is
-    what handles the case _winning_events_for_contact alone doesn't: a
-    lower-priority suggestion that was already created and is still
-    pending from an earlier run, before the higher-priority event
+def _expire_superseded_suggestions(contact, winning_event, org):
+    """Any still-pending suggestion for this contact tied to a different
+    timeline event than this run's winner (see _winning_event_for_contact)
+    is for a milestone that's since been outranked -- expire it rather
+    than leaving it to sit alongside the suggestion that actually matters
+    now. This is what handles the case _winning_event_for_contact alone
+    doesn't: a lower-priority suggestion that was already created and is
+    still pending from an earlier run, before the higher-priority event
     existed or qualified.
 
-    A suggestion whose target_date isn't contested at all this run
-    (no entry in winners, or its own event is the winner for that date)
-    is left alone -- only genuine same-day collisions get resolved here.
     Scoped to pending only -- anything already approved/sent/skipped/
     expired is left untouched. A suggestion whose triggering event was
     hard-deleted (triggering_event_id NULL -- see delete_timeline_event)
     is left alone too: that's its event being gone, not being outranked,
     and the agent should still get to decide what happens to it.
     """
-    stale = []
-    pending = SuggestedAction.query.filter(
+    stale = SuggestedAction.query.filter(
         SuggestedAction.org_id == org.id,
         SuggestedAction.contact_id == contact.id,
         SuggestedAction.status == "pending",
         SuggestedAction.triggering_event_id.isnot(None),
+        SuggestedAction.triggering_event_id != winning_event.id,
     ).all()
-    for action in pending:
-        winner = winners.get(action.target_date)
-        if winner is not None and winner.id != action.triggering_event_id:
-            action.status = "expired"
-            action.resolved_at = datetime.utcnow()
-            _log_superseded(action, contact, winner)
-            stale.append(action)
+    for action in stale:
+        action.status = "expired"
+        action.resolved_at = datetime.utcnow()
+        _log_superseded(action, contact, winning_event)
     return stale
 
 
@@ -210,49 +183,50 @@ def generate_suggestions_for_org(org, today=None):
 
     created = []
     for contact in contacts:
-        winners = _winning_events_for_contact(contact, today, window_end)
-        if not winners:
+        event = _winning_event_for_contact(contact, today, window_end)
+        if event is None:
             continue
 
-        _expire_superseded_suggestions(contact, winners, org)
+        _expire_superseded_suggestions(contact, event, org)
 
-        for occurrence_date, event in winners.items():
-            if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
-                continue
+        occurrence_date = _next_occurrence(event, today, window_end)
 
-            gift_trigger = _match_gift_trigger(org.id, event, available_item_ids)
-            if gift_trigger is None:
-                # No org-specific or global GiftTrigger configured for this
-                # event type -- previously this fell back to a contentless
-                # "email" suggestion (no gift, no generated_message) that
-                # offered nothing actionable; skip instead of creating noise.
-                # The Flow/Campaign engine (generate_campaign_suggestions_for_org)
-                # is the actual mechanism for AI-assisted outreach now -- this
-                # legacy path only still pulls its weight when a real
-                # GiftTrigger exists to point it at an actual gift.
-                continue
-            reason = _build_reason_text(event, occurrence_date, gift_trigger)
+        if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
+            continue
 
-            note = None
-            if gift_trigger.suggested_gift:
-                note = llm.generate_gift_note(event.contact, event, gift_trigger.suggested_gift)
+        gift_trigger = _match_gift_trigger(org.id, event, available_item_ids)
+        if gift_trigger is None:
+            # No org-specific or global GiftTrigger configured for this
+            # event type -- previously this fell back to a contentless
+            # "email" suggestion (no gift, no generated_message) that
+            # offered nothing actionable; skip instead of creating noise.
+            # The Flow/Campaign engine (generate_campaign_suggestions_for_org)
+            # is the actual mechanism for AI-assisted outreach now -- this
+            # legacy path only still pulls its weight when a real
+            # GiftTrigger exists to point it at an actual gift.
+            continue
+        reason = _build_reason_text(event, occurrence_date, gift_trigger)
 
-            suggestion = SuggestedAction(
-                org_id=org.id,
-                contact_id=event.contact_id,
-                triggering_event_id=event.id,
-                source_campaign_id=None,
-                action_type="gift",
-                suggested_gift_id=gift_trigger.suggested_gift_id,
-                reason_text=reason,
-                generated_message=note,
-                target_date=occurrence_date,
-                status="pending",
-            )
-            db.session.add(suggestion)
-            db.session.flush()  # populate suggestion.id before logging the FK reference
-            _log_qualified(suggestion, event.contact)
-            created.append(suggestion)
+        note = None
+        if gift_trigger.suggested_gift:
+            note = llm.generate_gift_note(event.contact, event, gift_trigger.suggested_gift)
+
+        suggestion = SuggestedAction(
+            org_id=org.id,
+            contact_id=event.contact_id,
+            triggering_event_id=event.id,
+            source_campaign_id=None,
+            action_type="gift",
+            suggested_gift_id=gift_trigger.suggested_gift_id,
+            reason_text=reason,
+            generated_message=note,
+            target_date=occurrence_date,
+            status="pending",
+        )
+        db.session.add(suggestion)
+        db.session.flush()  # populate suggestion.id before logging the FK reference
+        _log_qualified(suggestion, event.contact)
+        created.append(suggestion)
 
     # Always commit, not just "if created": _expire_superseded_suggestions
     # above can flip existing pending rows to expired even in a run where
@@ -363,18 +337,17 @@ def generate_campaign_suggestions_for_org(org, today=None):
 
     # Computed once per contact, not per campaign -- it doesn't depend on
     # which campaign is currently being evaluated. See
-    # _winning_events_for_contact for why only genuinely same-day events
-    # ever compete to be the one that generates a suggestion in a given
-    # run; events on different dates each get their own entry.
-    winning_events_cache = {}
+    # _winning_event_for_contact for why only one event per contact is
+    # ever allowed to generate a suggestion in a given run.
+    winning_event_cache = {}
 
-    def winning_events_for(contact):
-        if contact.id not in winning_events_cache:
-            winners = _winning_events_for_contact(contact, today, window_end)
-            if winners:
-                _expire_superseded_suggestions(contact, winners, org)
-            winning_events_cache[contact.id] = winners
-        return winning_events_cache[contact.id]
+    def winning_event_for(contact):
+        if contact.id not in winning_event_cache:
+            event = _winning_event_for_contact(contact, today, window_end)
+            if event is not None:
+                _expire_superseded_suggestions(contact, event, org)
+            winning_event_cache[contact.id] = event
+        return winning_event_cache[contact.id]
 
     created = []
     for campaign in campaigns:
@@ -387,12 +360,12 @@ def generate_campaign_suggestions_for_org(org, today=None):
         contacts = contacts_query.filter(Contact.do_not_contact.is_(False)).all()
 
         for contact in contacts:
-            winners = winning_events_for(contact)
-            matching_events = [e for e in winners.values() if e.event_type == campaign.event_type]
-            if not matching_events:
-                # None of this contact's date-group winners this cycle
-                # belong to this campaign's milestone type -- this
-                # campaign sits out the run for them entirely.
+            winning_event = winning_event_for(contact)
+            if winning_event is None or winning_event.event_type != campaign.event_type:
+                # This contact's single most significant event this cycle
+                # belongs to some other milestone -- this campaign sits
+                # out the run for them entirely, rather than firing off a
+                # lower-priority event of its own event_type.
                 continue
 
             # How many more times this campaign is allowed to fire for
@@ -405,6 +378,7 @@ def generate_campaign_suggestions_for_org(org, today=None):
             cap = _campaign_occurrence_cap(campaign)
             occurrence_count = _campaign_occurrence_count_for_contact(campaign.id, contact.id) if cap is not None else None
 
+            matching_events = [winning_event]
             for event in matching_events:
                 for trigger_date in _campaign_trigger_dates(event, campaign, today, window_end):
                     if cap is not None and occurrence_count >= cap:

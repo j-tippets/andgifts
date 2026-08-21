@@ -108,7 +108,7 @@ class MilestonePriority(db.Model):
     """
     One agent's personal ranking of a milestone type, used to break ties
     when a contact qualifies for more than one milestone on the same day
-    (see suggestion_engine._winning_events_for_contact). Deliberately
+    (see suggestion_engine._winning_event_for_contact). Deliberately
     tied to the AGENT, not the org or the milestone type itself -- two
     agents at the same agency can disagree about whether a closing
     outranks a birthday, and both are right for their own book of
