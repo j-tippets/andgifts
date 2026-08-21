@@ -605,6 +605,10 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .progress { display: flex; gap: 6px; margin: 0 0 22px; }
 .progress span { flex: 1; height: 5px; border-radius: 4px; background: rgba(42,26,69,.12); overflow: hidden; position: relative; }
 .progress span::after {
+  content: ""; position: absolute; inset: 0; background: var(--mint);
+  transform: scaleX(0); transform-origin: left; transition: transform .5s var(--ease);
+}
+.progress span.done::after { transform: scaleX(1); }
 
 /* Always-visible swipe affordance above the card stack -- deliberately its
    own row rather than overlaid on the top card, so variable card heights
@@ -625,11 +629,6 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   .stamp { font-size: 16px; gap: 8px; }
   .stamp svg { width: 24px; height: 24px; }
 }
-
-  content: ""; position: absolute; inset: 0; background: var(--mint);
-  transform: scaleX(0); transform-origin: left; transition: transform .5s var(--ease);
-}
-.progress span.done::after { transform: scaleX(1); }
 
 #cardsView { max-width: 640px; margin: 0 auto; }
 .stack-wrap { position: relative; max-width: 640px; margin: 0 auto; }
