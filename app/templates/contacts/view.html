@@ -97,6 +97,14 @@
           <div class="s-quote">&ldquo;{{ a.generated_message }}&rdquo;</div>
         {% endif %}
 
+        {% set blocked_reason = a.readiness_blocked_reason %}
+        {% if blocked_reason %}
+          <a href="{{ url_for('contacts.edit_contact', contact_id=a.contact_id) }}" class="s-readiness-warning">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>{{ blocked_reason }} <strong>Edit their info</strong>, then come back to approve this.</span>
+          </a>
+        {% endif %}
+
         <details class="s-edit-disclosure">
           <summary class="s-edit-toggle">{{ 'Note' if a.action_type == 'gift' else 'Edit' }}</summary>
           <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=a.id) }}" class="s-form s-form-edit">
@@ -108,7 +116,8 @@
 
         <div style="display:flex; gap:8px; margin-top:14px;">
           <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=a.id) }}">
-            <button class="btn btn-primary btn-small" type="submit">Accept</button>
+            <button class="btn btn-primary btn-small" type="submit"
+                    {% if blocked_reason %}disabled title="{{ blocked_reason }}"{% endif %}>Accept</button>
           </form>
           <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=a.id) }}">
             <button class="btn btn-skip btn-small" type="submit">Ignore</button>
