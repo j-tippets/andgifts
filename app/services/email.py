@@ -372,3 +372,33 @@ def send_wdf_fulfillment_notice(order):
         f"WDF fulfillment: {order.gift_name_snapshot} for {order.contact.household_name}",
         html,
     )
+
+
+def send_wdf_handwritten_note_notice(action, billing_agent):
+    """Notifies Wild Dog Fulfillment that a paid handwritten note needs
+    to be written/mailed. Same placeholder pattern as
+    send_wdf_fulfillment_notice above -- WDF has no real intake system
+    yet, so this just emails the details to jtippets@outlook.com.
+    Called only after the agent's card has been successfully charged
+    (see dashboard.approve_action); a failed charge never reaches
+    here, so WDF never sees a note nobody's paid for."""
+    address = (action.contact.formatted_shipping_address() or "").replace("\n", "<br>")
+    note_text = action.generated_message or ""
+    body = f"""
+      <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">New handwritten note to fulfill</h2>
+      <table role="presentation" style="width:100%; border-collapse: collapse; margin: 0 0 16px;">
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Agency</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{action.contact.org.name}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Agent</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{billing_agent.full_name}</td></tr>
+      </table>
+      <p style="margin:0 0 6px; color:#6B6459; font-size:13px;">Recipient address</p>
+      <p style="margin:0 0 16px; color:#2A1A45; font-size:15px;">{address or 'No address on file'}</p>
+      <p style="margin:0 0 6px; color:#6B6459; font-size:13px;">Recipient note</p>
+      <p style="margin:0 0 16px; color:#2A1A45; font-size:15px; white-space:pre-line;">{note_text or 'No note text provided'}</p>
+    """
+    html = _wrap_email(body, preheader=f"New handwritten note to fulfill for {action.contact.household_name}")
+
+    return send_email(
+        "jtippets@outlook.com",
+        f"WDF handwritten note: {action.contact.household_name}",
+        html,
+    )

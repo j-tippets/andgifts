@@ -3,11 +3,12 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation, Order, User
+from app.models.actions import HANDWRITTEN_NOTE_PRICE_CENTS
 from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
 from app.services.flow_recommendations import generate_flow_recommendations_for_user
-from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice
+from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice, send_wdf_handwritten_note_notice
 from app.services.payments import charge_saved_card
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
@@ -169,6 +170,7 @@ def approve_action(action_id):
                 action.suggested_gift_id = chosen_gift_id
 
     gift_payment_intent_id = None
+    note_payment_intent_id = None
     if action.action_type == "gift" and action.suggested_gift:
         detail = f"{action.suggested_gift.name} (${action.suggested_gift.price_cents / 100:.2f})"
         if action.generated_message:
@@ -235,6 +237,35 @@ def approve_action(action_id):
         db.session.add(order)
         db.session.flush()  # order.id, for the notice and for linking ActionLog below
         send_wdf_fulfillment_notice(order)
+    elif action.action_type == "handwritten_note":
+        detail = f"Handwritten note (${HANDWRITTEN_NOTE_PRICE_CENTS / 100:.2f})"
+        if action.generated_message:
+            detail += f" \u2014 note: {action.generated_message}"
+        cost_cents = HANDWRITTEN_NOTE_PRICE_CENTS
+
+        # Same billing-agent requirement and charge-before-approve
+        # ordering as the gift branch above -- see its comment for why.
+        billing_agent = action.owning_agent
+        if not billing_agent:
+            flash(
+                "Can't approve — this suggestion has no clear owning agent to bill "
+                "(a shared contact with no personal flow behind it). Assign the "
+                "contact to an agent, or the flow to an agent, first.",
+                "error",
+            )
+            return redirect(request.referrer or url_for("dashboard.index"))
+
+        success, intent_id, error = charge_saved_card(
+            billing_agent, cost_cents,
+            description=f"Handwritten note for {action.contact.household_name}",
+            metadata={"suggested_action_id": action.id},
+        )
+        if not success:
+            flash(f"Can't approve — payment failed: {error}", "error")
+            return redirect(request.referrer or url_for("dashboard.index"))
+
+        note_payment_intent_id = intent_id
+        send_wdf_handwritten_note_notice(action, billing_agent)
     else:
         detail = action.generated_message or action.reason_text
         cost_cents = None
@@ -242,17 +273,18 @@ def approve_action(action_id):
     action.status = "approved"
     action.resolved_at = datetime.utcnow()
 
-    # "email" and "gift" are the two action types wired up to an actual
-    # automated send/charge (text and handwritten_note are still manual
+    # "email", "gift", and "handwritten_note" are the action types wired
+    # up to an actual automated send/charge (text is still hidden/manual
     # for now). For email, a failed send does NOT block the approval --
     # the agent's decision to approve stands, we just record that it
     # didn't go out automatically so it surfaces in reports and they
-    # know to follow up by hand. Gift is the opposite (see the charge
-    # block above, which already returned early on failure before this
-    # point) -- a failed charge blocks approval entirely rather than
-    # approving with payment flagged failed, so by the time we get
-    # here a gift's delivery_status can only ever be "sent".
-    delivery_status = "sent" if gift_payment_intent_id else None
+    # know to follow up by hand. Gift and handwritten_note are the
+    # opposite (see the charge blocks above, which already returned
+    # early on failure before this point) -- a failed charge blocks
+    # approval entirely rather than approving with payment flagged
+    # failed, so by the time we get here their delivery_status can only
+    # ever be "sent".
+    delivery_status = "sent" if (gift_payment_intent_id or note_payment_intent_id) else None
     delivery_error = None
     if action.action_type == "email":
         allowed, block_reason = org.can_send_email_now(action.contact_id)
@@ -265,8 +297,10 @@ def approve_action(action_id):
             delivery_error = block_reason
             flash(f"Approved, but not sent automatically: {block_reason}", "error")
 
-    # MVP: log it immediately. Real send (SMS/handwritten note) gets
-    # wired in as its own service once those channels are built.
+    # gift and handwritten_note charge + notify WDF above; email sends
+    # (or records why it didn't) above; text has no automated send at
+    # all right now since the whole channel is hidden pending SMS
+    # provider/compliance decisions -- this just logs it regardless.
     db.session.add(ActionLog(
         org_id=action.org_id,
         contact_id=action.contact_id,
@@ -277,7 +311,7 @@ def approve_action(action_id):
         delivery_status=delivery_status,
         delivery_error=delivery_error,
         approved_by_user_id=current_user.id,
-        stripe_payment_intent_id=gift_payment_intent_id,
+        stripe_payment_intent_id=gift_payment_intent_id or note_payment_intent_id,
     ))
     audit_summary = _action_summary_for_log(action, "Approved")
     if delivery_status == "failed":

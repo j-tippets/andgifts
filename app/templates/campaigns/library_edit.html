@@ -130,7 +130,12 @@
       <select name="action_type" id="action_type" required>
         <option value="gift" {{ 'selected' if recipe.action_type == 'gift' else '' }}>Gift</option>
         <option value="email" {{ 'selected' if recipe.action_type == 'email' else '' }}>Email</option>
-        <option value="text" {{ 'selected' if recipe.action_type == 'text' else '' }}>Text</option>
+        {# Text outreach hidden for now -- logistics (carrier/opt-in
+           compliance, provider selection) not sorted out yet. Left in
+           place, commented out, to bring back later; recipe.action_type
+           == 'text' still works fine for any recipe already saved this
+           way, this just stops new ones from being created via the UI. #}
+        {# <option value="text" {{ 'selected' if recipe.action_type == 'text' else '' }}>Text</option> #}
         <option value="handwritten_note" {{ 'selected' if recipe.action_type == 'handwritten_note' else '' }}>Handwritten note</option>
       </select>
     </div>

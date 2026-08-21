@@ -8,6 +8,13 @@ from app.models.org import gen_uuid
 # per-org setting -- easy to promote later if agencies want it tuned.
 EXPIRATION_GRACE_DAYS = 10
 
+# What the agent is charged for a handwritten note, same "charge the
+# agent's saved card at approval time" model as a gift (see
+# dashboard.approve_action) -- covers the card/writing/postage plus a
+# bit of margin. Flat rate for now rather than a catalog item, since
+# there's no product/size variation the way there is for gifts.
+HANDWRITTEN_NOTE_PRICE_CENTS = 500
+
 
 class SuggestedAction(db.Model):
     """
@@ -130,7 +137,7 @@ class SuggestedAction(db.Model):
         check is UX only and isn't trusted on its own."""
         if self.action_type == "email" and not self.contact.primary_email():
             return "This contact doesn't have an email address on file yet."
-        if self.action_type == "gift" and not self.contact.has_shipping_address:
+        if self.action_type in ("gift", "handwritten_note") and not self.contact.has_shipping_address:
             return "This contact doesn't have a shipping address on file yet."
         return None
 

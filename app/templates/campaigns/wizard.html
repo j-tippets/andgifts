@@ -159,6 +159,12 @@
           </div>
           <button type="button" class="btn btn-ghost btn-small access-option-edit-btn" data-action-type="email">Edit email details</button>
         </label>
+        {# Text outreach hidden for now -- logistics (carrier/opt-in
+           compliance, provider selection) not sorted out yet. Left in
+           place, commented out, to bring back later; any flow already
+           saved with action_type "text" keeps working fine, this just
+           stops new ones from being created via the wizard. #}
+        {#
         <label class="access-option">
           <input type="radio" name="action_type" value="text" id="action_type_text" {{ 'checked' if action_type_value == 'text' else '' }}>
           <div style="flex:1;">
@@ -167,6 +173,7 @@
           </div>
           <button type="button" class="btn btn-ghost btn-small access-option-edit-btn" data-action-type="text">Edit text details</button>
         </label>
+        #}
         <label class="access-option">
           <input type="radio" name="action_type" value="handwritten_note" id="action_type_handwritten_note" {{ 'checked' if action_type_value == 'handwritten_note' else '' }}>
           <div style="flex:1;">
