@@ -52,47 +52,90 @@ def _event_type_priority(owner, event_type):
     return MilestonePriority.priority_for(owner, event_type)
 
 
-def _winning_events_for_contact(contact, today, window_end):
+def _event_type_has_active_demand(event_type, org):
+    """True if this event_type has at least one real, live thing that
+    could act on it -- an org-visible GiftTrigger (legacy path) or an
+    active Campaign of any agent's in this org (campaign/flow engine).
+    Used to keep an event with NO flow behind it (most commonly the
+    auto-seeded First Contact event, which nothing targets by default)
+    out of the same-day priority contest entirely, so it can never
+    block a real milestone (Showing, Referral Given, Closing, ...)
+    that genuinely does have a flow. An event type with no demand at
+    all simply never produces a suggestion anyway -- see
+    generate_suggestions_for_org's gift_trigger is None branch and
+    generate_campaign_suggestions_for_org's matching_events check --
+    so excluding it here changes nothing about whether IT gets a
+    suggestion, only whether it can outrank something that would.
+    """
+    has_gift_trigger = db.session.query(
+        GiftTrigger.query.filter(
+            GiftTrigger.event_type == event_type,
+            (GiftTrigger.org_id == org.id) | (GiftTrigger.org_id.is_(None)),
+        ).exists()
+    ).scalar()
+    if has_gift_trigger:
+        return True
+    return db.session.query(
+        Campaign.query.filter(
+            Campaign.org_id == org.id,
+            Campaign.is_active.is_(True),
+            Campaign.owner_user_id.isnot(None),
+            Campaign.event_type == event_type,
+        ).exists()
+    ).scalar()
+
+
+def _winning_events_for_contact(contact, today, window_end, org):
     """Among this contact's timeline events with a qualifying occurrence
-    in [today, window_end] (see _next_occurrence), groups them by
-    (occurrence date, event_type) and returns the single highest-priority
-    event within each group (per the contact owner's own ranking -- see
-    _event_type_priority). Returns a dict {(occurrence_date, event_type): event}.
+    in [today, window_end] (see _next_occurrence) AND at least one real
+    flow behind their event_type (see _event_type_has_active_demand),
+    groups them by occurrence DATE and returns the single highest-
+    priority event within each date-group (per the contact owner's own
+    ranking -- see _event_type_priority). Returns a dict
+    {occurrence_date: event}.
 
-    Grouping includes event_type, not just date, deliberately: this
-    contest is meant to resolve genuine DUPLICATES of the same milestone
-    (e.g. a closing event seeded twice, once auto and once backfilled,
-    landing on the same day) -- not to pit unrelated milestones against
-    each other. Every contact gets an auto-seeded First Contact event
-    dated the day they're created, which is almost always on the same
-    calendar date as whatever real milestone (Showing, Referral Given,
-    ...) an agent adds soon after -- grouping by date alone made First
-    Contact win that tie by virtue of being created first, silently
-    blocking every other flow for that contact on day one. Scoping the
-    contest to matching event_type means First Contact only ever
-    competes against another First Contact, a Showing only against
-    another Showing, etc., so unrelated flows tied to different
-    milestones can each independently qualify even on the same date.
+    This is the one-suggestion-per-contact-per-day design
+    MilestonePriority exists for: if a contact has a Showing, a
+    Referral Given, AND a Closing all landing on the same date, only
+    the single highest-ranked one should generate a suggestion that
+    day, not all three. The demand filter is what makes this safe --
+    without it, the auto-seeded First Contact event (dated the day the
+    contact is created, almost always the same day a real milestone
+    gets added) would keep winning the tie by virtue of being created
+    first, since it has no flow of its own to lose by winning. By
+    excluding event types nothing actually targets from the contest
+    entirely, First Contact can never block a real milestone, while
+    real milestones that do collide on the same day still correctly
+    take turns per the agent's own priority ranking.
 
-    Ties within a group (equal priority) go to whichever event was
+    Ties within a date (equal priority) go to whichever event was
     created first, so the pick is stable and repeatable across runs
     rather than depending on query ordering.
     """
+    demand_cache = {}
+
+    def has_demand(event_type):
+        if event_type not in demand_cache:
+            demand_cache[event_type] = _event_type_has_active_demand(event_type, org)
+        return demand_cache[event_type]
+
     groups = {}
     for event in contact.timeline_events:
+        if not has_demand(event.event_type):
+            continue
         occurrence_date = _next_occurrence(event, today, window_end)
         if occurrence_date is None:
             continue
-        groups.setdefault((occurrence_date, event.event_type), []).append(event)
+        groups.setdefault(occurrence_date, []).append(event)
 
     winners = {}
-    for key, events in groups.items():
+    for occurrence_date, events in groups.items():
         best, best_key = None, None
         for event in events:
             tie_key = (-_event_type_priority(contact.owner, event.event_type), event.created_at or datetime.min)
             if best_key is None or tie_key < best_key:
                 best, best_key = event, tie_key
-        winners[key] = best
+        winners[occurrence_date] = best
     return winners
 
 
@@ -168,28 +211,24 @@ def _log_superseded(action, contact, winning_event):
 
 
 def _expire_superseded_suggestions(contact, winners, org):
-    """winners is the {(occurrence_date, event_type): event} dict from
+    """winners is the {occurrence_date: event} dict from
     _winning_events_for_contact. Any still-pending suggestion whose
-    triggering event lost its (date, event_type) group's tie-break --
-    i.e. a different event of the SAME type, on the SAME date, was
-    since deemed higher-priority -- is for a milestone that's since
-    been outranked; expire it rather than leaving it to sit alongside
-    the suggestion that actually matters now. This is what handles the
+    target_date lands on a date where a DIFFERENT event won that day's
+    priority contest is for a milestone that's since been outranked --
+    expire it rather than leaving it to sit alongside the suggestion
+    that actually matters now for that date. This is what handles the
     case _winning_events_for_contact alone doesn't: a lower-priority
     suggestion that was already created and is still pending from an
-    earlier run, before the higher-priority duplicate existed or
-    qualified.
+    earlier run, before the higher-priority event existed or qualified.
 
-    A pending suggestion whose (date, event_type) isn't contested at
-    all this run (no entry in winners, or its own event is already the
-    winner for that group) is left alone -- this never fires for two
-    DIFFERENT event types sharing a date, only genuine same-type
-    duplicates. Scoped to pending only -- anything already approved/
-    sent/skipped/expired is left untouched. A suggestion whose
-    triggering event was hard-deleted (triggering_event_id NULL -- see
-    delete_timeline_event) is left alone too: that's its event being
-    gone, not being outranked, and the agent should still get to
-    decide what happens to it.
+    A suggestion whose target_date isn't contested at all this run
+    (no entry in winners, or its own event is already the winner for
+    that date) is left alone. Scoped to pending only -- anything
+    already approved/sent/skipped/expired is left untouched. A
+    suggestion whose triggering event was hard-deleted
+    (triggering_event_id NULL -- see delete_timeline_event) is left
+    alone too: that's its event being gone, not being outranked, and
+    the agent should still get to decide what happens to it.
     """
     stale = []
     pending = SuggestedAction.query.filter(
@@ -199,10 +238,7 @@ def _expire_superseded_suggestions(contact, winners, org):
         SuggestedAction.triggering_event_id.isnot(None),
     ).all()
     for action in pending:
-        event = action.triggering_event
-        if event is None:
-            continue
-        winner = winners.get((action.target_date, event.event_type))
+        winner = winners.get(action.target_date)
         if winner is not None and winner.id != action.triggering_event_id:
             action.status = "expired"
             action.resolved_at = datetime.utcnow()
@@ -220,13 +256,13 @@ def generate_suggestions_for_org(org, today=None):
 
     created = []
     for contact in contacts:
-        winners = _winning_events_for_contact(contact, today, window_end)
+        winners = _winning_events_for_contact(contact, today, window_end, org)
         if not winners:
             continue
 
         _expire_superseded_suggestions(contact, winners, org)
 
-        for (occurrence_date, event_type), event in winners.items():
+        for occurrence_date, event in winners.items():
             if _suggestion_exists(org.id, event.contact_id, event.id, occurrence_date):
                 continue
 
@@ -373,14 +409,16 @@ def generate_campaign_suggestions_for_org(org, today=None):
 
     # Computed once per contact, not per campaign -- it doesn't depend on
     # which campaign is currently being evaluated. See
-    # _winning_events_for_contact for why only genuinely same-day events
-    # ever compete to be the one that generates a suggestion in a given
-    # run; events on different dates each get their own entry.
+    # _winning_events_for_contact for why only events with a real, live
+    # flow behind them compete for the day's single winner -- an event
+    # type nothing targets (e.g. the auto-seeded First Contact event)
+    # never enters the contest, so it can't block a real milestone that
+    # does have a flow.
     winning_events_cache = {}
 
     def winning_events_for(contact):
         if contact.id not in winning_events_cache:
-            winners = _winning_events_for_contact(contact, today, window_end)
+            winners = _winning_events_for_contact(contact, today, window_end, org)
             if winners:
                 _expire_superseded_suggestions(contact, winners, org)
             winning_events_cache[contact.id] = winners
