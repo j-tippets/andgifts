@@ -170,7 +170,7 @@ class Config:
         },
         "team": {
             "display_name": "Team", "price_cents": None, "price_suffix": "",
-            "tagline": "For brokerages", "cta_label": "Contact us", "highlight": False,
+            "tagline": "For brokerages", "cta_label": "Get started", "highlight": False,
         },
     }
 

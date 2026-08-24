@@ -52,6 +52,28 @@ class Org(db.Model):
         default="card",
     )
 
+    # --- Org-level subscription card (Team signup wizard) ---
+    # Captured via a Stripe SetupIntent during onboarding (see
+    # services/org_billing.py) and saved WITHOUT charging it --
+    # Team is custom-priced (no STRIPE_PRICE_IDS entry), so there's no
+    # subscription to actually start yet. This just puts a card on
+    # file so Jeremiah can complete billing setup (Stripe Dashboard or
+    # the portal) without chasing the org down for one later. Distinct
+    # from PaymentMethod, which is per-agent and pays for gifts, not
+    # the subscription itself. Display-only snapshot fields mirror
+    # PaymentMethod's, same non-refetched convention.
+    stripe_default_payment_method_id = db.Column(db.String(255), nullable=True)
+    card_brand = db.Column(db.String(30), nullable=True)
+    card_last4 = db.Column(db.String(4), nullable=True)
+    card_exp_month = db.Column(db.Integer, nullable=True)
+    card_exp_year = db.Column(db.Integer, nullable=True)
+
+    def card_on_file_label(self):
+        if not self.card_last4:
+            return None
+        brand = (self.card_brand or "Card").capitalize()
+        return f"{brand} \u2022\u2022\u2022\u2022 {self.card_last4}"
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

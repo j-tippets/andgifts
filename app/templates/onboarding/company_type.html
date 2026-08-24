@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Company type — Ag{% endblock %}
+{% block auth_content %}
+<div style="max-width:460px; margin:60px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+  <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
+    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
+  </div>
+  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 2: Company type</p>
+  <h1 style="margin-bottom:8px;">What do you do?</h1>
+  <p class="subdued" style="margin-bottom:20px;">We'll pre-load a starting set of gifting milestones for your line of work — you can rename, remove, or add to them anytime.</p>
+  <form method="POST">
+    <div class="field">
+      <select name="practice_type_id" required>
+        <option value="" disabled selected>Choose one…</option>
+        {% for pt in practice_types %}
+          <option value="{{ pt.id }}">{{ pt.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary" type="submit" style="width:100%;">Continue</button>
+  </form>
+</div>
+{% endblock %}

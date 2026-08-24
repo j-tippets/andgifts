@@ -35,10 +35,8 @@
         <li>&#10003; {{ '{:,}'.format(t.email_monthly_cap) if t.email_monthly_cap else 'Unlimited' }} emails/mo</li>
         <li>&#10003; Gifts, email &amp; handwritten notes included</li>
       </ul>
-      {% if t.tier_key == 'team' %}
-        <a href="{{ url_for('pages.about') }}" class="btn btn-ghost" style="width:100%; justify-content:center;">{{ t.cta_label }}</a>
-      {% elif not current_user.is_authenticated %}
-        <a href="{{ url_for('auth.register') }}" class="btn {{ 'btn-primary' if t.highlight else 'btn-ghost' }}" style="width:100%; justify-content:center;">{{ t.cta_label }}</a>
+      {% if not current_user.is_authenticated %}
+        <a href="{{ url_for('onboarding.start', tier=t.tier_key) if t.tier_key == 'team' else url_for('onboarding.start') }}" class="btn {{ 'btn-primary' if t.highlight else 'btn-ghost' }}" style="width:100%; justify-content:center;">{{ t.cta_label }}</a>
       {% elif current_user.org.tier == t.tier_key %}
         <span class="btn btn-ghost" style="width:100%; justify-content:center; opacity:.6; cursor:default;">Current plan</span>
       {% elif t.tier_key == 'free' %}

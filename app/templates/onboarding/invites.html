@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Invite your team — Ag{% endblock %}
+{% block auth_content %}
+<div style="max-width:460px; margin:60px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+  <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
+    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
+  </div>
+  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 5: Invite your team</p>
+  <h1 style="margin-bottom:8px;">Add up to {{ max_invites }} teammates</h1>
+  <p class="subdued" style="margin-bottom:20px;">They'll get an email invite to set their own password. Leave any blank to skip — you can always invite more later from Team.</p>
+
+  <form method="POST">
+    {% for i in range(max_invites) %}
+      <div class="field">
+        <label>Teammate {{ i + 1 }} email</label>
+        <input type="email" name="invite_email">
+      </div>
+    {% endfor %}
+    <button class="btn btn-primary" type="submit" style="width:100%; margin-bottom:8px;">Send invites &amp; finish</button>
+  </form>
+  <form method="POST" action="{{ url_for('onboarding.invites_skip') }}">
+    <button class="btn btn-ghost" type="submit" style="width:100%;">Skip for now</button>
+  </form>
+</div>
+{% endblock %}

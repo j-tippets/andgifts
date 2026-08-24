@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Choose your plan — Ag{% endblock %}
+{% block auth_content %}
+<div style="max-width:640px; margin:60px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+  <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
+    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
+  </div>
+  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 3: Choose your plan</p>
+  <h1 style="text-align:center; margin-bottom:24px;">Pick a plan to start on</h1>
+
+  <form method="POST">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; margin-bottom:20px;">
+      {% for t in tiers %}
+      <label style="display:block; border:2px solid var(--line); border-radius:12px; padding:18px; cursor:pointer;" class="plan-option">
+        <input type="radio" name="tier" value="{{ t.tier_key }}" style="margin-bottom:10px;" {{ 'checked' if t.tier_key == preselect_tier }}>
+        <div style="font-family:var(--font-rounded); font-weight:700; font-size:18px;">{{ t.display_name }}</div>
+        <div class="subdued" style="font-size:13px; margin-bottom:8px;">{{ t.tagline }}</div>
+        <div style="font-family:var(--font-display); font-size:22px; font-weight:700;">
+          {% if t.price_cents is none %}Custom
+          {% elif t.price_cents == 0 %}$0
+          {% else %}${{ '%.0f'|format(t.price_cents / 100) }}<span class="subdued" style="font-size:13px;">{{ t.price_suffix }}</span>
+          {% endif %}
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+    <button class="btn btn-primary" type="submit" style="width:100%;">Continue</button>
+  </form>
+  <p class="subdued" style="text-align:center; margin-top:16px; font-size:12px;">You can change plans anytime from Settings → Billing.</p>
+</div>
+{% endblock %}

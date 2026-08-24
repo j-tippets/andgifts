@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Card on file — Ag{% endblock %}
+{% block auth_content %}
+<div style="max-width:420px; margin:60px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+  <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
+    <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
+  </div>
+  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 4: Card on file</p>
+  <h1 style="margin-bottom:8px;">Add your team's card</h1>
+
+  {% if org.card_on_file_label() %}
+    <p class="subdued" style="margin-bottom:20px;">On file: <strong>{{ org.card_on_file_label() }}</strong></p>
+    <form method="POST" action="{{ url_for('onboarding.invites') }}">
+      <button class="btn btn-primary" type="submit" style="width:100%;">Continue</button>
+    </form>
+  {% else %}
+    <p class="subdued" style="margin-bottom:20px;">
+      Team plan pricing is set up with you directly, so we won't charge this card today — it's saved as
+      the primary card on file for your organization's subscription.
+    </p>
+    {% if stripe_configured %}
+      <form method="POST" action="{{ url_for('onboarding.billing_start') }}">
+        <button class="btn btn-primary" type="submit" style="width:100%;">Add card</button>
+      </form>
+    {% else %}
+      <p class="subdued">Card setup isn't available right now — you can add one later from Settings → Billing.</p>
+      <form method="POST" action="{{ url_for('onboarding.invites') }}">
+        <button class="btn btn-ghost" type="submit" style="width:100%; margin-top:8px;">Continue</button>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -4,10 +4,8 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required
 from app.extensions import db, limiter
-from app.models import User, Org, PracticeType
+from app.models import User
 from app.services.email import send_verification_email, send_password_reset_email
-from app.services.org_events import record_org_event
-from app.services.practice_types import seed_org_milestones
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -26,57 +24,12 @@ def _send_verification(user):
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
 def register():
-    if request.method == "POST":
-        email = request.form["email"].strip().lower()
-        if User.query.filter_by(email=email).first():
-            flash("An account with that email already exists.", "error")
-            return redirect(url_for("auth.register"))
-
-        org = Org(name=request.form.get("org_name", "My Business"), tier="free")
-        db.session.add(org)
-        db.session.flush()  # get org.id before creating user
-        # Auto-generate the shared sender local-part now, so flow-action
-        # emails work from day one with no separate setup step -- see
-        # Org.generate_sender_local_part / settings.sender_identity for
-        # where an admin can change it later.
-        org.sender_local_part = Org.generate_sender_local_part(org.name)
-
-        # &Gifts is real-estate-only today -- every self-registered org
-        # starts on that practice type's milestone preset. Once other
-        # verticals are live (see PracticeType / App Admin), this is
-        # where a signup-time chooser would plug in; for now there's
-        # only ever one option, so there's nothing to ask.
-        real_estate = PracticeType.query.filter_by(key="real_estate").first()
-        if real_estate:
-            org.practice_type_id = real_estate.id
-            db.session.flush()
-            seed_org_milestones(org)
-
-        user = User(
-            org_id=org.id,
-            email=email,
-            first_name=request.form.get("first_name", ""),
-            last_name=request.form.get("last_name", ""),
-            role="admin",
-            email_verified=False,
-        )
-        user.set_password(request.form["password"])
-        db.session.add(user)
-        record_org_event(org, "signup", None, "free")
-        db.session.commit()
-
-        delivered = _send_verification(user)
-        if not delivered:
-            flash(
-                "Account created, but we couldn't send the verification email. "
-                "Try resending it below once things are set up.",
-                "error",
-            )
-        return render_template("auth/check_email.html", email=user.email, purpose="verify")
-
-    return render_template("auth/register.html")
+    """Deprecated: superseded by the multi-step onboarding wizard
+    (see routes/onboarding.py). Kept as a redirect rather than removed
+    outright so old bookmarks/links (app store review notes, etc.)
+    still land somewhere that works."""
+    return redirect(url_for("onboarding.start"))
 
 
 @auth_bp.route("/verify/<token>", methods=["GET", "POST"])

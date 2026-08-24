@@ -98,8 +98,10 @@ def create_app(config_name=None):
     from app.routes.support import support_bp
     from app.routes.pages import pages_bp
     from app.routes.billing import billing_bp
+    from app.routes.onboarding import onboarding_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(onboarding_bp)
     app.register_blueprint(contacts_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(team_bp)
