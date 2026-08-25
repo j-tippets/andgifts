@@ -16,12 +16,21 @@ someone abandoning the old single-page form, not a new failure mode.
 session["onboarding"] holds only non-sensitive identifiers
 (org_id, user_id) across steps -- never the password. Each step
 requires those to be present, or bounces back to Step 1.
+
+The owner's verification email is sent immediately at the end of
+Step 1 (not deferred to the end of the wizard), and Org.onboarding_step
+tracks which step is next. That combination lets someone who abandons
+the wizard click the emailed link later -- possibly in a different
+browser/device than the one running the wizard -- and get dropped
+back in at the right step instead of restarting or landing nowhere
+useful (see routes/auth.verify_email, which reads onboarding_step and
+re-seeds session["onboarding"] itself).
 """
 import secrets
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
-from flask_login import current_user
+from flask_login import current_user, login_user
 
 from app.extensions import db, limiter
 from app.models import User, Org, PracticeType
@@ -107,6 +116,19 @@ def start():
         db.session.commit()
 
         session["onboarding"] = {"org_id": org.id, "user_id": user.id}
+
+        # Verification email now goes out here, right away, instead of
+        # waiting for the wizard's final step (see _finish_signup) --
+        # so someone who bails mid-wizard can still click the link and
+        # get dropped back in (see routes/auth.verify_email) rather
+        # than losing the account entirely.
+        delivered = _send_verification(user)
+        if not delivered:
+            flash(
+                "Account created, but we couldn't send the verification email. "
+                "You can resend it later from Settings.",
+                "error",
+            )
         return redirect(url_for("onboarding.company_type"))
 
     return render_template("onboarding/start.html")
@@ -127,6 +149,7 @@ def company_type():
             return redirect(url_for("onboarding.company_type"))
 
         org.practice_type_id = practice_type.id
+        org.onboarding_step = "plan"
         db.session.flush()
         seed_org_milestones(org)
         db.session.commit()
@@ -151,6 +174,7 @@ def plan():
             return redirect(url_for("onboarding.plan"))
 
         org.tier = tier
+        org.onboarding_step = "billing" if tier == "team" else "done"
         db.session.commit()
 
         if tier == "team":
@@ -162,7 +186,12 @@ def plan():
         for t in WIZARD_TIERS
     ]
     preselect_tier = session.get("onboarding_preselect_tier", "free")
-    return render_template("onboarding/plan.html", tiers=tiers, preselect_tier=preselect_tier)
+    return render_template(
+        "onboarding/plan.html",
+        tiers=tiers,
+        preselect_tier=preselect_tier,
+        team_min_seats=current_app.config["TEAM_MIN_SEATS"],
+    )
 
 
 @onboarding_bp.route("/billing", methods=["GET"])
@@ -182,6 +211,13 @@ def billing():
 
 @onboarding_bp.route("/billing/start", methods=["POST"])
 def billing_start():
+    """Starts a real Team subscription (quantity = TEAM_MIN_SEATS,
+    the 2-seat floor) rather than just saving a card -- Team is
+    priced per-seat now, not custom/manually invoiced. org.tier is
+    already "team" from the plan step; the checkout.session.completed
+    webhook (routes/orders.py) is what actually records
+    stripe_subscription_id as the system of record, same pattern as
+    Starter/Pro self-serve checkout."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
@@ -189,22 +225,28 @@ def billing_start():
         return redirect(url_for("onboarding.plan"))
 
     stripe, customer_id = org_billing.get_or_create_org_stripe_customer(org)
-    if not stripe:
-        flash("Card setup isn't available right now -- you can add one later from Settings → Billing.", "error")
+    price_id = current_app.config["STRIPE_PRICE_IDS"].get("team")
+    if not stripe or not price_id:
+        flash("Billing setup isn't available right now -- you can add it later from Settings → Billing.", "error")
+        org.onboarding_step = "invites"
+        db.session.commit()
         return redirect(url_for("onboarding.invites"))
 
     return_url = url_for("onboarding.billing_return", _external=True)
     try:
         checkout_session = stripe.checkout.Session.create(
-            mode="setup",
+            mode="subscription",
             customer=customer_id,
-            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": current_app.config["TEAM_MIN_SEATS"]}],
+            client_reference_id=org.id,
+            metadata={"org_id": org.id, "tier": "team"},
+            subscription_data={"metadata": {"org_id": org.id, "tier": "team"}},
             success_url=return_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=url_for("onboarding.billing", _external=True),
         )
     except Exception as e:
-        current_app.logger.error("Stripe setup session creation failed (org %s): %s", org.id, e)
-        flash("Couldn't start card setup — please try again.", "error")
+        current_app.logger.error("Stripe subscription checkout creation failed (org %s): %s", org.id, e)
+        flash("Couldn't start checkout — please try again.", "error")
         return redirect(url_for("onboarding.billing"))
 
     return redirect(checkout_session.url, code=303)
@@ -220,16 +262,17 @@ def billing_return():
     session_id = request.args.get("session_id")
     if stripe and session_id:
         try:
-            checkout_session = stripe.checkout.Session.retrieve(session_id)
-            saved = org_billing.save_org_payment_method_from_setup_intent(org, checkout_session.setup_intent)
+            saved = org_billing.save_org_subscription_from_checkout_session(org, session_id)
             if saved:
-                flash(f"{org.card_on_file_label()} saved as your card on file.", "success")
+                flash(f"{org.card_on_file_label()} saved -- you're set up on Team.", "success")
             else:
-                flash("Couldn't confirm the card was saved — you can add one later from Settings → Billing.", "error")
+                flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
         except Exception as e:
-            current_app.logger.error("Stripe setup session retrieval failed (org %s): %s", org.id, e)
-            flash("Couldn't confirm the card was saved — you can add one later from Settings → Billing.", "error")
+            current_app.logger.error("Stripe checkout session retrieval failed (org %s): %s", org.id, e)
+            flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
 
+    org.onboarding_step = "invites"
+    db.session.commit()
     return redirect(url_for("onboarding.invites"))
 
 
@@ -278,9 +321,21 @@ def invites():
         if skipped:
             flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
 
+        # Team is billed for a 2-seat minimum regardless (see
+        # billing_start); this only raises the Stripe quantity if the
+        # org actually invited past that floor. It never blocks
+        # finishing the wizard with fewer than 2 total seats -- that's
+        # a manual follow-up on your end, not something enforced here.
+        org_billing.sync_team_subscription_quantity(org)
+
         return _finish_signup(org, user)
 
-    return render_template("onboarding/invites.html", org=org, max_invites=MAX_WIZARD_INVITES)
+    return render_template(
+        "onboarding/invites.html",
+        org=org,
+        max_invites=MAX_WIZARD_INVITES,
+        team_min_seats=current_app.config["TEAM_MIN_SEATS"],
+    )
 
 
 @onboarding_bp.route("/team/skip", methods=["POST"])
@@ -292,19 +347,23 @@ def invites_skip():
 
 
 def _finish_signup(org, user):
-    """Common tail for every plan path: log the signup event, send the
-    owner's verification email, and clear wizard session state."""
+    """Common tail for every plan path: log the signup event, mark the
+    wizard done, and clear wizard session state. The verification
+    email already went out at the end of Step 1 (see start()), not
+    here -- if the person verified mid-wizard already (e.g. clicked
+    the link from another tab/device), just take them on into the
+    dashboard instead of showing a "check your email" page for a step
+    that's already done."""
+    org.onboarding_step = "done"
     record_org_event(org, "signup", None, org.tier)
     db.session.commit()
 
-    delivered = _send_verification(user)
     session.pop("onboarding", None)
     session.pop("onboarding_preselect_tier", None)
 
-    if not delivered:
-        flash(
-            "Account created, but we couldn't send the verification email. "
-            "Try resending it below once things are set up.",
-            "error",
-        )
+    if user.email_verified:
+        login_user(user)
+        flash(f"Welcome to {org.name}!", "success")
+        return redirect(url_for("dashboard.index"))
+
     return render_template("auth/check_email.html", email=user.email, purpose="verify")

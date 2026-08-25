@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required
 from app.extensions import db, limiter
 from app.models import User
@@ -53,6 +53,20 @@ def verify_email(token):
         db.session.commit()
 
         login_user(user)
+
+        # Verification now fires right after Step 1 of the signup
+        # wizard (see routes/onboarding.start), so this link can land
+        # while the wizard is still in progress -- possibly in a
+        # different browser/tab than the one running it. Resume there
+        # instead of dumping them at the dashboard; re-seed
+        # session["onboarding"] ourselves since that's what the wizard
+        # routes key off of, not current_user.
+        resume_route = user.org.onboarding_route()
+        if resume_route:
+            session["onboarding"] = {"org_id": user.org_id, "user_id": user.id}
+            flash("Email verified! Let's finish setting up your account.", "success")
+            return redirect(url_for(resume_route))
+
         flash(f"Welcome to {user.org.name}!", "success")
         return redirect(url_for("dashboard.index"))
 

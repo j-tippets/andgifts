@@ -43,6 +43,19 @@ class Org(db.Model):
     # are the org's own from that point on.
     practice_type_id = db.Column(db.String(36), db.ForeignKey("practice_types.id"), nullable=True)
 
+    # Which signup-wizard step this org still needs to complete (see
+    # routes/onboarding.py). Lets a verification-link click that
+    # arrives mid-wizard -- possibly on a different device/browser
+    # than the one running the wizard -- drop the person back at the
+    # right step instead of bouncing them to Step 1 or dumping them at
+    # the dashboard. "done" means the wizard is fully finished (or this
+    # org predates the wizard entirely).
+    onboarding_step = db.Column(
+        db.Enum("company_type", "plan", "billing", "invites", "done", name="onboarding_step"),
+        nullable=False,
+        default="company_type",
+    )
+
     # Billing
     stripe_customer_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
@@ -67,6 +80,24 @@ class Org(db.Model):
     card_last4 = db.Column(db.String(4), nullable=True)
     card_exp_month = db.Column(db.Integer, nullable=True)
     card_exp_year = db.Column(db.Integer, nullable=True)
+
+    # Endpoint each in-progress wizard step resumes at. Kept next to
+    # onboarding_step (rather than in routes/onboarding.py) so
+    # routes/auth.py's verify_email can resolve it without importing
+    # the onboarding blueprint module.
+    _ONBOARDING_STEP_ROUTES = {
+        "company_type": "onboarding.company_type",
+        "plan": "onboarding.plan",
+        "billing": "onboarding.billing",
+        "invites": "onboarding.invites",
+    }
+
+    def onboarding_route(self):
+        """Endpoint name for the wizard step this org should resume
+        at, or None once onboarding is done."""
+        if self.onboarding_step == "done":
+            return None
+        return self._ONBOARDING_STEP_ROUTES.get(self.onboarding_step, "onboarding.company_type")
 
     def card_on_file_label(self):
         if not self.card_last4:

@@ -66,7 +66,15 @@ class Config:
     STRIPE_PRICE_IDS = {
         "starter": os.environ.get("STRIPE_PRICE_ID_STARTER", ""),
         "pro": os.environ.get("STRIPE_PRICE_ID_PRO", ""),
+        "team": os.environ.get("STRIPE_PRICE_ID_TEAM", ""),
     }
+
+    # Team is a real per-seat subscription now (not custom/manual
+    # pricing) -- $12/user/mo with a 2-seat floor, billed regardless of
+    # how many seats are actually filled. Used both by the onboarding
+    # wizard's billing step (routes/onboarding.py) and by the
+    # post-signup self-serve checkout (routes/billing.py).
+    TEAM_MIN_SEATS = 2
 
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
     # Both the default From address and the org-level sending domain
@@ -169,8 +177,8 @@ class Config:
             "tagline": "For small teams (up to 5 seats)", "cta_label": "Get Pro", "highlight": True,
         },
         "team": {
-            "display_name": "Team", "price_cents": None, "price_suffix": "",
-            "tagline": "For brokerages", "cta_label": "Get started", "highlight": False,
+            "display_name": "Team", "price_cents": 1200, "price_suffix": "/user/mo",
+            "tagline": "For brokerages (2-user minimum)", "cta_label": "Get started", "highlight": False,
         },
     }
 

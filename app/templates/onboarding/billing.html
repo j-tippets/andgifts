@@ -5,8 +5,8 @@
   <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
     <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
   </div>
-  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 4: Card on file</p>
-  <h1 style="margin-bottom:8px;">Add your team's card</h1>
+  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 4: Billing</p>
+  <h1 style="margin-bottom:8px;">Set up Team billing</h1>
 
   {% if org.card_on_file_label() %}
     <p class="subdued" style="margin-bottom:20px;">On file: <strong>{{ org.card_on_file_label() }}</strong></p>
@@ -15,15 +15,16 @@
     </form>
   {% else %}
     <p class="subdued" style="margin-bottom:20px;">
-      Team plan pricing is set up with you directly, so we won't charge this card today — it's saved as
-      the primary card on file for your organization's subscription.
+      Team is $12/user/mo, billed for at least 2 seats even before you've invited anyone.
+      Add a card to start your subscription — you can add more seats anytime from Team, and the
+      per-seat cost updates automatically.
     </p>
     {% if stripe_configured %}
       <form method="POST" action="{{ url_for('onboarding.billing_start') }}">
-        <button class="btn btn-primary" type="submit" style="width:100%;">Add card</button>
+        <button class="btn btn-primary" type="submit" style="width:100%;">Add card &amp; subscribe</button>
       </form>
     {% else %}
-      <p class="subdued">Card setup isn't available right now — you can add one later from Settings → Billing.</p>
+      <p class="subdued">Billing setup isn't available right now — you can add it later from Settings → Billing.</p>
       <form method="POST" action="{{ url_for('onboarding.invites') }}">
         <button class="btn btn-ghost" type="submit" style="width:100%; margin-top:8px;">Continue</button>
       </form>

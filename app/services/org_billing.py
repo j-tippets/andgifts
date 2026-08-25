@@ -1,15 +1,21 @@
 """
-Org-level Stripe Customer + saved card, used ONLY for the Team
-signup wizard's "put a card on file" step (see routes/onboarding.py).
+Org-level Stripe Customer + subscription, used for the Team signup
+wizard's billing step (see routes/onboarding.py) and to keep a
+Team org's seat count in sync with what it's actually billed for.
 
 Deliberately separate from services/payments.py, which is per-agent
-and pays for gift orders -- this is the org's subscription card
-(Org.stripe_customer_id / Org.stripe_default_payment_method_id), not
-an agent's. Team is custom-priced (no STRIPE_PRICE_IDS entry), so
-this never creates a live subscription -- it saves a card via a
-SetupIntent the same way settings.add_payment_method does for
-agents, just scoped to the org instead of the user.
+and pays for gift orders -- this is the org's subscription
+(Org.stripe_customer_id / Org.stripe_subscription_id /
+Org.stripe_default_payment_method_id), not an agent's. Team is a real
+per-seat subscription now (see config.STRIPE_PRICE_IDS["team"] and
+config.TEAM_MIN_SEATS), same "webhook is truth" pattern as the
+Starter/Pro self-serve checkout in routes/billing.py -- this module
+only creates the Checkout Session and mirrors card-display details
+onto the org row for the wizard's own UI; org.tier itself is only
+ever changed by the checkout.session.completed webhook.
 """
+from flask import current_app
+
 from app.extensions import db
 from app.services.stripe_client import get_stripe
 
@@ -32,34 +38,62 @@ def get_or_create_org_stripe_customer(org):
     return stripe, customer.id
 
 
-def save_org_payment_method_from_setup_intent(org, setup_intent_id):
-    """Called after the wizard's Setup Checkout session completes (see
-    routes/onboarding.billing_return). Retrieves the resulting
-    PaymentMethod from Stripe, sets it as Stripe's default for the
-    customer's future invoices, and snapshots brand/last4/exp onto the
-    org row for display. Idempotent: re-hitting the return URL just
-    re-saves the same details rather than erroring."""
+def save_org_subscription_from_checkout_session(org, session_id):
+    """Called after the wizard's Team subscription Checkout session
+    completes (see routes/onboarding.billing_return). Mirrors the
+    subscription id + card display details onto the org row so the
+    wizard's own pages can show "card on file" immediately, without
+    waiting on the checkout.session.completed webhook (which remains
+    the only thing allowed to actually set org.tier/stripe_subscription_id
+    as the system of record -- see routes/orders.py). Idempotent:
+    re-hitting the return URL just re-saves the same details."""
     stripe = get_stripe()
     if not stripe:
         return False
 
-    setup_intent = stripe.SetupIntent.retrieve(setup_intent_id)
-    pm_id = setup_intent.payment_method
-    if not pm_id:
+    checkout_session = stripe.checkout.Session.retrieve(
+        session_id, expand=["subscription.default_payment_method"],
+    )
+    subscription = checkout_session.subscription
+    if not subscription:
         return False
 
-    stripe_pm = stripe.PaymentMethod.retrieve(pm_id)
-    card = stripe_pm.card or {}
+    pm = subscription.default_payment_method
+    card = (pm.card if pm else None) or {}
 
-    stripe.Customer.modify(
-        org.stripe_customer_id,
-        invoice_settings={"default_payment_method": pm_id},
-    )
-
-    org.stripe_default_payment_method_id = pm_id
+    org.stripe_customer_id = checkout_session.customer
+    org.stripe_subscription_id = subscription.id
+    org.stripe_default_payment_method_id = pm.id if pm else None
     org.card_brand = card.get("brand")
     org.card_last4 = card.get("last4")
     org.card_exp_month = card.get("exp_month")
     org.card_exp_year = card.get("exp_year")
     db.session.commit()
     return True
+
+
+def sync_team_subscription_quantity(org):
+    """Keeps a Team org's Stripe subscription quantity matched to its
+    actual seat count, with the 2-seat floor (config.TEAM_MIN_SEATS)
+    as a lower bound -- so inviting teammates during onboarding (or
+    later, from Team) bills for the seats actually in use once that
+    exceeds what was already charged at signup. Never lowers quantity
+    on its own; removing a seat doesn't get a mid-cycle credit here.
+    No-ops if there's no live subscription yet (Stripe not configured,
+    or the org skipped the billing step)."""
+    stripe = get_stripe()
+    if not stripe or not org.stripe_subscription_id:
+        return False
+
+    desired_qty = max(current_app.config["TEAM_MIN_SEATS"], org.seat_count())
+    try:
+        subscription = stripe.Subscription.retrieve(org.stripe_subscription_id)
+        item = subscription["items"]["data"][0]
+        if item["quantity"] < desired_qty:
+            stripe.SubscriptionItem.modify(item["id"], quantity=desired_qty)
+        return True
+    except Exception as e:
+        current_app.logger.error(
+            "Failed to sync Team subscription quantity for org %s: %s", org.id, e,
+        )
+        return False

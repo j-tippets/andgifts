@@ -1,31 +1,86 @@
 {% extends "base.html" %}
-{% block title %}Choose your plan — Ag{% endblock %}
+{% block title %}Choose your plan — &amp;Gifts{% endblock %}
 {% block auth_content %}
-<div style="max-width:640px; margin:60px auto; padding:32px; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;">
+<div style="max-width:920px; margin:60px auto; padding:32px;">
   <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
     <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
   </div>
   <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 3: Choose your plan</p>
-  <h1 style="text-align:center; margin-bottom:24px;">Pick a plan to start on</h1>
+  <h1 style="text-align:center; margin-bottom:8px;">Pick a plan to start on</h1>
+  <p class="subdued" style="text-align:center; margin-bottom:32px;">No feature is locked behind a plan -- every tier gets gifts, email, and handwritten notes. Plans differ by seats, contacts, and monthly sends. You can change plans anytime from Settings → Billing.</p>
 
-  <form method="POST">
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; margin-bottom:20px;">
+  <form method="POST" id="plan-form">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px; margin-bottom:24px;">
       {% for t in tiers %}
-      <label style="display:block; border:2px solid var(--line); border-radius:12px; padding:18px; cursor:pointer;" class="plan-option">
-        <input type="radio" name="tier" value="{{ t.tier_key }}" style="margin-bottom:10px;" {{ 'checked' if t.tier_key == preselect_tier }}>
-        <div style="font-family:var(--font-rounded); font-weight:700; font-size:18px;">{{ t.display_name }}</div>
-        <div class="subdued" style="font-size:13px; margin-bottom:8px;">{{ t.tagline }}</div>
-        <div style="font-family:var(--font-display); font-size:22px; font-weight:700;">
+      <label class="plan-card {{ 'plan-card--selected' if t.tier_key == preselect_tier }}" style="display:flex; flex-direction:column; border:2px solid {{ 'var(--coral)' if t.tier_key == preselect_tier else 'var(--line)' }}; border-radius:14px; padding:26px 22px; cursor:pointer; position:relative; background:var(--paper-raised);">
+        {% if t.highlight %}
+          <span style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--coral); color:#fff; font-family:var(--font-rounded); font-size:12px; font-weight:700; padding:4px 14px; border-radius:999px;">Most popular</span>
+        {% endif %}
+
+        <input type="radio" name="tier" value="{{ t.tier_key }}" class="plan-card__radio" style="position:absolute; opacity:0; pointer-events:none;" {{ 'checked' if t.tier_key == preselect_tier }}>
+
+        <div class="plan-card__check" style="position:absolute; top:16px; right:16px; width:22px; height:22px; border-radius:50%; border:2px solid var(--line); background:#fff;"></div>
+
+        <div style="font-family:var(--font-rounded); font-weight:700; font-size:19px; margin-bottom:2px;">{{ t.display_name }}</div>
+        <div class="subdued" style="font-size:13px; margin-bottom:14px;">{{ t.tagline }}</div>
+
+        <div style="font-family:var(--font-display); font-size:28px; font-weight:700; margin-bottom:16px;">
           {% if t.price_cents is none %}Custom
           {% elif t.price_cents == 0 %}$0
-          {% else %}${{ '%.0f'|format(t.price_cents / 100) }}<span class="subdued" style="font-size:13px;">{{ t.price_suffix }}</span>
+          {% else %}${{ '%.0f'|format(t.price_cents / 100) }}<span class="subdued" style="font-size:13px; font-weight:400;">{{ t.price_suffix }}</span>
           {% endif %}
         </div>
+
+        <ul style="list-style:none; padding:0; margin:0; flex-grow:1; font-size:13.5px; line-height:1.9;">
+          {% if t.tier_key == 'team' %}
+          <li>&#10003; {{ team_min_seats }}-seat minimum, no max</li>
+          {% else %}
+          <li>&#10003; {{ t.seats or 'Unlimited' }} seat{{ 's' if t.seats != 1 }}</li>
+          {% endif %}
+          <li>&#10003; {{ '{:,}'.format(t.contacts) if t.contacts else 'Unlimited' }} contacts</li>
+          <li>&#10003; {{ '{:,}'.format(t.email_monthly_cap) if t.email_monthly_cap else 'Unlimited' }} emails/mo</li>
+          <li>&#10003; Gifts, email &amp; handwritten notes</li>
+          {% if t.ai_recommendations %}<li>&#10003; AI-suggested gift flows</li>{% endif %}
+        </ul>
       </label>
       {% endfor %}
     </div>
     <button class="btn btn-primary" type="submit" style="width:100%;">Continue</button>
   </form>
-  <p class="subdued" style="text-align:center; margin-top:16px; font-size:12px;">You can change plans anytime from Settings → Billing.</p>
+  <p class="subdued" style="text-align:center; margin-top:16px; font-size:12px;">Team is billed per seat with a {{ team_min_seats }}-seat minimum — you'll add a card on the next step.</p>
 </div>
+
+<script>
+(function () {
+  var form = document.getElementById("plan-form");
+  var cards = form.querySelectorAll(".plan-card");
+
+  function paint() {
+    cards.forEach(function (card) {
+      var radio = card.querySelector(".plan-card__radio");
+      var check = card.querySelector(".plan-card__check");
+      if (radio.checked) {
+        card.style.borderColor = "var(--coral)";
+        card.classList.add("plan-card--selected");
+        check.style.borderColor = "var(--coral)";
+        check.style.background = "var(--coral)";
+      } else {
+        card.style.borderColor = "var(--line)";
+        card.classList.remove("plan-card--selected");
+        check.style.borderColor = "var(--line)";
+        check.style.background = "#fff";
+      }
+    });
+  }
+
+  cards.forEach(function (card) {
+    card.addEventListener("click", function () {
+      card.querySelector(".plan-card__radio").checked = true;
+      paint();
+    });
+  });
+
+  paint();
+})();
+</script>
 {% endblock %}

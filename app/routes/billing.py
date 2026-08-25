@@ -20,7 +20,7 @@ from app.services.stripe_client import get_stripe
 
 billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 
-SELF_SERVE_TIERS = ("starter", "pro")
+SELF_SERVE_TIERS = ("starter", "pro", "team")
 
 
 @billing_bp.route("/checkout/<tier>", methods=["POST"])
@@ -65,10 +65,17 @@ def checkout(tier):
         flash("Billing isn't available right now -- try again shortly.", "error")
         return redirect(url_for("pages.pricing"))
 
-    # Pro is priced per-seat (quantity = number of seats), Starter is
-    # flat (always quantity 1, even though it's a single-seat tier
-    # anyway -- keeps the Checkout Session creation uniform).
-    quantity = max(1, org.seat_count()) if tier == "pro" else 1
+    # Pro and Team are priced per-seat; Team additionally has a 2-seat
+    # floor (see config.TEAM_MIN_SEATS) even if the org itself only has
+    # 1 active user right now. Starter is flat (always quantity 1,
+    # even though it's a single-seat tier anyway -- keeps the Checkout
+    # Session creation uniform).
+    if tier == "pro":
+        quantity = max(1, org.seat_count())
+    elif tier == "team":
+        quantity = max(current_app.config["TEAM_MIN_SEATS"], org.seat_count())
+    else:
+        quantity = 1
 
     try:
         session = stripe.checkout.Session.create(
