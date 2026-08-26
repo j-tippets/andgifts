@@ -297,3 +297,48 @@ class FlowRecommendation(db.Model):
 
     org = db.relationship("Org")
     user = db.relationship("User")
+
+
+class FillerActionState(db.Model):
+    """
+    Per-user resolution state for a synthetic "filler" Today-tab card --
+    see app/services/filler_actions.py for the actual card definitions
+    and generation logic.
+
+    Unlike SuggestedAction/FlowRecommendation, filler cards aren't
+    generated ahead of time and stored; they're computed fresh on every
+    dashboard load from static rules plus live data (no contacts yet, no
+    payment method on file, etc.). This table only exists to remember
+    which ones a user has already resolved (accepted/"actioned" or
+    dismissed), so a resolved one never reappears -- same one-way-door
+    convention as FlowRecommendation.
+
+    filler_key is a stable string id from the registry (e.g.
+    "FILL-ACC-01"), suffixed with a contact id for the per-contact
+    fillers (e.g. "FILL-CON-03:<contact_id>") so each qualifying contact
+    is resolved independently rather than one dismissal hiding the
+    filler for every contact that would otherwise qualify.
+    """
+    __tablename__ = "filler_action_states"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "filler_key", name="uq_filler_action_user_key"),
+    )
+
+    # See SuggestedAction.item_kind's comment -- same purpose, though
+    # filler cards are never actually stored/queried as this model on
+    # the dashboard itself (see generate_filler_cards) -- only their
+    # resolution state is.
+    item_kind = "filler"
+
+    id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
+    org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    filler_key = db.Column(db.String(120), nullable=False, index=True)
+
+    status = db.Column(db.Enum("dismissed", "actioned", name="filler_action_status"), nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    org = db.relationship("Org")
+    user = db.relationship("User")

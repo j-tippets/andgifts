@@ -8,6 +8,7 @@ from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
 from app.services.flow_recommendations import generate_flow_recommendations_for_user
+from app.services.filler_actions import generate_filler_cards, resolve_target_url, record_resolution, TARGET_CARD_COUNT
 from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice, send_wdf_handwritten_note_notice
 from app.services.payments import charge_saved_card
 from app.services.wdf_client import send_wdf_webhook
@@ -98,6 +99,17 @@ def index():
     # each card's own action buttons.
     cards = sorted(pending + flow_recommendations, key=lambda item: item.created_at)
 
+    # Filler cards (account/contact/discovery nudges -- see
+    # app/services/filler_actions.py) only ever top the real queue up to
+    # TARGET_CARD_COUNT, never displace or outrank a real
+    # SuggestedAction/FlowRecommendation. Scoped to whoever's queue is
+    # being viewed (recommendations_for), same as flow_recommendations
+    # above, so an admin looking at a specific agent's Today tab sees
+    # that agent's nudges (e.g. their missing payment card), not the
+    # admin's own.
+    if len(cards) < TARGET_CARD_COUNT:
+        cards = cards + generate_filler_cards(recommendations_for, TARGET_CARD_COUNT - len(cards))
+
     agents = (
         User.query.filter_by(org_id=org.id, status="active").order_by(User.first_name, User.last_name).all()
         if current_user.is_admin else []
@@ -141,6 +153,28 @@ def accept_flow_recommendation(recommendation_id):
         name=f"{rec.event_label} outreach",
         timing_direction="same_day",
     ))
+
+
+@dashboard_bp.route("/filler/<filler_key>/dismiss", methods=["POST"])
+@login_required
+def dismiss_filler_action(filler_key):
+    """Permanently hides one filler card for the current agent -- see
+    FillerActionState. Unlike a suggestion's client-side-only Skip, this
+    (like dismiss_flow_recommendation) really does hit the server: the
+    card should never come back."""
+    record_resolution(current_user, filler_key, "dismissed")
+    return redirect(request.referrer or url_for("dashboard.index"))
+
+
+@dashboard_bp.route("/filler/<filler_key>/go", methods=["POST"])
+@login_required
+def go_filler_action(filler_key):
+    """Sends the agent to the filler card's actual destination (add a
+    contact, add a card on file, etc.) and marks it resolved so it
+    doesn't keep reappearing once they've acted on it."""
+    target_url = resolve_target_url(current_user, filler_key)
+    record_resolution(current_user, filler_key, "actioned")
+    return redirect(target_url or url_for("dashboard.index"))
 
 
 @dashboard_bp.route("/actions/<action_id>/approve", methods=["POST"])

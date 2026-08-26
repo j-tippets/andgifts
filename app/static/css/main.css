@@ -938,6 +938,14 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
    type by mistake. */
 .s-card-icon-recommendation { background: #EDE8F5; color: var(--evergreen-light); }
 
+/* Filler cards (account/contact/discovery nudges -- see
+   app/services/filler_actions.py) reuse the same s-card shape and
+   build/dismiss form convention as a flow recommendation, but get their
+   own accent -- a warm sand tone distinct from both the pill-type-*
+   colors and the recommendation's lavender, so a filler card never
+   reads as a real suggestion or recommendation by mistake. */
+.s-card-icon-filler { background: #FBEFD8; color: var(--gold-ink); }
+
 /* ---- Contact detail header ---- */
 .contact-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 480px) {
