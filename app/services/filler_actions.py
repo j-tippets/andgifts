@@ -49,6 +49,15 @@ STALE_CONTACT_DAYS = 60          # FILL-CON-02 / FILL-CON-03 threshold
 MAX_PER_CONTACT_CARDS = 2        # cap per per-contact filler type, per dashboard load
 LOW_CONTACT_COUNT_THRESHOLD = 5  # FILL-CON-07
 
+# Combined cap across account (tier 1) + discovery (tier 3) fillers per
+# dashboard load -- e.g. "add a card on file" and "review the catalog"
+# read as the same flavor of generic nudge to an agent, so showing 4-5
+# of them at once (a brand-new account can qualify for all of them
+# simultaneously) reads as noise. Contact-tier (tier 2) fillers are
+# deliberately NOT capped by this -- those are specific, one-per-contact
+# suggestions, not generic account nudges, and shouldn't be squeezed out.
+MAX_NON_CONTACT_FILLER_CARDS = 2
+
 TIER_ACCOUNT, TIER_CONTACT, TIER_DISCOVERY = 1, 2, 3
 
 # How many total cards (real + filler) the Today tab tries to show.
@@ -317,7 +326,15 @@ def generate_filler_cards(user, limit):
     already resolved (dismissed or actioned) for this user. `limit` is
     however many cards short of TARGET_CARD_COUNT the real queue
     (SuggestedAction + FlowRecommendation) already is -- filler only
-    tops that up, it never displaces a real card."""
+    tops that up, it never displaces a real card.
+
+    Account and discovery fillers are additionally capped, combined,
+    at MAX_NON_CONTACT_FILLER_CARDS -- otherwise a brand-new account
+    can qualify for every generic nudge at once (add a card, add a
+    photo, invite a teammate, browse the catalog, build a flow...) and
+    the tab reads as noise. Contact-tier fillers aren't subject to
+    this cap; each one is about a specific contact, not a repeat of
+    the same generic suggestion."""
     if limit <= 0:
         return []
 
@@ -326,9 +343,12 @@ def generate_filler_cards(user, limit):
     }
 
     cards = []
+    non_contact_shown = 0
     for definition in sorted(REGISTRY, key=lambda d: d.tier):
         if len(cards) >= limit:
             break
+        if definition.tier != TIER_CONTACT and non_contact_shown >= MAX_NON_CONTACT_FILLER_CARDS:
+            continue  # cap reached for account/discovery -- keep checking contact-tier ones
 
         if definition.per_contact:
             shown = 0
@@ -348,6 +368,8 @@ def generate_filler_cards(user, limit):
                     contact=contact,
                 ))
                 shown += 1
+                if definition.tier != TIER_CONTACT:
+                    non_contact_shown += 1
         else:
             if definition.key in resolved_keys:
                 continue
@@ -361,6 +383,8 @@ def generate_filler_cards(user, limit):
                 cta_label=definition.cta_label,
                 cta_url=_build_url(definition, user),
             ))
+            if definition.tier != TIER_CONTACT:
+                non_contact_shown += 1
 
     return cards[:limit]
 
