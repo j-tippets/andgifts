@@ -10,6 +10,7 @@ from app.models.contact import Contact
 from app.decorators import admin_required
 from app.services.storage import upload_avatar, delete_avatar, StorageError
 from app.services.email import send_team_invite_email, send_account_created_email
+from app.services import org_billing
 
 team_bp = Blueprint("team", __name__, url_prefix="/team")
 
@@ -74,6 +75,12 @@ def new_member():
         user.status = "active"
         db.session.add(user)
         db.session.commit()
+        # New seat -- if this org has a live Team subscription, make
+        # sure it's actually billed for it (no-ops if there's no
+        # subscription yet, or if the existing quantity already
+        # covers it -- see sync_team_subscription_quantity, which
+        # only ever raises the quantity, never lowers it).
+        org_billing.sync_team_subscription_quantity(org)
 
         login_link = url_for("auth.login", _external=True)
         delivered = send_account_created_email(user, current_user.full_name, login_link)
@@ -99,6 +106,11 @@ def new_member():
         user.invite_expires_at = datetime.utcnow() + timedelta(days=INVITE_EXPIRY_DAYS)
         db.session.add(user)
         db.session.commit()
+        # See the "direct" branch above -- a pending seat counts against
+        # the plan the same as an active one (Org.seat_count), so it
+        # should be billed the same way too.
+        org_billing.sync_team_subscription_quantity(org)
+
         invite_link = url_for("team.accept_invite", token=user.invite_token, _external=True)
         delivered = send_team_invite_email(user, invite_link, current_user.full_name)
         if delivered:
@@ -279,5 +291,9 @@ def reactivate_member(user_id):
     user = User.query.filter_by(id=user_id, org_id=current_user.org_id).first_or_404()
     user.status = "active"
     db.session.commit()
+    # Reactivating brings this seat back into Org.seat_count() -- make
+    # sure the Team subscription (if any) is billed for it. See the
+    # comment in new_member's "direct" branch above.
+    org_billing.sync_team_subscription_quantity(org)
     flash(f"{user.full_name}'s access has been restored.", "success")
     return redirect(url_for("team.list_members"))

@@ -2,8 +2,21 @@
 Multi-step signup wizard: replaces the old single-page auth.register
 form. Walks a new account through business basics, company type
 (vertical), plan selection (Free / Solo / Team), and -- Team only --
-a subscription card on file plus up to 5 team-member invites, before
-handing off to the existing email-verification flow.
+up to 5 team-member invites followed by a subscription card on file,
+before handing off to the existing email-verification flow.
+
+Team's invites step runs BEFORE billing (not after): collecting the
+team roster first lets the billing step size the Stripe subscription
+quantity correctly from the start (owner + however many teammates
+were entered, floored at TEAM_MIN_SEATS) instead of always charging
+the 2-seat floor and patching the quantity up afterward. That step
+deliberately only collects and validates emails, though -- it does
+NOT create the pending User rows or send invite emails yet. Those are
+deferred to _create_pending_invites, called once billing actually
+resolves (checkout succeeds, or Stripe isn't configured at all), so
+nobody is invited onto a team whose subscription signup was then
+abandoned. See Org.onboarding_pending_invites for where the collected
+emails live in the meantime.
 
 The Org + owner User are created at the end of Step 1 (same as the
 old register()), then updated in place as the wizard progresses --
@@ -161,8 +174,9 @@ def company_type():
 
 @onboarding_bp.route("/plan", methods=["GET", "POST"])
 def plan():
-    """Step 3: Free / Solo / Team. Team continues to the billing +
-    invite steps; Free and Solo finish the wizard right here."""
+    """Step 3: Free / Solo / Team. Team continues to the invites +
+    billing steps (in that order -- see invites() for why); Free and
+    Solo finish the wizard right here."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
@@ -174,11 +188,11 @@ def plan():
             return redirect(url_for("onboarding.plan"))
 
         org.tier = tier
-        org.onboarding_step = "billing" if tier == "team" else "done"
+        org.onboarding_step = "invites" if tier == "team" else "done"
         db.session.commit()
 
         if tier == "team":
-            return redirect(url_for("onboarding.billing"))
+            return redirect(url_for("onboarding.invites"))
         return _finish_signup(org, user)
 
     tiers = [
@@ -194,10 +208,122 @@ def plan():
     )
 
 
+def _team_seat_quantity(org):
+    """How many seats the Team subscription should actually be for:
+    the owner (always 1) plus however many teammates were collected on
+    the invites step, floored at TEAM_MIN_SEATS. Computed fresh from
+    org.pending_invite_emails() rather than trusting anything cached,
+    since this is read both for the billing page's price preview and
+    again at actual checkout-session creation."""
+    from flask import current_app
+    return max(current_app.config["TEAM_MIN_SEATS"], 1 + len(org.pending_invite_emails()))
+
+
+def _create_pending_invites(org, inviter):
+    """Turns whatever emails were collected on the invites step into
+    real pending User rows + sent invite emails -- deferred until now
+    (billing resolved: paid, or Stripe isn't configured) rather than
+    done eagerly on the invites step itself, so nobody gets invited
+    onto a team whose subscription checkout was then abandoned. See
+    onboarding_bp's module docstring and Org.onboarding_pending_invites.
+    Re-checks each email against existing Users at creation time (not
+    just when it was first collected) in case one got registered
+    elsewhere in the interim. Clears org.onboarding_pending_invites
+    either way, so this is safe to call at most once per signup."""
+    emails = org.pending_invite_emails()
+    org.set_pending_invite_emails(None)
+    if not emails:
+        return [], []
+
+    sent, skipped = [], []
+    for email in emails:
+        if email == inviter.email or User.query.filter_by(email=email).first():
+            skipped.append(email)
+            continue
+
+        member = User(
+            org_id=org.id,
+            email=email,
+            role="agent",
+            invited_by_user_id=inviter.id,
+            status="pending",
+            invite_token=secrets.token_urlsafe(32),
+            invite_expires_at=datetime.utcnow() + timedelta(days=INVITE_EXPIRY_DAYS),
+        )
+        db.session.add(member)
+        db.session.commit()
+
+        invite_link = url_for("team.accept_invite", token=member.invite_token, _external=True)
+        send_team_invite_email(member, invite_link, inviter.full_name)
+        sent.append(email)
+
+    return sent, skipped
+
+
+@onboarding_bp.route("/team", methods=["GET", "POST"])
+def invites():
+    """Step 4 (Team only): collect up to MAX_WIZARD_INVITES teammate
+    emails. Deliberately does NOT create User rows or send invite
+    emails yet -- that's deferred to _create_pending_invites, called
+    once billing (the next step) actually resolves. This step just
+    validates/dedupes the emails and stashes them on the org so the
+    following billing step can size the Stripe subscription quantity
+    correctly (owner + however many were collected here) instead of
+    always billing the 2-seat floor and patching the quantity up
+    afterward."""
+    org, user, bounce = _require_wizard()
+    if bounce:
+        return bounce
+    if org.tier != "team":
+        return redirect(url_for("onboarding.plan"))
+
+    if request.method == "POST":
+        seen = set()
+        emails = []
+        skipped = []
+        for raw in request.form.getlist("invite_email")[:MAX_WIZARD_INVITES]:
+            email = raw.strip().lower()
+            if not email or email in seen:
+                continue
+            seen.add(email)
+            if email == user.email or User.query.filter_by(email=email).first():
+                skipped.append(email)
+                continue
+            emails.append(email)
+
+        org.set_pending_invite_emails(emails)
+        org.onboarding_step = "billing"
+        db.session.commit()
+
+        if skipped:
+            flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
+        return redirect(url_for("onboarding.billing"))
+
+    return render_template(
+        "onboarding/invites.html",
+        org=org,
+        max_invites=MAX_WIZARD_INVITES,
+        team_min_seats=current_app.config["TEAM_MIN_SEATS"],
+    )
+
+
+@onboarding_bp.route("/team/skip", methods=["POST"])
+def invites_skip():
+    org, user, bounce = _require_wizard()
+    if bounce:
+        return bounce
+    org.set_pending_invite_emails(None)
+    org.onboarding_step = "billing"
+    db.session.commit()
+    return redirect(url_for("onboarding.billing"))
+
+
 @onboarding_bp.route("/billing", methods=["GET"])
 def billing():
-    """Step 4 (Team only): show the card-on-file step. The actual
-    Stripe Checkout session is started by billing_start below."""
+    """Step 5 (Team only): show the card-on-file / subscribe step,
+    with the seat count (and price) already reflecting whatever was
+    collected on the invites step. The actual Stripe Checkout session
+    is started by billing_start below."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
@@ -205,19 +331,26 @@ def billing():
         return redirect(url_for("onboarding.plan"))
 
     return render_template(
-        "onboarding/billing.html", org=org, stripe_configured=get_stripe() is not None,
+        "onboarding/billing.html",
+        org=org,
+        stripe_configured=get_stripe() is not None,
+        seat_quantity=_team_seat_quantity(org),
+        pending_invite_count=len(org.pending_invite_emails()),
+        team_min_seats=current_app.config["TEAM_MIN_SEATS"],
     )
 
 
 @onboarding_bp.route("/billing/start", methods=["POST"])
 def billing_start():
-    """Starts a real Team subscription (quantity = TEAM_MIN_SEATS,
-    the 2-seat floor) rather than just saving a card -- Team is
-    priced per-seat now, not custom/manually invoiced. org.tier is
-    already "team" from the plan step; the checkout.session.completed
-    webhook (routes/orders.py) is what actually records
-    stripe_subscription_id as the system of record, same pattern as
-    Starter/Pro self-serve checkout."""
+    """Starts the real Team subscription, quantity = owner + whatever
+    teammates were collected on the invites step (floored at
+    TEAM_MIN_SEATS) -- see _team_seat_quantity. org.tier is already
+    "team" from the plan step; the checkout.session.completed webhook
+    (routes/orders.py) is what actually records stripe_subscription_id
+    as the system of record, same pattern as Starter/Pro self-serve
+    checkout. If Stripe isn't configured at all, there's nothing to
+    check out -- just create the collected invites and finish signup,
+    same bar as the rest of this wizard for handling that."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
@@ -228,16 +361,19 @@ def billing_start():
     price_id = current_app.config["STRIPE_PRICE_IDS"].get("team")
     if not stripe or not price_id:
         flash("Billing setup isn't available right now -- you can add it later from Settings → Billing.", "error")
-        org.onboarding_step = "invites"
-        db.session.commit()
-        return redirect(url_for("onboarding.invites"))
+        sent, skipped = _create_pending_invites(org, user)
+        if sent:
+            flash(f"Invites sent to {', '.join(sent)}.", "success")
+        if skipped:
+            flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
+        return _finish_signup(org, user)
 
     return_url = url_for("onboarding.billing_return", _external=True)
     try:
         checkout_session = stripe.checkout.Session.create(
             mode="subscription",
             customer=customer_id,
-            line_items=[{"price": price_id, "quantity": current_app.config["TEAM_MIN_SEATS"]}],
+            line_items=[{"price": price_id, "quantity": _team_seat_quantity(org)}],
             client_reference_id=org.id,
             metadata={"org_id": org.id, "tier": "team"},
             subscription_data={"metadata": {"org_id": org.id, "tier": "team"}},
@@ -254,6 +390,14 @@ def billing_start():
 
 @onboarding_bp.route("/billing/return")
 def billing_return():
+    """Checkout succeeded (or at least Stripe sent us back here with a
+    session id) -- mirror the subscription/card details onto the org,
+    then actually create whatever invites were collected earlier and
+    finish the wizard. Nothing past this point depends on `saved`:
+    even if confirming the subscription details failed, the checkout
+    itself already succeeded (that's the only way to reach this
+    success_url at all), so there's no reason to hold the invites or
+    the rest of signup hostage to a display-only confirmation call."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
@@ -271,79 +415,14 @@ def billing_return():
             current_app.logger.error("Stripe checkout session retrieval failed (org %s): %s", org.id, e)
             flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
 
-    org.onboarding_step = "invites"
-    db.session.commit()
-    return redirect(url_for("onboarding.invites"))
+    sent, skipped = _create_pending_invites(org, user)
+    if sent:
+        flash(f"Invites sent to {', '.join(sent)}.", "success")
+    if skipped:
+        flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
 
-
-@onboarding_bp.route("/team", methods=["GET", "POST"])
-def invites():
-    """Step 5 (Team only): invite up to 5 teammates by email, same
-    pending-user + email-invite mechanism as team.new_member. Entirely
-    optional -- an admin can always add seats later from Team."""
-    org, user, bounce = _require_wizard()
-    if bounce:
-        return bounce
-    if org.tier != "team":
-        return redirect(url_for("onboarding.plan"))
-
-    if request.method == "POST":
-        emails = [
-            e.strip().lower()
-            for e in request.form.getlist("invite_email")[:MAX_WIZARD_INVITES]
-            if e.strip()
-        ]
-
-        sent, skipped = [], []
-        for email in emails:
-            if email == user.email or User.query.filter_by(email=email).first():
-                skipped.append(email)
-                continue
-
-            member = User(
-                org_id=org.id,
-                email=email,
-                role="agent",
-                invited_by_user_id=user.id,
-                status="pending",
-                invite_token=secrets.token_urlsafe(32),
-                invite_expires_at=datetime.utcnow() + timedelta(days=INVITE_EXPIRY_DAYS),
-            )
-            db.session.add(member)
-            db.session.commit()
-
-            invite_link = url_for("team.accept_invite", token=member.invite_token, _external=True)
-            send_team_invite_email(member, invite_link, user.full_name)
-            sent.append(email)
-
-        if sent:
-            flash(f"Invites sent to {', '.join(sent)}.", "success")
-        if skipped:
-            flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
-
-        # Team is billed for a 2-seat minimum regardless (see
-        # billing_start); this only raises the Stripe quantity if the
-        # org actually invited past that floor. It never blocks
-        # finishing the wizard with fewer than 2 total seats -- that's
-        # a manual follow-up on your end, not something enforced here.
-        org_billing.sync_team_subscription_quantity(org)
-
-        return _finish_signup(org, user)
-
-    return render_template(
-        "onboarding/invites.html",
-        org=org,
-        max_invites=MAX_WIZARD_INVITES,
-        team_min_seats=current_app.config["TEAM_MIN_SEATS"],
-    )
-
-
-@onboarding_bp.route("/team/skip", methods=["POST"])
-def invites_skip():
-    org, user, bounce = _require_wizard()
-    if bounce:
-        return bounce
     return _finish_signup(org, user)
+
 
 
 def _finish_signup(org, user):

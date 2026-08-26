@@ -56,6 +56,16 @@ class Org(db.Model):
         default="company_type",
     )
 
+    # Emails collected on the wizard's invites step (Team only), before
+    # billing -- see routes/onboarding.py's module docstring for why
+    # this is deferred rather than creating pending Users/sending
+    # invite emails immediately: nobody should get invited onto a team
+    # whose subscription checkout was then abandoned. JSON-encoded list
+    # of lowercased email strings; cleared (set back to NULL) once
+    # billing resolves and the real User rows + invite emails are
+    # actually created (see _create_pending_invites in onboarding.py).
+    onboarding_pending_invites = db.Column(db.Text, nullable=True)
+
     # Billing
     stripe_customer_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
@@ -98,6 +108,22 @@ class Org(db.Model):
         if self.onboarding_step == "done":
             return None
         return self._ONBOARDING_STEP_ROUTES.get(self.onboarding_step, "onboarding.company_type")
+
+    def pending_invite_emails(self):
+        """Emails collected on the invites step but not yet turned into
+        real User rows -- see onboarding_pending_invites' comment."""
+        import json
+        if not self.onboarding_pending_invites:
+            return []
+        try:
+            return json.loads(self.onboarding_pending_invites)
+        except (TypeError, ValueError):
+            return []
+
+    def set_pending_invite_emails(self, emails):
+        import json
+        self.onboarding_pending_invites = json.dumps(emails) if emails else None
+
 
     def card_on_file_label(self):
         if not self.card_last4:

@@ -5,21 +5,49 @@
   <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
     <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
   </div>
-  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 5: Invite your team</p>
-  <h1 style="margin-bottom:8px;">Add up to {{ max_invites }} teammates</h1>
-  <p class="subdued" style="margin-bottom:20px;">They'll get an email invite to set their own password. Leave any blank to skip — you can always invite more later from Team. Team plans have a {{ team_min_seats }}-seat minimum; you can finish without inviting anyone now, but you'll want at least one teammate on the account eventually.</p>
+  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 4: Invite your team</p>
+  <h1 style="margin-bottom:8px;">Add your team</h1>
+  <p class="subdued" style="margin-bottom:20px;">
+    Add up to {{ max_invites }} teammates now -- invites go out once billing's set up on the next step.
+    Leave this blank to skip; either way, you can always invite more later from Team.
+  </p>
 
   <form method="POST">
-    {% for i in range(max_invites) %}
-      <div class="field">
-        <label>Teammate {{ i + 1 }} email</label>
+    <div id="inviteRows">
+      <div class="field invite-row">
+        <label>Teammate email</label>
         <input type="email" name="invite_email">
       </div>
-    {% endfor %}
-    <button class="btn btn-primary" type="submit" style="width:100%; margin-bottom:8px;">Send invites &amp; finish</button>
+    </div>
+    <button type="button" id="addInviteRow" class="btn btn-ghost" style="width:100%; margin-bottom:16px;">+ Add another</button>
+    <button class="btn btn-primary" type="submit" style="width:100%; margin-bottom:8px;">Continue</button>
   </form>
   <form method="POST" action="{{ url_for('onboarding.invites_skip') }}">
     <button class="btn btn-ghost" type="submit" style="width:100%;">Skip for now</button>
   </form>
 </div>
+
+<script>
+(function () {
+  var maxInvites = {{ max_invites }};
+  var rows = document.getElementById('inviteRows');
+  var addBtn = document.getElementById('addInviteRow');
+
+  function updateAddButton() {
+    var count = rows.querySelectorAll('.invite-row').length;
+    addBtn.style.display = count >= maxInvites ? 'none' : '';
+  }
+
+  addBtn.addEventListener('click', function () {
+    if (rows.querySelectorAll('.invite-row').length >= maxInvites) return;
+    var row = document.createElement('div');
+    row.className = 'field invite-row';
+    row.innerHTML = '<label>Teammate email</label><input type="email" name="invite_email">';
+    rows.appendChild(row);
+    updateAddButton();
+  });
+
+  updateAddButton();
+})();
+</script>
 {% endblock %}
