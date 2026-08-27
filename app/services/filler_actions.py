@@ -117,13 +117,18 @@ def _no_profile_photo(user):
 
 
 def _can_invite_teammate(user):
+    """Only suggest inviting a teammate if nobody's been added yet
+    (active OR pending -- an unaccepted invite still counts, see
+    Org.seat_count) and the plan actually has room for another seat.
+    Previously only counted status == "active", so an org that had
+    just invited 2-3 pending teammates (who hadn't accepted yet) still
+    saw this suggestion, since none of them were "active" yet."""
     if not user.is_admin:
         return False
-    seat_limit = user.org.limit_for("seats")
-    if seat_limit is not None and seat_limit <= 1:
+    org = user.org
+    if org.seat_count() > 1:
         return False
-    active_count = sum(1 for u in user.org.users if u.status == "active")
-    return active_count <= 1
+    return org.can_add_seat()
 
 
 # --- Tier 2 conditions: contact-based ------------------------------------
