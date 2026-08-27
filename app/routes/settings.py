@@ -182,6 +182,15 @@ def make_default_payment_method(payment_method_id):
 def remove_payment_method(payment_method_id):
     card = PaymentMethod.query.filter_by(id=payment_method_id, user_id=current_user.id).first_or_404()
     label = card.display_label()
-    payments.remove_payment_method(current_user, card.id)
-    flash(f"{label} removed.", "success")
+    ok, reason = payments.remove_payment_method(current_user, card.id)
+    if ok:
+        flash(f"{label} removed.", "success")
+    elif reason == "subscription_card":
+        flash(
+            f"{label} is the card on file for your Team subscription -- change it from "
+            f"Settings → Billing instead of removing it here.",
+            "error",
+        )
+    else:
+        flash("Couldn't remove that card.", "error")
     return redirect(url_for("settings.payment_methods"))

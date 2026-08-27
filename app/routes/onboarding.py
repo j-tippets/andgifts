@@ -406,9 +406,18 @@ def billing_return():
     session_id = request.args.get("session_id")
     if stripe and session_id:
         try:
-            saved = org_billing.save_org_subscription_from_checkout_session(org, session_id)
+            saved, shared = org_billing.save_org_subscription_from_checkout_session(
+                org, session_id, owner=user,
+            )
             if saved:
-                flash(f"{org.card_on_file_label()} saved -- you're set up on Team.", "success")
+                if shared:
+                    flash(
+                        f"{org.card_on_file_label()} saved -- you're set up on Team, "
+                        f"and this card is now on file for your own gift purchases too.",
+                        "success",
+                    )
+                else:
+                    flash(f"{org.card_on_file_label()} saved -- you're set up on Team.", "success")
             else:
                 flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
         except Exception as e:

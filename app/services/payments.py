@@ -83,10 +83,23 @@ def remove_payment_method(user, payment_method_id):
     """Detaches from Stripe and deletes the local row. If the removed
     card was the default and other cards remain, promotes the oldest
     remaining one -- automated approvals should never silently end up
-    with no default while the agent still has a usable card."""
+    with no default while the agent still has a usable card.
+
+    Refuses to remove a card that's currently the org's Team
+    subscription default payment method (see
+    org_billing.share_subscription_card_with_owner) -- detaching it
+    from Stripe would break the subscription's automatic renewal, not
+    just this agent's own gift charges. That card can only be changed
+    from Settings → Billing.
+
+    Returns (True, None) on success, or (False, reason) where reason
+    is "subscription_card" for that specific refusal, or "not_found"."""
     payment_method = PaymentMethod.query.filter_by(id=payment_method_id, user_id=user.id).first()
     if not payment_method:
-        return False
+        return False, "not_found"
+
+    if user.org and user.org.stripe_default_payment_method_id == payment_method.stripe_payment_method_id:
+        return False, "subscription_card"
 
     stripe = get_stripe()
     if stripe:
@@ -108,7 +121,7 @@ def remove_payment_method(user, payment_method_id):
             remaining.is_default = True
 
     db.session.commit()
-    return True
+    return True, None
 
 
 def charge_saved_card(user, amount_cents, description, metadata=None):
