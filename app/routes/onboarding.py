@@ -304,6 +304,7 @@ def invites():
         org=org,
         max_invites=MAX_WIZARD_INVITES,
         team_min_seats=current_app.config["TEAM_MIN_SEATS"],
+        team_price=current_app.config["PRICING_DISPLAY"]["team"]["price_cents"] // 100,
     )
 
 
@@ -337,6 +338,7 @@ def billing():
         seat_quantity=_team_seat_quantity(org),
         pending_invite_count=len(org.pending_invite_emails()),
         team_min_seats=current_app.config["TEAM_MIN_SEATS"],
+        team_price=current_app.config["PRICING_DISPLAY"]["team"]["price_cents"] // 100,
     )
 
 

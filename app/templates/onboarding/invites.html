@@ -5,12 +5,10 @@
   <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
     <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
   </div>
-  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 4: Invite your team</p>
+  {% set step = 4 %}
+  {% include "onboarding/_step_dots.html" %}
   <h1 style="margin-bottom:8px;">Add your team</h1>
-  <p class="subdued" style="margin-bottom:20px;">
-    Add up to {{ max_invites }} teammates now -- invites go out once billing's set up on the next step.
-    Leave this blank to skip; either way, you can always invite more later from Team.
-  </p>
+  <p class="subdued" style="margin-bottom:20px;">Add up to {{ max_invites }} teammates.</p>
 
   <form method="POST">
     <div id="inviteRows">
@@ -20,22 +18,37 @@
       </div>
     </div>
     <button type="button" id="addInviteRow" class="btn btn-ghost" style="width:100%; margin-bottom:16px;">+ Add another</button>
-    <button class="btn btn-primary" type="submit" style="width:100%; margin-bottom:8px;">Continue</button>
+
+    <p id="inviteCalc" class="subdued" style="text-align:center; margin:0 0 16px;">1 seat &times; ${{ team_price }}/mo = <strong>${{ team_price }}/mo</strong></p>
+
+    <button class="btn btn-primary" type="submit" style="width:100%; margin-bottom:12px;">Continue to billing</button>
   </form>
-  <form method="POST" action="{{ url_for('onboarding.invites_skip') }}">
-    <button class="btn btn-ghost" type="submit" style="width:100%;">Skip for now</button>
+  <form method="POST" action="{{ url_for('onboarding.invites_skip') }}" style="text-align:center;">
+    <button class="link-button" type="submit">Skip for now</button>
   </form>
 </div>
 
 <script>
 (function () {
   var maxInvites = {{ max_invites }};
+  var teamPrice = {{ team_price }};
   var rows = document.getElementById('inviteRows');
   var addBtn = document.getElementById('addInviteRow');
+  var calc = document.getElementById('inviteCalc');
 
   function updateAddButton() {
     var count = rows.querySelectorAll('.invite-row').length;
     addBtn.style.display = count >= maxInvites ? 'none' : '';
+  }
+
+  function updateCalc() {
+    var filled = 0;
+    rows.querySelectorAll('.invite-row input').forEach(function (input) {
+      if (input.value.trim()) filled += 1;
+    });
+    var seats = filled + 1;
+    var total = seats * teamPrice;
+    calc.innerHTML = seats + ' seat' + (seats === 1 ? '' : 's') + ' &times; $' + teamPrice + '/mo = <strong>$' + total + '/mo</strong>';
   }
 
   addBtn.addEventListener('click', function () {
@@ -44,10 +57,16 @@
     row.className = 'field invite-row';
     row.innerHTML = '<label>Teammate email</label><input type="email" name="invite_email">';
     rows.appendChild(row);
+    row.querySelector('input').addEventListener('input', updateCalc);
     updateAddButton();
   });
 
+  rows.querySelectorAll('.invite-row input').forEach(function (input) {
+    input.addEventListener('input', updateCalc);
+  });
+
   updateAddButton();
+  updateCalc();
 })();
 </script>
 {% endblock %}

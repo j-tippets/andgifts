@@ -247,6 +247,34 @@ h3 { font-size: 17px; }
 }
 .subdued { color: #6B6459; font-size: 14px; }
 
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Onboarding wizard progress dots -- see
+   templates/onboarding/_step_dots.html. Filled dot = this step is done
+   or current; empty = still ahead. */
+.onboarding-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+  margin: 0 4px;
+}
+.onboarding-dot--active { background: var(--coral); }
+
+/* A <button> styled to read as a plain text link -- used where the
+   action needs to be a real form submit (skip-for-now, etc.) but
+   should look and feel like a link, not a secondary button. */
+.link-button {
+  background: none; border: none; padding: 0;
+  color: var(--ink); text-decoration: underline;
+  font-size: 14px; cursor: pointer;
+}
+.link-button:hover { opacity: 0.7; }
+
 /* ---- Buttons & forms ---- */
 .btn {
   display: inline-flex;

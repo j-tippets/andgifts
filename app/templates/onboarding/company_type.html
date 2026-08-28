@@ -5,7 +5,8 @@
   <div class="eyebrow" style="text-align:center; margin-bottom:12px;">
     <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg" alt="&amp;Gifts" height="100">
   </div>
-  <p class="subdued" style="text-align:center; margin-bottom:4px;">Step 2: Company type</p>
+  {% set step = 2 %}
+  {% include "onboarding/_step_dots.html" %}
   <h1 style="margin-bottom:8px;">What's your line of work?</h1>
   <p class="subdued" style="margin-bottom:20px;">We'll set you up with a starting toolkit for it — you can rename, remove, or add to it anytime.</p>
   <form method="POST">

@@ -166,11 +166,11 @@ class Config:
     PRICING_DISPLAY = {
         "free": {
             "display_name": "Free", "price_cents": 0, "price_suffix": "/mo",
-            "tagline": "Try it out", "cta_label": "Start free", "highlight": False,
+            "tagline": "See how &Gifts works.", "cta_label": "Start free", "highlight": False,
         },
         "starter": {
             "display_name": "Solo", "price_cents": 1500, "price_suffix": "/mo",
-            "tagline": "For solo agents", "cta_label": "Get Solo", "highlight": False,
+            "tagline": "For professionals actively managing client relationships.", "cta_label": "Get Solo", "highlight": False,
         },
         "pro": {
             "display_name": "Pro", "price_cents": 1200, "price_suffix": "/seat/mo",
@@ -178,7 +178,7 @@ class Config:
         },
         "team": {
             "display_name": "Team", "price_cents": 1200, "price_suffix": "/user/mo",
-            "tagline": "For brokerages (2-user minimum)", "cta_label": "Get started", "highlight": False,
+            "tagline": "For teams that want one shared gifting system.", "cta_label": "Get started", "highlight": False,
         },
     }
 
