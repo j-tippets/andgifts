@@ -8,7 +8,10 @@ from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
 from app.services.flow_recommendations import generate_flow_recommendations_for_user
-from app.services.filler_actions import generate_filler_cards, resolve_target_url, record_resolution, TARGET_CARD_COUNT
+from app.services.filler_actions import (
+    generate_filler_cards, resolve_target_url, record_resolution, TARGET_CARD_COUNT,
+    TIER_ACCOUNT, TIER_CONTACT, TIER_DISCOVERY,
+)
 from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice, send_wdf_handwritten_note_notice
 from app.services.payments import charge_saved_card
 from app.services.wdf_client import send_wdf_webhook
@@ -39,6 +42,49 @@ def _get_recommendation_or_404(recommendation_id):
     if not current_user.is_admin:
         query = query.filter_by(user_id=current_user.id)
     return query.first_or_404()
+
+
+def _priority_rank(item):
+    """3-tier priority for the Today stack, most important first:
+    0. Real SuggestedActions -- actual triggered reminders (gift,
+       email, handwritten note) tied to a contact event.
+    1. "Coming up" -- FlowRecommendations (AI-suggested flows to set
+       up) and contact-tier filler nudges (stale contact, missing
+       occasion/address -- specific to one contact, not generic).
+    2. "Whenever you have time" -- account- and discovery-tier filler
+       (add a card, invite a teammate, browse the catalog).
+    Relies on Python's stable sort to preserve each type's own
+    existing ordering within its tier (SuggestedAction by target_date,
+    FlowRecommendation by contact_count desc, filler cards in their
+    own tier/registry order) -- this only regroups into the 3 buckets
+    above, it doesn't re-order within them."""
+    if item.item_kind == "suggestion":
+        return 0
+    if item.item_kind == "recommendation":
+        return 1
+    if item.item_kind == "filler":
+        return 1 if item.tier == TIER_CONTACT else 2
+    return 2
+
+
+_FILLER_CATEGORY_LABELS = {
+    TIER_ACCOUNT: "Account Setup",
+    TIER_CONTACT: "Contact Setup",
+    TIER_DISCOVERY: "Explore",
+}
+
+
+def _category_label(item):
+    """Short label shown on each Today card so it's obvious at a
+    glance what kind of thing it's asking for -- see
+    dashboard/index.html's .s-category-label."""
+    if item.item_kind == "suggestion":
+        return "Reminder"
+    if item.item_kind == "recommendation":
+        return "Flow Suggestion"
+    if item.item_kind == "filler":
+        return _FILLER_CATEGORY_LABELS.get(item.tier, "Suggestion")
+    return "Suggestion"
 
 
 @dashboard_bp.route("/")
@@ -97,7 +143,16 @@ def index():
     # both branch on item.item_kind (SuggestedAction vs
     # FlowRecommendation, see app/models/actions.py) to render/handle
     # each card's own action buttons.
-    cards = sorted(pending + flow_recommendations, key=lambda item: item.created_at)
+    # Priority order for the Today stack: real reminders ("most
+    # important") first, then flow ideas + contact-specific filler
+    # nudges ("coming up"), then generic account/discovery filler
+    # ("whenever you have time") last -- see _priority_rank.
+    # `pending` is already ordered by target_date (soonest first) and
+    # `flow_recommendations` by contact_count desc; concatenating them
+    # here (rather than re-sorting by created_at, as before) preserves
+    # each group's own ordering once the stable sort below regroups by
+    # priority tier instead.
+    cards = pending + flow_recommendations
 
     # Filler cards (account/contact/discovery nudges -- see
     # app/services/filler_actions.py) only ever top the real queue up to
@@ -109,6 +164,10 @@ def index():
     # admin's own.
     if len(cards) < TARGET_CARD_COUNT:
         cards = cards + generate_filler_cards(recommendations_for, TARGET_CARD_COUNT - len(cards))
+
+    cards = sorted(cards, key=_priority_rank)
+    for item in cards:
+        item.category_label = _category_label(item)
 
     agents = (
         User.query.filter_by(org_id=org.id, status="active").order_by(User.first_name, User.last_name).all()
