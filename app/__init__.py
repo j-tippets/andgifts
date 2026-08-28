@@ -5,10 +5,14 @@ from app.extensions import db, migrate, login_manager, limiter
 
 
 def _compute_static_asset_version(app):
-    """Hash of every filename+mtime under static/css, static/js, and
-    static/icons. Used two ways: (1) as sw.js's CACHE_VERSION, so the
-    service worker's cache bucket changes whenever any of those files
-    change, and (2) appended as a ?v= query string on every CSS/JS
+    """Fallback for local dev only (no GIT_COMMIT_HASH env var there) --
+    see create_app's comment on STATIC_ASSET_VERSION for why this is
+    NOT what production uses. Hash of every filename+mtime under
+    static/css, static/js, and static/icons.
+
+    Used two ways: (1) as sw.js's CACHE_VERSION, so the service
+    worker's cache bucket changes whenever any of those files change,
+    and (2) appended as a ?v= query string on every CSS/JS
     <link>/<script> tag via the versioned_static() Jinja global below.
 
     The ?v= part is what actually matters for correctness -- it
@@ -16,10 +20,7 @@ def _compute_static_asset_version(app):
     browser's HTTP cache, an old still-active service worker, or a CDN
     in front of the app) simply can't have an entry for it and has to
     fetch fresh, regardless of whether the service worker's own
-    install/activate handoff has completed yet. Relying on the SW
-    cache-bucket versioning alone left a real window where a page
-    still controlled by an old SW would keep serving old CSS/JS on
-    every normal navigation until that handoff finished."""
+    install/activate handoff has completed yet."""
     import hashlib
 
     hasher = hashlib.sha1()
@@ -45,10 +46,26 @@ def create_app(config_name=None):
     login_manager.init_app(app)
     limiter.init_app(app)
 
-    # Computed once per process (a real deploy is a new process, so
-    # this is never stale in production); see
-    # _compute_static_asset_version's docstring for why this exists.
-    app.config["STATIC_ASSET_VERSION"] = _compute_static_asset_version(app)
+    # STATIC_ASSET_VERSION drives cache-busting for every CSS/JS asset
+    # (see versioned_static below) and the service worker's cache
+    # bucket name. Prefer GIT_COMMIT_HASH (set in .do/app.yaml from DO
+    # App Platform's bindable ${web.COMMIT_HASH}) over computing it
+    # locally from file mtimes -- mtime hashing is computed
+    # independently BY EACH RUNNING PROCESS from its own container's
+    # filesystem, so during any rolling deploy (DO briefly runs the
+    # old and new containers side by side, even at instance_count: 1)
+    # the old and new containers compute two DIFFERENT hashes for what
+    # might genuinely be identical file content, and whichever one a
+    # given request lands on determines which version it sees -- with
+    # no single deploy ever fully "finishing" that inconsistency from
+    # the outside, since every subsequent deploy repeats the same
+    # transient split. GIT_COMMIT_HASH sidesteps this entirely: every
+    # instance of the SAME deployed commit agrees on the SAME version
+    # string by construction, deterministically, regardless of local
+    # mtimes. Falls back to the mtime hash only when that env var
+    # isn't set (local dev, where there's just one process anyway and
+    # this distinction doesn't matter).
+    app.config["STATIC_ASSET_VERSION"] = os.environ.get("GIT_COMMIT_HASH") or _compute_static_asset_version(app)
 
     @app.template_global()
     def versioned_static(filename):

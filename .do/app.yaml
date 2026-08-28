@@ -45,6 +45,8 @@ services:
         type: SECRET
       - key: ANTHROPIC_API_KEY
         type: SECRET
+      - key: GIT_COMMIT_HASH
+        value: ${web.COMMIT_HASH}
 
 # Nightly job that generates dashboard suggestions for every org.
 # This is what makes the daily dashboard feel "waiting for you" each
