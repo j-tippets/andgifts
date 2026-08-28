@@ -22,9 +22,10 @@
       </div>
       <div style="border-top:1px solid var(--line); margin:14px 0 12px;"></div>
       <div style="display:flex; justify-content:space-between; font-family:var(--font-display); font-weight:700; font-size:20px; margin-bottom:12px;">
-        <span>Total</span>
+        <span>Total after trial</span>
         <span>${{ seat_quantity * team_price }}/month</span>
       </div>
+      <p class="subdued" style="margin:0 0 4px; font-size:13px;">Free for {{ trial_days }} days -- you won't be charged until then.</p>
       <p class="subdued" style="margin:0; font-size:13px;">
         {% if pending_invite_count > 0 %}
           You + {{ pending_invite_count }} teammate{{ 's' if pending_invite_count != 1 else '' }}
@@ -40,7 +41,7 @@
 
     {% if stripe_configured %}
       <form method="POST" action="{{ url_for('onboarding.billing_start') }}">
-        <button class="btn btn-primary" type="submit" style="width:100%;">Start my Team plan</button>
+        <button class="btn btn-primary" type="submit" style="width:100%;">Start my free trial</button>
       </form>
     {% else %}
       <p class="subdued">Billing setup isn't available right now — you can add it later from Settings → Billing.</p>
@@ -49,7 +50,7 @@
       </form>
     {% endif %}
 
-    <p class="subdued" style="text-align:center; margin-top:16px; font-size:12px;">Cancel or change your plan anytime. Gift purchases and shipping are billed separately.</p>
+    <p class="subdued" style="text-align:center; margin-top:16px; font-size:12px;">Cancel anytime during your trial and you won't be charged. Gift purchases and shipping are billed separately.</p>
   {% endif %}
 </div>
 {% endblock %}

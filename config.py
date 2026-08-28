@@ -76,6 +76,15 @@ class Config:
     # post-signup self-serve checkout (routes/billing.py).
     TEAM_MIN_SEATS = 2
 
+    # Free-trial length for Solo (starter) and Team -- see
+    # Org.trial_ends_at / is_on_trial for Solo (no Stripe subscription
+    # exists during a Solo trial, so this is tracked locally) and
+    # onboarding.billing_start's trial_period_days for Team (that one
+    # lives entirely in Stripe's subscription object). No trial for
+    # Pro or Free -- Pro is a manual/outreach sale, Free has no
+    # subscription to trial in the first place.
+    TRIAL_DAYS = 14
+
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
     # Both the default From address and the org-level sending domain
     # below live on the SAME authenticated domain (mail.andgifts.app) on

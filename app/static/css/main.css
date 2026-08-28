@@ -275,6 +275,24 @@ h3 { font-size: 17px; }
 }
 .link-button:hover { opacity: 0.7; }
 
+/* Persistent Solo-trial banner -- see base.html and Org.is_on_trial /
+   trial_recently_ended. Sits at the top of .content, above flash
+   messages, on every authenticated page. */
+.trial-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  background: var(--gold-soft); color: var(--gold-ink);
+  border-radius: 10px; padding: 12px 18px; margin-bottom: 16px;
+  font-size: 14px; font-weight: 600;
+}
+.trial-banner--ended { background: var(--line); color: var(--ink); }
+.trial-banner__cta {
+  background: var(--ink); color: #fff; border: none; border-radius: 8px;
+  padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+.trial-banner__cta:hover { opacity: 0.85; }
+
 /* ---- Buttons & forms ---- */
 .btn {
   display: inline-flex;

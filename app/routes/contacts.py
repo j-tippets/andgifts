@@ -168,6 +168,15 @@ def new_contact():
 
     db.session.commit()
     flash(f"Added {contact.household_name}.", "success")
+
+    if org.is_on_trial() and org.contact_count() == 5:
+        days = org.trial_days_remaining()
+        flash(
+            f"5 contacts in! You've got {days} day{'s' if days != 1 else ''} left on your "
+            "trial -- add a card anytime from Settings → Billing to keep things going after it ends.",
+            "success",
+        )
+
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
 
 

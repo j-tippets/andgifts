@@ -384,6 +384,17 @@ def approve_action(action_id):
         flash(f"Approved, but the email didn't send automatically: {delivery_error}", "error")
     else:
         flash("Action approved and queued.", "success")
+
+    if action.action_type == "gift" and gift_payment_intent_id and org.is_on_trial():
+        gift_count = ActionLog.query.filter_by(org_id=org.id, action_type="gift", delivery_status="sent").count()
+        if gift_count == 1:
+            days = org.trial_days_remaining()
+            flash(
+                f"Your first gift is on its way! You've got {days} day{'s' if days != 1 else ''} left on "
+                "your trial -- add a card from Settings → Billing to keep sending after it ends.",
+                "success",
+            )
+
     return redirect(request.referrer or url_for("dashboard.index"))
 
 

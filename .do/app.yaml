@@ -77,3 +77,36 @@ jobs:
         value: ${andgifts-db.PORT}
       - key: DB_NAME
         value: ${andgifts-db.DATABASE}
+
+  # Enforces the hard cutoff on Solo's free trial (config.TRIAL_DAYS) --
+  # see jobs/downgrade_expired_trials.py's docstring for why this is
+  # safe to run daily with no extra guardrails (idempotent, only ever
+  # touches org.tier, never deletes/hides data). Runs an hour after
+  # nightly-suggestions purely to keep the two jobs' logs easy to tell
+  # apart in the DO dashboard -- no actual ordering dependency between
+  # them.
+  - name: downgrade-expired-trials
+    github:
+      repo: YOUR_GITHUB_USERNAME/andgifts
+      branch: main
+    source_dir: /
+    build_command: pip install -r requirements.txt
+    run_command: python jobs/downgrade_expired_trials.py
+    kind: SCHEDULED
+    schedule:
+      cron: "0 6 * * *"
+    instance_size_slug: basic-xxs
+    envs:
+      - key: FLASK_ENV
+        value: production
+      - key: DB_USER
+        value: ${andgifts-db.USERNAME}
+      - key: DB_PASSWORD
+        type: SECRET
+        value: ${andgifts-db.PASSWORD}
+      - key: DB_HOST
+        value: ${andgifts-db.HOSTNAME}
+      - key: DB_PORT
+        value: ${andgifts-db.PORT}
+      - key: DB_NAME
+        value: ${andgifts-db.DATABASE}

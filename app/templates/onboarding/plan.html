@@ -21,12 +21,17 @@
         <div style="font-family:var(--font-rounded); font-weight:700; font-size:19px; margin-bottom:2px;">{{ t.display_name }}</div>
         <div class="subdued" style="font-size:13px; margin-bottom:14px;">{{ t.tagline }}</div>
 
-        <div style="font-family:var(--font-display); font-size:28px; font-weight:700; margin-bottom:16px;">
+        <div style="font-family:var(--font-display); font-size:28px; font-weight:700; margin-bottom:4px;">
           {% if t.price_cents is none %}Custom
           {% elif t.price_cents == 0 %}$0
           {% else %}${{ '%.0f'|format(t.price_cents / 100) }}<span class="subdued" style="font-size:13px; font-weight:400;">{{ t.price_suffix }}</span>
           {% endif %}
         </div>
+        {% if t.tier_key in ('starter', 'team') %}
+          <div style="font-size:12px; color:var(--evergreen-light); font-weight:600; margin-bottom:12px;">{{ trial_days }}-day free trial</div>
+        {% else %}
+          <div style="margin-bottom:16px;"></div>
+        {% endif %}
 
         <ul style="list-style:none; padding:0; margin:0 0 20px; flex-grow:1; font-size:13.5px; line-height:1.9;">
           {% if t.tier_key == 'team' %}

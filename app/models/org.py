@@ -1,5 +1,6 @@
 import re
 import uuid
+import math
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -75,16 +76,27 @@ class Org(db.Model):
         default="card",
     )
 
+    # Solo's free trial -- set once, at signup, when tier first becomes
+    # "starter" (see routes/onboarding.plan; never reset on a later
+    # re-visit to the plan step, so an org can't re-roll a fresh trial
+    # by switching away from and back to Solo). Team's trial lives
+    # entirely in Stripe instead (trial_period_days on the Checkout
+    # subscription -- see onboarding.billing_start), since Team always
+    # has a live Stripe subscription object to carry that state; Solo
+    # has no subscription at all during its trial, so there's nothing
+    # on Stripe's side to ask. See is_on_trial / trial_days_remaining /
+    # trial_recently_ended below, and jobs/downgrade_expired_trials.py
+    # for the daily job that enforces the hard cutoff.
+    trial_ends_at = db.Column(db.DateTime, nullable=True)
+
     # --- Org-level subscription card (Team signup wizard) ---
-    # Captured via a Stripe SetupIntent during onboarding (see
-    # services/org_billing.py) and saved WITHOUT charging it --
-    # Team is custom-priced (no STRIPE_PRICE_IDS entry), so there's no
-    # subscription to actually start yet. This just puts a card on
-    # file so Jeremiah can complete billing setup (Stripe Dashboard or
-    # the portal) without chasing the org down for one later. Distinct
-    # from PaymentMethod, which is per-agent and pays for gifts, not
-    # the subscription itself. Display-only snapshot fields mirror
-    # PaymentMethod's, same non-refetched convention.
+    # Captured via Stripe Checkout during onboarding (see
+    # services/org_billing.py) as part of starting the real Team
+    # subscription (per-seat, trial_period_days -- see
+    # onboarding.billing_start). Display-only snapshot fields mirror
+    # PaymentMethod's, same non-refetched convention. Distinct from
+    # PaymentMethod, which is per-agent and pays for gifts, not the
+    # subscription itself.
     stripe_default_payment_method_id = db.Column(db.String(255), nullable=True)
     card_brand = db.Column(db.String(30), nullable=True)
     card_last4 = db.Column(db.String(4), nullable=True)
@@ -211,6 +223,42 @@ class Org(db.Model):
     def can_add_contact(self):
         limit = self.limit_for("contacts")
         return limit is None or self.contact_count() < limit
+
+    # --- Free trial (Solo only -- see trial_ends_at's comment) ---
+    def is_on_trial(self):
+        """True while this org is inside its Solo trial window and
+        hasn't converted to a real subscription yet. Deliberately
+        excludes Team: a trialing Team org already has a live Stripe
+        subscription (status=trialing) from the moment they complete
+        onboarding, so there's no separate "on trial" state to track
+        or display here -- Stripe already knows, and there's no local
+        card-less/unpaid window like Solo's to warn them about."""
+        return (
+            self.tier == "starter"
+            and self.trial_ends_at is not None
+            and self.trial_ends_at > datetime.utcnow()
+            and not self.stripe_subscription_id
+        )
+
+    def trial_days_remaining(self):
+        """Rounds UP so a trial with a few hours left still reads as
+        "1 day left" rather than "0 days left" -- 0 is reserved for
+        an actually-expired trial."""
+        if not self.trial_ends_at:
+            return 0
+        seconds_left = (self.trial_ends_at - datetime.utcnow()).total_seconds()
+        return max(0, math.ceil(seconds_left / 86400))
+
+    def trial_recently_ended(self, within_days=7):
+        """True for a short window after an unconverted Solo trial
+        expired and jobs/downgrade_expired_trials.py dropped this org
+        to Free -- lets the UI keep showing a "come back" banner for a
+        bit instead of the reminder disappearing the instant the
+        trial's over, right when it might land best."""
+        if self.tier != "free" or not self.trial_ends_at:
+            return False
+        days_since = (datetime.utcnow() - self.trial_ends_at).days
+        return 0 <= days_since <= within_days
 
     def feature_enabled(self, key):
         return bool(self.limit_for(key))

@@ -188,6 +188,11 @@ def plan():
             return redirect(url_for("onboarding.plan"))
 
         org.tier = tier
+        if tier == "starter" and org.trial_ends_at is None:
+            # Only set once, ever -- an org that picks Solo, later
+            # switches tiers, and comes back to Solo again should NOT
+            # get a fresh 14 days (see trial_ends_at's comment on Org).
+            org.trial_ends_at = datetime.utcnow() + timedelta(days=current_app.config["TRIAL_DAYS"])
         org.onboarding_step = "invites" if tier == "team" else "done"
         db.session.commit()
 
@@ -205,6 +210,7 @@ def plan():
         tiers=tiers,
         preselect_tier=preselect_tier,
         team_min_seats=current_app.config["TEAM_MIN_SEATS"],
+        trial_days=current_app.config["TRIAL_DAYS"],
     )
 
 
@@ -339,6 +345,7 @@ def billing():
         pending_invite_count=len(org.pending_invite_emails()),
         team_min_seats=current_app.config["TEAM_MIN_SEATS"],
         team_price=current_app.config["PRICING_DISPLAY"]["team"]["price_cents"] // 100,
+        trial_days=current_app.config["TRIAL_DAYS"],
     )
 
 
@@ -346,13 +353,21 @@ def billing():
 def billing_start():
     """Starts the real Team subscription, quantity = owner + whatever
     teammates were collected on the invites step (floored at
-    TEAM_MIN_SEATS) -- see _team_seat_quantity. org.tier is already
-    "team" from the plan step; the checkout.session.completed webhook
-    (routes/orders.py) is what actually records stripe_subscription_id
-    as the system of record, same pattern as Starter/Pro self-serve
-    checkout. If Stripe isn't configured at all, there's nothing to
-    check out -- just create the collected invites and finish signup,
-    same bar as the rest of this wizard for handling that."""
+    TEAM_MIN_SEATS) -- see _team_seat_quantity. Includes a
+    TRIAL_DAYS-day trial (config.TRIAL_DAYS): Stripe puts the
+    subscription in status=trialing and doesn't charge the card until
+    the trial ends, so unlike Solo's trial (see Org.trial_ends_at)
+    there's no local trial-tracking needed here at all -- Stripe's own
+    subscription object already is the trial state, and the existing
+    "webhook is truth" pattern picks up the eventual first charge the
+    same way it picks up any other subscription event. org.tier is
+    already "team" from the plan step; the checkout.session.completed
+    webhook (routes/orders.py) is what actually records
+    stripe_subscription_id as the system of record, same pattern as
+    Starter/Pro self-serve checkout. If Stripe isn't configured at
+    all, there's nothing to check out -- just create the collected
+    invites and finish signup, same bar as the rest of this wizard for
+    handling that."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
@@ -378,7 +393,10 @@ def billing_start():
             line_items=[{"price": price_id, "quantity": _team_seat_quantity(org)}],
             client_reference_id=org.id,
             metadata={"org_id": org.id, "tier": "team"},
-            subscription_data={"metadata": {"org_id": org.id, "tier": "team"}},
+            subscription_data={
+                "trial_period_days": current_app.config["TRIAL_DAYS"],
+                "metadata": {"org_id": org.id, "tier": "team"},
+            },
             success_url=return_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=url_for("onboarding.billing", _external=True),
         )
