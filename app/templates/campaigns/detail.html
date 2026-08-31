@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "dashboard/_type_icon.html" import type_icon %}
+{% from "dashboard/_type_icon.html" import type_icon, delivery_status_pill %}
 {% block title %}{{ campaign.name }} — Flows{% endblock %}
 {% block content %}
 <div class="page-head with-action">
@@ -29,13 +29,7 @@
             <a href="{{ url_for('contacts.view_contact', contact_id=entry.contact_id) }}">{{ entry.contact.household_name }}</a>
           </strong>
           {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
-          {% if entry.delivery_status == 'sent' %}
-            <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Emailed</span>
-          {% elif entry.delivery_status == 'failed' %}
-            <span class="status-pill pill-do-not-contact">Not sent &mdash; {{ entry.delivery_error }}</span>
-          {% elif entry.delivery_status == 'blocked' %}
-            <span class="status-pill" style="background:var(--gold-soft); color:var(--gold-ink);">Not sent (plan limit) &mdash; {{ entry.delivery_error }}</span>
-          {% endif %}
+          {{ delivery_status_pill(entry) }}
           {% if entry.cost_cents %}<div class="subdued">${{ '%.2f'|format(entry.cost_cents / 100) }}</div>{% endif %}
         </div>
       {% endfor %}

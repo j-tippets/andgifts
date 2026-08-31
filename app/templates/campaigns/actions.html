@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}History — Ag{% endblock %}
 {% block content %}
-{% from "dashboard/_type_icon.html" import type_icon %}
+{% from "dashboard/_type_icon.html" import type_icon, delivery_status_pill %}
 <div class="subtab-links">
   <a href="{{ url_for('campaigns.list_campaigns') }}">Your flows</a>
   <a href="{{ url_for('campaigns.actions_report') }}" class="active">History</a>
@@ -93,13 +93,7 @@
               <div class="subdued">Agent: {{ entry.owning_agent.full_name if entry.owning_agent else 'Unassigned / shared' }}</div>
             {% endif %}
             {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
-            {% if entry.delivery_status == 'sent' %}
-              <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Emailed</span>
-            {% elif entry.delivery_status == 'failed' %}
-              <span class="status-pill pill-do-not-contact">Not sent &mdash; {{ entry.delivery_error }}</span>
-            {% elif entry.delivery_status == 'blocked' %}
-              <span class="status-pill" style="background:var(--gold-soft); color:var(--gold-ink);">Not sent (plan limit) &mdash; {{ entry.delivery_error }}</span>
-            {% endif %}
+            {{ delivery_status_pill(entry) }}
             {% if entry.cost_cents %}<div class="subdued">${{ '%.2f'|format(entry.cost_cents / 100) }}</div>{% endif %}
           </div>
         {% endfor %}

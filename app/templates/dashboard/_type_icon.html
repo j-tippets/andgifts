@@ -11,3 +11,25 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
   {% endif %}
 {% endmacro %}
+
+{% macro delivery_status_pill(entry) %}
+  {# entry.delivery_status == "sent" covers email, gift, and
+     handwritten_note alike (see dashboard.approve_action) -- what
+     "sent" actually means differs by action_type, so the label has
+     to too, rather than calling a gift order "Emailed". #}
+  {% if entry.delivery_status == 'sent' %}
+    {% if entry.action_type == 'gift' %}
+      <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Ordered</span>
+    {% elif entry.action_type == 'handwritten_note' %}
+      <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Sent for fulfillment</span>
+    {% elif entry.action_type == 'email' %}
+      <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Emailed</span>
+    {% else %}
+      <span class="status-pill" style="background:rgba(60,140,90,.15); color:#2f7a4d;">Sent</span>
+    {% endif %}
+  {% elif entry.delivery_status == 'failed' %}
+    <span class="status-pill pill-do-not-contact">Not sent &mdash; {{ entry.delivery_error }}</span>
+  {% elif entry.delivery_status == 'blocked' %}
+    <span class="status-pill" style="background:var(--gold-soft); color:var(--gold-ink);">Not sent (plan limit) &mdash; {{ entry.delivery_error }}</span>
+  {% endif %}
+{% endmacro %}
