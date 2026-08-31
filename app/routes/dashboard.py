@@ -33,6 +33,23 @@ def _get_visible_action(action_id, status=None):
     return query.first_or_404()
 
 
+def _is_ajax_request():
+    """True for today.js's fetch()-based approve (see submitApprove) --
+    it sends this header specifically so routes can tell it apart from
+    a real form submission. Matters because fetch() follows a redirect
+    silently and reports it as a plain success (res.ok is true even
+    after a flash+redirect for a business-logic failure like a declined
+    charge), so a route this gets called from can't rely on flash+
+    redirect to actually surface an error for it the way a real page
+    load would -- see approve_action's failure branches, which check
+    this and respond with a plain error status instead so the fetch
+    call sees it failed and falls back to a real (non-AJAX) form
+    submission of the same action, which then hits this same code path
+    again, this time getting the normal flash+redirect with nothing
+    special needed here."""
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
 def _get_recommendation_or_404(recommendation_id):
     """Fetch a FlowRecommendation the current user is allowed to act on:
     your own, or (admin only) any agent's -- needed so an admin viewing
@@ -250,6 +267,8 @@ def approve_action(action_id):
     # has nowhere to ship.
     blocked_reason = action.readiness_blocked_reason
     if blocked_reason:
+        if _is_ajax_request():
+            return "", 400
         flash(f"Can't approve — {blocked_reason} Add it on the contact's page, then try again.", "error")
         return redirect(request.referrer or url_for("dashboard.index"))
 
@@ -285,6 +304,8 @@ def approve_action(action_id):
         # decline would, with its own clear reason.
         billing_agent = action.owning_agent
         if not billing_agent:
+            if _is_ajax_request():
+                return "", 400
             flash(
                 "Can't approve — this suggestion has no clear owning agent to bill "
                 "(a shared contact with no personal flow behind it). Assign the "
@@ -299,6 +320,8 @@ def approve_action(action_id):
             metadata={"suggested_action_id": action.id},
         )
         if not success:
+            if _is_ajax_request():
+                return "", 400
             flash(f"Can't approve — payment failed: {error}", "error")
             return redirect(request.referrer or url_for("dashboard.index"))
 
@@ -349,6 +372,8 @@ def approve_action(action_id):
         # ordering as the gift branch above -- see its comment for why.
         billing_agent = action.owning_agent
         if not billing_agent:
+            if _is_ajax_request():
+                return "", 400
             flash(
                 "Can't approve — this suggestion has no clear owning agent to bill "
                 "(a shared contact with no personal flow behind it). Assign the "
@@ -363,6 +388,8 @@ def approve_action(action_id):
             metadata={"suggested_action_id": action.id},
         )
         if not success:
+            if _is_ajax_request():
+                return "", 400
             flash(f"Can't approve — payment failed: {error}", "error")
             return redirect(request.referrer or url_for("dashboard.index"))
 
