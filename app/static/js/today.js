@@ -20,6 +20,7 @@
   var swipeHint = document.getElementById('swipeHint');
   var progressWrap = document.getElementById('progress');
   var progressLabel = document.getElementById('progressLabel');
+  var approveOverlay = document.getElementById('approveOverlay');
 
   var originalTotal = cards.length;
   var approvedCount = 0;
@@ -271,10 +272,21 @@
     flyOut(card, direction, kind);
 
     if (kind === 'approve') {
+      // The card is already flying off-screen at this point, but the
+      // approve request itself can take a while (Stripe charge, gift
+      // lookup, etc.) -- without something on screen for that stretch,
+      // the stack just sits there and reads as frozen rather than
+      // "still working". Shown after a short delay so a normal fast
+      // approve never flashes it at all.
+      var overlayTimer = setTimeout(function () {
+        if (approveOverlay) approveOverlay.classList.add('show');
+      }, 400);
+
       submitApprove(card).then(function (ok) {
+        clearTimeout(overlayTimer);
         if (!ok) {
           var form = card.querySelector('.s-form-approve');
-          if (form) { form.submit(); return; }
+          if (form) { form.submit(); return; } // full-page fallback; overlay is moot once navigation starts
         }
         setTimeout(function () {
           queue.shift();
@@ -282,6 +294,7 @@
           syncListRow(card.dataset.id);
           maybeQueueLoop();
           busy = false;
+          if (approveOverlay) approveOverlay.classList.remove('show');
           layout();
         }, delay);
       });

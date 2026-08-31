@@ -8,12 +8,14 @@
   {% set step = 3 %}
   {% include "onboarding/_step_dots.html" %}
   <h1 style="text-align:center; margin-bottom:8px;">Pick a plan to start on</h1>
-  <p class="subdued" style="text-align:center; margin-bottom:32px;">No feature is locked behind a plan -- every tier gets gifts, email, and handwritten notes. Plans differ by seats, contacts, and monthly sends. You can change plans anytime from Settings → Billing.</p>
+  <p class="subdued" style="text-align:center; margin-bottom:32px;">No feature is locked behind a plan. Every tier gets gifts, email, and handwritten notes. Plans differ by seats, contacts, and monthly sends. You can change plans anytime from Settings → Billing.</p>
 
   <form method="POST" id="plan-form">
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px; margin-bottom:24px;">
       {% for t in tiers %}
-      <div class="plan-card {{ 'plan-card--selected' if t.tier_key == preselect_tier }}" style="display:flex; flex-direction:column; border:2px solid {{ 'var(--coral)' if t.tier_key == preselect_tier else 'var(--line)' }}; border-radius:14px; padding:26px 22px; position:relative; background:var(--paper-raised);">
+      <div class="plan-card {{ 'plan-card--selected' if t.tier_key == preselect_tier }}"
+           onclick="agSelectPlan(event, '{{ t.tier_key }}')"
+           style="display:flex; flex-direction:column; border:2px solid {{ 'var(--coral)' if t.tier_key == preselect_tier else 'var(--line)' }}; border-radius:14px; padding:26px 22px; position:relative; background:var(--paper-raised); cursor:pointer;">
         {% if t.highlight %}
           <span style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--coral); color:#fff; font-family:var(--font-rounded); font-size:12px; font-weight:700; padding:4px 14px; border-radius:999px;">Most popular</span>
         {% endif %}
@@ -45,11 +47,25 @@
           {% if t.ai_recommendations %}<li>&#10003; AI-suggested gift flows</li>{% endif %}
         </ul>
 
-        <button class="btn btn-primary" type="submit" name="tier" value="{{ t.tier_key }}" style="width:100%;">Add</button>
+        <button class="btn btn-primary" type="submit" name="tier" value="{{ t.tier_key }}" style="width:100%;">Choose {{ t.display_name }}</button>
       </div>
       {% endfor %}
     </div>
   </form>
-  <p class="subdued" style="text-align:center; margin-top:8px; font-size:12px;">Every plan unlocks the full &amp;Gifts toolkit -- sending, tracking, and gift curation. The gifts themselves, plus shipping and postage, are purchased separately each time you send one.</p>
+  <p class="subdued" style="text-align:center; margin-top:8px; font-size:12px;">Every plan unlocks the full &amp;Gifts toolkit: sending, tracking, and gift curation. The gifts themselves, plus shipping and postage, are purchased separately each time you send one.</p>
 </div>
+<script>
+  // Makes the whole plan card clickable, not just its "Choose ..."
+  // button -- a click anywhere on the card submits that tier. Clicking
+  // the button itself still submits directly (real <button type=
+  // "submit">, so the page works with JS disabled too); the check
+  // below just stops that click from also re-triggering here once it
+  // bubbles up to the card, which would otherwise submit the form
+  // twice.
+  function agSelectPlan(event, tierKey) {
+    if (event.target.closest('button')) return;
+    var btn = document.querySelector('#plan-form button[name="tier"][value="' + tierKey + '"]');
+    if (btn) btn.click();
+  }
+</script>
 {% endblock %}

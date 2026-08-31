@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required
+from markupsafe import Markup, escape
 from app.extensions import db, limiter
 from app.models import User
 from app.services.email import send_verification_email, send_password_reset_email
@@ -64,7 +65,22 @@ def verify_email(token):
         resume_route = user.org.onboarding_route()
         if resume_route:
             session["onboarding"] = {"org_id": user.org_id, "user_id": user.id}
-            flash("Email verified! Let's finish setting up your account.", "success")
+            # Built with Markup (not a plain string) so the link below
+            # survives base.html's `{{ message }}` render un-escaped --
+            # safe here since nothing in this message is user-supplied.
+            # The redirect below already lands the person on
+            # `resume_route`, but a visible, clickable next step in the
+            # message itself avoids ever looking like a dead end -- e.g.
+            # if they'd already left that tab open on an older page, or
+            # just don't notice the page changed underneath the banner.
+            continue_url = url_for(resume_route)
+            flash(
+                Markup(
+                    "Email verified! Let's finish setting up your account. "
+                    '<a href="%s">Continue where you left off &rarr;</a>'
+                ) % continue_url,
+                "success",
+            )
             return redirect(url_for(resume_route))
 
         flash(f"Welcome to {user.org.name}!", "success")

@@ -52,6 +52,10 @@
     </div>
 
     <div class="stack-wrap" id="stackWrap">
+      <div class="s-approve-overlay" id="approveOverlay" hidden aria-live="polite">
+        <span class="s-approve-overlay-spinner" aria-hidden="true"></span>
+        <span>Sending it your way&hellip;</span>
+      </div>
       <div class="stack" id="stack">
         {% for s in cards %}
           {% if s.item_kind == 'recommendation' %}

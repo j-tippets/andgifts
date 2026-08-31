@@ -25,12 +25,12 @@
         <span>Total after trial</span>
         <span>${{ seat_quantity * team_price }}/month</span>
       </div>
-      <p class="subdued" style="margin:0 0 4px; font-size:13px;">Free for {{ trial_days }} days -- you won't be charged until then.</p>
+      <p class="subdued" style="margin:0 0 4px; font-size:13px;">Free for {{ trial_days }} days. You won't be charged until then.</p>
       <p class="subdued" style="margin:0; font-size:13px;">
         {% if pending_invite_count > 0 %}
           You + {{ pending_invite_count }} teammate{{ 's' if pending_invite_count != 1 else '' }}
         {% else %}
-          You only, for now -- {{ seat_quantity }}-seat minimum
+          You only, for now ({{ seat_quantity }}-seat minimum)
         {% endif %}
       </p>
     </div>
