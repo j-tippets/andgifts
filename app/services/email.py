@@ -354,16 +354,25 @@ def send_wdf_fulfillment_notice(order):
         return False
 
     address = (order.shipping_address_snapshot or "").replace("\n", "<br>")
+    has_note = bool((order.note_text or "").strip())
+    note_row = (
+        f'<p style="margin:0 0 6px; color:#6B6459; font-size:13px;">Note</p>'
+        f'<p style="margin:0 0 16px; color:#2A1A45; font-size:15px; white-space:pre-line;">{order.note_text}</p>'
+        if has_note else ""
+    )
     body = f"""
       <h2 style="margin:0 0 12px; color:#2A1A45; font-family:'Besley', Georgia, serif; font-size:22px;">New order to fulfill</h2>
       <table role="presentation" style="width:100%; border-collapse: collapse; margin: 0 0 16px;">
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Order ID</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.id}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Product ID</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.gift_catalog_item_id or 'Not in catalog'}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Gift</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.gift_name_snapshot}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Contact</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.contact.household_name}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Agency</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.contact.org.name}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Note</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{'True' if has_note else 'False'}</td></tr>
       </table>
       <p style="margin:0 0 6px; color:#6B6459; font-size:13px;">Ship to</p>
       <p style="margin:0 0 16px; color:#2A1A45; font-size:15px;">{address or 'No address on file'}</p>
+      {note_row}
     """
     html = _wrap_email(body, preheader=f"New order to fulfill: {order.gift_name_snapshot}")
 

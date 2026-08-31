@@ -16,7 +16,7 @@ import requests
 
 
 def send_wdf_webhook(item_type, external_id, contact, agent, item_description,
-                      price_cents, note_text=None, target_date=None):
+                      price_cents, note_text=None, target_date=None, product_id=None):
     """POSTs one fulfillment item to the WDF tool's webhook endpoint.
 
     item_type: "gift" or "handwritten_note".
@@ -30,6 +30,11 @@ def send_wdf_webhook(item_type, external_id, contact, agent, item_description,
       order_by from gift_timing, or a note's target_date), so the WDF
       tool can sort/flag by urgency the same way the Today dashboard
       already does. Optional since not every caller has one to hand.
+    product_id: this app's GiftCatalogItem.id for a gift item, so WDF
+      can match it against their own catalog instead of matching on
+      item_description alone (which drifts if the item's name is
+      later edited). None for a handwritten note, which isn't a
+      catalog item.
 
     Returns True/False for whether the POST succeeded -- callers
     should treat this as informational only (log/flash at most) and
@@ -48,6 +53,7 @@ def send_wdf_webhook(item_type, external_id, contact, agent, item_description,
     payload = {
         "type": item_type,
         "external_id": external_id,
+        "product_id": product_id,
         "agency_name": contact.org.name if contact.org else None,
         "agent_name": agent.full_name if agent else None,
         "recipient_name": contact.household_name,

@@ -31,6 +31,16 @@ class Order(db.Model):
     gift_name_snapshot = db.Column(db.String(255), nullable=False)
     gift_price_cents = db.Column(db.Integer, nullable=False)
 
+    # The note to go along with the gift, if any -- either a fixed
+    # message the flow's builder wrote, or one the LLM generated (see
+    # suggestion_engine._resolve_gift_note); blank for a plain gift
+    # with no note attached, and always null for a manually-placed
+    # one-off order (routes/orders.py has no note step). Carried onto
+    # the order itself (rather than left on the originating
+    # SuggestedAction) so WDF's fulfillment notice can show it
+    # regardless of which flow produced the order.
+    note_text = db.Column(db.Text, nullable=True)
+
     fulfillment_method = db.Column(
         db.Enum("shipping", "pickup", "dropoff", name="order_fulfillment_method"), nullable=False
     )

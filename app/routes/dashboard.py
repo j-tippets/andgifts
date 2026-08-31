@@ -344,6 +344,7 @@ def approve_action(action_id):
             gift_catalog_item_id=action.suggested_gift_id,
             gift_name_snapshot=action.suggested_gift.name,
             gift_price_cents=action.suggested_gift.price_cents,
+            note_text=action.generated_message,
             fulfillment_method="shipping",
             shipping_address_snapshot=action.contact.formatted_shipping_address(),
             status="paid",
@@ -361,6 +362,7 @@ def approve_action(action_id):
             price_cents=action.suggested_gift.price_cents,
             note_text=action.generated_message,
             target_date=gift_timing["order_by"] if gift_timing else action.target_date,
+            product_id=action.suggested_gift_id,
         )
     elif action.action_type == "handwritten_note":
         detail = f"Handwritten note (${HANDWRITTEN_NOTE_PRICE_CENTS / 100:.2f})"
