@@ -11,6 +11,9 @@
   <table role="presentation" style="width:100%; border-collapse: collapse; margin-bottom:16px;">
     <tr><td style="padding:6px 0; color:#6B6459;">Contact</td><td style="text-align:right;">{{ order.contact.household_name }}</td></tr>
     <tr><td style="padding:6px 0; color:#6B6459;">Gift</td><td style="text-align:right;">{{ order.gift_name_snapshot }}</td></tr>
+    {% if order.note_text %}
+      <tr><td style="padding:6px 0; color:#6B6459; vertical-align:top;">Note</td><td style="text-align:right; white-space:pre-line;">{{ order.note_text }}</td></tr>
+    {% endif %}
     <tr><td style="padding:6px 0; color:#6B6459;">Delivery</td>
       <td style="text-align:right;">
         {% if order.fulfillment_method == 'shipping' %}Ship

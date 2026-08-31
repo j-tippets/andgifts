@@ -108,15 +108,22 @@ def generate_gift_note(contact, event, gift_item, prompt_hint=None):
     agent can attach to a physical gift or, later, send along with an
     e-gift-card delivery -- explaining what it's for. Same fallback
     contract as generate_message: real API call when a key is configured,
-    a plain template otherwise."""
+    a plain template otherwise.
+
+    event is optional -- None for a manually-placed one-off order
+    (routes/contacts.new_order), which isn't tied to any particular
+    timeline event the way an automated flow/suggestion always is.
+    The prompt and fallback both drop the "for their {event}" phrasing
+    entirely rather than inventing an occasion that isn't there."""
     client = _client()
     if client is not None:
         try:
             gift_desc = f" ({gift_item.name})" if gift_item else ""
+            occasion = f" for their {event.display_label()}" if event else ""
             prompt = (
                 f"Write a short, warm note (1-2 sentences) from a {_practice_type_label(contact)} "
-                f"professional to their client, {contact.household_name}, to go along with a gift{gift_desc} "
-                f"for their {event.display_label()}. {prompt_hint or ''}\n\n"
+                f"professional to their client, {contact.household_name}, to go along with a gift{gift_desc}"
+                f"{occasion}. {prompt_hint or ''}\n\n"
                 "Respond with ONLY the note text -- no preamble, no quotation marks."
             )
             response = client.messages.create(
@@ -130,7 +137,10 @@ def generate_gift_note(contact, event, gift_item, prompt_hint=None):
         except Exception:
             pass  # fall through to the template below
 
-    base = f"Congratulations on your {event.display_label()}, {contact.household_name}!"
+    if event:
+        base = f"Congratulations on your {event.display_label()}, {contact.household_name}!"
+    else:
+        base = f"Thinking of you, {contact.household_name}!"
     return f"{base} {prompt_hint}".strip() if prompt_hint else base
 
 

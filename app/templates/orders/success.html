@@ -30,6 +30,13 @@
       </table>
     </div>
 
+    {% if order.note_text %}
+    <div class="contact-card-section">
+      <h2>Note</h2>
+      <p style="margin:0; white-space:pre-line;">{{ order.note_text }}</p>
+    </div>
+    {% endif %}
+
     <div class="contact-card-section">
       <h2>{{ 'Shipping' if order.fulfillment_method == 'shipping' else 'Delivery' }}</h2>
       <table role="presentation" class="order-receipt-table">

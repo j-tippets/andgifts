@@ -51,8 +51,45 @@
       <p style="margin:4px 0 0;">1096 E 50 S, American Fork, UT</p>
     </div>
 
-    <button type="submit" class="btn btn-primary">Continue to payment</button>
+    <fieldset style="margin-top:20px;">
+      <legend>Add a note?</legend>
+
+      <label class="checkbox-chip" style="margin-bottom:10px;">
+        <input type="radio" name="note_option" value="none" checked
+               onchange="agToggleNoteFields('none');">
+        No note
+      </label>
+      <label class="checkbox-chip" style="margin-bottom:10px;">
+        <input type="radio" name="note_option" value="custom"
+               onchange="agToggleNoteFields('custom');">
+        Write my own
+      </label>
+      <label class="checkbox-chip">
+        <input type="radio" name="note_option" value="llm"
+               onchange="agToggleNoteFields('llm');">
+        Let AI write one
+      </label>
+    </fieldset>
+
+    <div class="field" id="note-custom-field" style="display:none;">
+      <label for="note_text">Note</label>
+      <textarea name="note_text" id="note_text" rows="3" maxlength="500" placeholder="e.g. Congratulations on the new home!"></textarea>
+    </div>
+
+    <div class="field" id="note-llm-field" style="display:none;">
+      <label for="note_hint">Anything the note should mention? <span class="subdued">(optional)</span></label>
+      <input type="text" name="note_hint" id="note_hint" maxlength="200" placeholder="e.g. their recent closing on Maple St">
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="margin-top:16px;">Continue to payment</button>
     <a href="{{ url_for('contacts.browse_gifts', contact_id=contact.id) }}" class="btn btn-ghost">Cancel</a>
   </form>
 </div>
+
+<script>
+  function agToggleNoteFields(option) {
+    document.getElementById('note-custom-field').style.display = option === 'custom' ? 'block' : 'none';
+    document.getElementById('note-llm-field').style.display = option === 'llm' ? 'block' : 'none';
+  }
+</script>
 {% endblock %}

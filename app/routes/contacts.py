@@ -13,6 +13,7 @@ from app.models import (
 from app.decorators import admin_required
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
 from app.services.catalog_helpers import filter_facets
+from app.services import llm
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -436,6 +437,23 @@ def new_order(contact_id, item_id):
 
         shipping_cost_cents = flat_rate if fulfillment_method == "shipping" else 0
 
+        # Same three note options the automated flow builder offers
+        # (see campaigns' add_note/note_text/use_llm_copy fields):
+        # none, a fixed message the agent writes themselves, or one the
+        # LLM generates -- see llm.generate_gift_note, called with no
+        # event since a one-off order isn't tied to any particular
+        # timeline event. Generated once, now, rather than at
+        # confirm/charge time, so the same text can be shown on the
+        # review screen before the card is ever charged.
+        note_option = request.form.get("note_option", "none")
+        if note_option == "custom":
+            note_text = request.form.get("note_text", "").strip() or None
+        elif note_option == "llm":
+            note_hint = request.form.get("note_hint", "").strip() or None
+            note_text = llm.generate_gift_note(contact, None, item, prompt_hint=note_hint)
+        else:
+            note_text = None
+
         order = Order(
             org_id=current_user.org_id,
             contact_id=contact.id,
@@ -443,6 +461,7 @@ def new_order(contact_id, item_id):
             gift_catalog_item_id=item.id,
             gift_name_snapshot=item.name,
             gift_price_cents=item.price_cents,
+            note_text=note_text,
             fulfillment_method=fulfillment_method,
             pickup_location=pickup_location if fulfillment_method == "pickup" else None,
             dropoff_location=contact.org.office_address if fulfillment_method == "dropoff" else None,
