@@ -1155,6 +1155,19 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .contact-card-section:first-child { padding-top: 0; margin-top: 0; border-top: none; }
 .contact-card-section h2 { font-size: 18px; margin-bottom: 12px; }
 
+/* ---- Order confirmation (receipt) ---- */
+.order-success-badge {
+  width: 64px; height: 64px; border-radius: 50%; background: var(--mint); color: var(--mint-ink);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+  animation: s-pop .5s var(--ease) both;
+}
+.order-success-meta { text-align: center; color: rgba(42,26,69,.55); font-size: 13px; margin: -8px 0 24px; }
+.order-receipt-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.order-receipt-table td { padding: 7px 0; }
+.order-receipt-table td:last-child { text-align: right; }
+.order-receipt-table tr.order-receipt-total td { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; font-weight: 700; font-size: 16px; }
+.order-receipt-label { color: rgba(42,26,69,.55); }
+
 .flow-card {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
   background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 18px;

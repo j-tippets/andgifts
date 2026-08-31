@@ -1,18 +1,79 @@
 {% extends "base.html" %}
-{% block title %}Order placed — Ag{% endblock %}
+{% block title %}Order confirmed — Ag{% endblock %}
 {% block content %}
-<div class="empty-state" style="border:1px solid var(--line); border-radius:20px; background:var(--paper-raised);">
-  <h3>🎁 Order placed</h3>
-  <p>
-    {{ order.gift_name_snapshot }} for {{ order.contact.household_name }} is on its way through checkout.
+<div style="max-width:520px; margin:0 auto;">
+
+  <div style="text-align:center;">
+    <div class="order-success-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="30" height="30"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h1 style="margin-bottom:4px;">Order confirmed</h1>
+    <p class="subdued" style="margin-bottom:2px;">
+      {{ order.gift_name_snapshot }} for {{ order.contact.household_name }}
+      {% if order.status == 'paid' %}is on its way.{% else %}is being processed.{% endif %}
+    </p>
+  </div>
+  <div class="order-success-meta">
+    Order #{{ order.id[:8]|upper }} &middot; {{ (order.paid_at or order.created_at).strftime('%b %-d, %Y \u00b7 %-I:%M %p') }}
+  </div>
+
+  <div class="contact-card">
+    <div class="contact-card-section">
+      <h2>Order summary</h2>
+      <table role="presentation" class="order-receipt-table">
+        <tr><td>{{ order.gift_name_snapshot }}</td><td>${{ '%.2f'|format(order.gift_price_cents / 100) }}</td></tr>
+        <tr>
+          <td class="order-receipt-label">Shipping</td>
+          <td>{{ '${:.2f}'.format(order.shipping_cost_cents / 100) if order.shipping_cost_cents else 'Free' }}</td>
+        </tr>
+        <tr class="order-receipt-total"><td>Total</td><td>${{ '%.2f'|format(order.total_cents / 100) }}</td></tr>
+      </table>
+    </div>
+
+    <div class="contact-card-section">
+      <h2>{{ 'Shipping' if order.fulfillment_method == 'shipping' else 'Delivery' }}</h2>
+      <table role="presentation" class="order-receipt-table">
+        <tr>
+          <td class="order-receipt-label">Method</td>
+          <td>
+            {% if order.fulfillment_method == 'shipping' %}Ship to contact
+            {% elif order.fulfillment_method == 'pickup' %}Pickup at {{ order.pickup_location or 'your shop' }}
+            {% else %}Drop off at {{ order.dropoff_location or 'your office' }}
+            {% endif %}
+          </td>
+        </tr>
+        {% if order.fulfillment_method == 'shipping' %}
+          <tr>
+            <td class="order-receipt-label">Address</td>
+            <td style="white-space:pre-line;">{{ order.shipping_address_snapshot or order.contact.formatted_shipping_address() }}</td>
+          </tr>
+        {% endif %}
+      </table>
+    </div>
+
+    <div class="contact-card-section">
+      <h2>Payment</h2>
+      <table role="presentation" class="order-receipt-table">
+        <tr>
+          <td class="order-receipt-label">{{ 'Charged to' if order.status == 'paid' else 'Charging' }}</td>
+          <td>{{ order.payment_method.display_label() if order.payment_method else 'No card on file' }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <p class="subdued" style="text-align:center; font-size:13px;">
     {% if order.status == 'paid' %}
-      A confirmation email is on its way to you.
+      A receipt has been emailed to you.
     {% else %}
-      We'll email you a confirmation as soon as the payment finishes processing (usually just a few seconds).
+      We'll email you a receipt as soon as the payment finishes processing (usually just a few seconds).
     {% endif %}
   </p>
-  <a href="{{ url_for('contacts.view_contact', contact_id=order.contact_id) }}" class="btn btn-primary">
-    Back to {{ order.contact.household_name }}
-  </a>
+
+  <div style="text-align:center; margin-top:8px;">
+    <a href="{{ url_for('contacts.view_contact', contact_id=order.contact_id) }}" class="btn btn-primary">
+      Back to {{ order.contact.household_name }}
+    </a>
+  </div>
 </div>
 {% endblock %}
