@@ -39,6 +39,21 @@ def _strip_json_fences(text):
     return text.strip()
 
 
+def _practice_type_label(contact):
+    """The org's assigned business type (Real Estate, Law Firm, Dental,
+    ...) -- see Org.practice_type / PracticeType -- so prompts don't
+    hard-code an assumption that every org is a real estate practice
+    (or that whoever's sending the gift holds a specific job title
+    like "agent", which isn't true for every seat on a team -- an
+    executive assistant sending on an agent's behalf, for instance).
+    Falls back to a neutral "business" when the org hasn't set a
+    practice type yet, or -- as with campaigns.preview_message's
+    made-up contact -- there's no real org attached at all."""
+    org = getattr(contact, "org", None)
+    practice_type = getattr(org, "practice_type", None) if org else None
+    return practice_type.name if practice_type else "business"
+
+
 def pick_gift(contact, candidates):
     """Returns (GiftCatalogItem or None, reasoning str or None) -- the
     best gift for this contact from `candidates` (already filtered by
@@ -55,7 +70,7 @@ def pick_gift(contact, candidates):
                 for c in candidates
             )
             prompt = (
-                "A real estate agent's client has these interests: "
+                f"A {_practice_type_label(contact)} professional's client has these interests: "
                 f"{interests}.\n\nChoose the single best gift for them from this list:\n{options}\n\n"
                 "Respond with ONLY a JSON object, no markdown formatting, no preamble:\n"
                 '{"item_id": "<the id>", "reasoning": "<one short sentence explaining why>"}'
@@ -99,8 +114,8 @@ def generate_gift_note(contact, event, gift_item, prompt_hint=None):
         try:
             gift_desc = f" ({gift_item.name})" if gift_item else ""
             prompt = (
-                "Write a short, warm note (1-2 sentences) from a real estate agent to "
-                f"their client, {contact.household_name}, to go along with a gift{gift_desc} "
+                f"Write a short, warm note (1-2 sentences) from a {_practice_type_label(contact)} "
+                f"professional to their client, {contact.household_name}, to go along with a gift{gift_desc} "
                 f"for their {event.display_label()}. {prompt_hint or ''}\n\n"
                 "Respond with ONLY the note text -- no preamble, no quotation marks."
             )
@@ -126,8 +141,8 @@ def generate_message(prompt_hint, contact, event):
     if client is not None:
         try:
             prompt = (
-                "Write a short, warm message (2-3 sentences) from a real estate agent "
-                f"to their client, {contact.household_name}, about their "
+                f"Write a short, warm message (2-3 sentences) from a {_practice_type_label(contact)} "
+                f"professional to their client, {contact.household_name}, about their "
                 f"{event.display_label()}. {prompt_hint or ''}\n\n"
                 "Respond with ONLY the message text -- no preamble, no quotation marks."
             )
