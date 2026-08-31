@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "catalog/_macros.html" import search_and_filters, gift_card %}
 {% block title %}Send a gift — {{ contact.household_name }} — Ag{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -8,49 +9,18 @@
 </div>
 
 {% if items %}
-  <div class="catalog-grid">
-    {% for item in items %}
-      <div class="catalog-card">
-        <div class="catalog-card-media">
-          {% if item.image_url %}
-            <img src="{{ item.image_url }}" alt="">
-          {% else %}
-            <div class="avatar avatar-placeholder">🎁</div>
-          {% endif %}
-        </div>
-        <div class="catalog-card-body">
-          <h4>{{ item.name }}</h4>
-          <p class="price">${{ '%.2f'|format(item.price_cents / 100) }}</p>
+  {{ search_and_filters(all_themes, min_price, max_price, min_lead, max_lead) }}
 
-          {% if item.description or item.tag_list() %}
-            <details>
-              <summary><span class="catalog-caret">▸</span> What's inside</summary>
-              {% if item.description %}
-                <ul class="catalog-card-desc">
-                  {% for line in item.description.split(';') %}
-                    <li>{{ line.strip() }}</li>
-                  {% endfor %}
-                </ul>
-              {% endif %}
-              {% if item.tag_list() %}
-                <div>
-                  {% for tag in item.tag_list() %}
-                    <span class="tag-chip">{{ tag }}</span>
-                  {% endfor %}
-                </div>
-              {% endif %}
-            </details>
-          {% endif %}
-
-          <div class="catalog-card-actions">
-            <a href="{{ url_for('contacts.new_order', contact_id=contact.id, item_id=item.id) }}" class="btn btn-primary btn-small">
-              Order this gift
-            </a>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
+  <div id="catalog-items">
+    <div class="catalog-grid">
+      {% for item in items %}
+        {{ gift_card(item, url_for('contacts.new_order', contact_id=contact.id, item_id=item.id)) }}
+      {% endfor %}
+    </div>
+    <p id="catalog-no-results" class="subdued" style="display:none;">No items match your search.</p>
   </div>
+
+  <script src="{{ versioned_static('js/catalog-filters.js') }}" defer></script>
 {% else %}
   <div class="empty-state">
     <h3>No gifts available</h3>

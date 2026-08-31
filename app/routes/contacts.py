@@ -12,6 +12,7 @@ from app.models import (
 )
 from app.decorators import admin_required
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
+from app.services.catalog_helpers import filter_facets
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -392,11 +393,23 @@ def update_contact_preferences(contact_id):
 def browse_gifts(contact_id):
     """Catalog browse scoped to a single contact, for placing a one-off
     gift order right now instead of waiting on the automated suggestion
-    engine."""
+    engine. Offers the same search/theme/price/lead-time filtering as
+    the org-wide Gift Catalog page (see catalog.list_catalog) -- see
+    catalog/_macros.html, shared by both templates."""
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     items = current_user.org.available_catalog_items()
-    return render_template("orders/browse.html", contact=contact, items=items)
+    all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
+    return render_template(
+        "orders/browse.html",
+        contact=contact,
+        items=items,
+        all_themes=all_themes,
+        min_price=min_price,
+        max_price=max_price,
+        min_lead=min_lead,
+        max_lead=max_lead,
+    )
 
 
 @contacts_bp.route("/<contact_id>/order/<item_id>", methods=["GET", "POST"])

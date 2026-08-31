@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import GiftCatalogItem, OrgCatalogSelection, Contact
 from app.decorators import admin_required
+from app.services.catalog_helpers import filter_facets
 
 catalog_bp = Blueprint("catalog", __name__, url_prefix="/catalog")
 
@@ -18,16 +19,7 @@ def list_catalog():
         .all()
     )
     selected_ids = org.selected_item_ids() if org.catalog_curated else {i.id for i in items}
-
-    if items:
-        price_dollars = [i.price_cents // 100 for i in items]
-        lead_times = [i.lead_time_days for i in items]
-        min_price, max_price = min(price_dollars), max(price_dollars)
-        min_lead, max_lead = min(lead_times), max(lead_times)
-    else:
-        min_price = max_price = min_lead = max_lead = 0
-
-    all_themes = sorted({tag for i in items for tag in i.tag_list()}, key=str.lower)
+    all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
 
     return render_template(
         "catalog/list.html",
