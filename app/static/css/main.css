@@ -714,13 +714,14 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .s-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
 
 .s-category-label {
-  display: inline-block;
+  display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.04em; color: var(--evergreen-light);
   background: var(--paper); border: 1px solid var(--line);
   border-radius: 999px; padding: 2px 9px;
   margin-bottom: 8px;
 }
+.s-category-label svg { width: 12px; height: 12px; flex-shrink: 0; }
 /* Inline usage next to an existing status pill (list view's default
    suggestion row) rather than stacked above -- no bottom margin there. */
 .list-row .s-category-label { margin-bottom: 0; }
