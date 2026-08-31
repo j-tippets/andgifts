@@ -267,6 +267,7 @@
           <div class="empty-badge">&#127881;</div>
           <h3>You're all caught up</h3>
           <p>New suggestions will show up here as timeline events approach.</p>
+          <a href="{{ url_for('dashboard.index', agent_id=viewing_agent.id if viewing_agent else None) }}" class="btn btn-primary" style="margin-top:4px;">Check for new tasks</a>
         </div>
       </div>
     </div>
@@ -403,6 +404,7 @@
       <div class="empty-state" id="listViewEmptyState" hidden>
         <h3>You're all caught up</h3>
         <p>New suggestions will show up here as timeline events approach.</p>
+        <a href="{{ url_for('dashboard.index', agent_id=viewing_agent.id if viewing_agent else None) }}" class="btn btn-primary" style="margin-top:4px;">Check for new tasks</a>
       </div>
     </div>
   </div>
@@ -410,6 +412,7 @@
   <div class="empty-state">
     <h3>Nothing needs your attention right now</h3>
     <p>New suggestions will show up here as timeline events approach.</p>
+    <a href="{{ url_for('dashboard.index', agent_id=viewing_agent.id if viewing_agent else None) }}" class="btn btn-primary" style="margin-top:4px;">Check for new tasks</a>
   </div>
 {% endif %}
 
