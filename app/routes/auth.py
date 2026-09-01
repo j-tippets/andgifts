@@ -7,6 +7,7 @@ from markupsafe import Markup, escape
 from app.extensions import db, limiter
 from app.models import User
 from app.services.email import send_verification_email, send_password_reset_email
+from app.services.analytics import queue_event
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -114,6 +115,7 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(request.form["password"]):
             if login_user(user):
+                queue_event("login", method="email")
                 return redirect(url_for("dashboard.index"))
             # Password was correct but the account can't log in yet --
             # give a specific reason instead of a generic error.

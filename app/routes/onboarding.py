@@ -49,6 +49,7 @@ from app.extensions import db, limiter
 from app.models import User, Org, PracticeType
 from app.services.email import send_team_invite_email
 from app.services.org_events import record_org_event
+from app.services.analytics import queue_event
 from app.services.practice_types import seed_org_milestones
 from app.services.stripe_client import get_stripe
 from app.services import org_billing
@@ -464,6 +465,8 @@ def _finish_signup(org, user):
     that's already done."""
     org.onboarding_step = "done"
     record_org_event(org, "signup", None, org.tier)
+    queue_event("sign_up", method="email", user_role=user.role)
+    queue_event("org_created", org_tier=org.tier)
     db.session.commit()
 
     session.pop("onboarding", None)

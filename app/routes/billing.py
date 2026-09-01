@@ -12,11 +12,12 @@ allowed to change org.tier as a result of a payment event -- same
 "webhook is truth, browser redirect is just a courtesy" pattern
 orders.py already uses for one-off gift checkout.
 """
-from flask import Blueprint, redirect, url_for, flash, current_app
+from flask import Blueprint, redirect, url_for, flash, current_app, request
 from flask_login import login_required, current_user
 
 from app.decorators import admin_required
 from app.services.stripe_client import get_stripe
+from app.services.analytics import queue_event
 
 billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 
@@ -86,7 +87,8 @@ def checkout(tier):
             client_reference_id=org.id,
             metadata={"org_id": org.id, "tier": tier},
             subscription_data={"metadata": {"org_id": org.id, "tier": tier}},
-            success_url=url_for("billing.checkout_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
+            success_url=url_for("billing.checkout_success", _external=True)
+            + f"?session_id={{CHECKOUT_SESSION_ID}}&tier={tier}",
             cancel_url=url_for("billing.checkout_cancelled", _external=True),
         )
     except Exception as e:
@@ -105,6 +107,15 @@ def checkout_success():
     the only thing allowed to actually flip the tier, since a browser
     hitting this URL proves nothing on its own (see the module
     docstring, and orders.order_success for the identical pattern)."""
+    tier = request.args.get("tier")
+    if tier:
+        # Fired here rather than from the webhook (which is the actual
+        # source of truth for org.tier) because there's no browser
+        # context to attach a GTM event to inside a webhook. This can
+        # race the webhook by a few seconds -- acceptable for now,
+        # but if that ever matters, move this to a server-side GA4
+        # Measurement Protocol call from the webhook handler instead.
+        queue_event("subscription_upgraded", to_tier=tier)
     flash("Payment received -- your plan will update within a few seconds.", "success")
     return redirect(url_for("settings.billing"))
 

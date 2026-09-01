@@ -163,7 +163,20 @@
       credentials: 'same-origin',
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
       body: new FormData(form)
-    }).then(function (res) { return res.ok; }).catch(function () { return false; });
+    }).then(function (res) {
+      if (!res.ok) return false;
+      // Approve responds with JSON (see dashboard.approve_action) since
+      // a fetch()'d redirect's HTML -- including any queued GTM/GA4
+      // dataLayer.push script -- never gets inserted into the page.
+      // Push whatever it queued ourselves instead.
+      return res.json().then(function (data) {
+        (data.events || []).forEach(function (evt) {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push(evt);
+        });
+        return !!data.ok;
+      }).catch(function () { return true; }); // non-JSON body: treat as success, no events lost silently
+    }).catch(function () { return false; });
   }
 
   // Same as submitApprove, generalized to any form -- used for
@@ -177,7 +190,16 @@
       credentials: 'same-origin',
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
       body: new FormData(form)
-    }).then(function (res) { return res.ok; }).catch(function () { return false; });
+    }).then(function (res) {
+      if (!res.ok) return false;
+      return res.json().then(function (data) {
+        (data.events || []).forEach(function (evt) {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push(evt);
+        });
+        return !!data.ok;
+      }).catch(function () { return true; });
+    }).catch(function () { return false; });
   }
 
   function flyOut(card, direction, kind) {

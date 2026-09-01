@@ -9,6 +9,7 @@ from app.services.stripe_client import get_stripe
 from app.services.payments import charge_saved_card
 from app.services.email import send_order_confirmation, send_wdf_fulfillment_notice
 from app.services.org_events import record_org_event
+from app.services.analytics import queue_event
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -43,6 +44,7 @@ def collect_address(order_id):
             flash("Fill in the full address to continue.", "error")
             return redirect(url_for("orders.collect_address", order_id=order.id))
         db.session.commit()
+        queue_event("add_shipping_info", order_id=order.id)
         return redirect(url_for("orders.choose_payment", order_id=order.id))
 
     return render_template("orders/address.html", order=order, contact=contact)
@@ -69,6 +71,7 @@ def choose_payment(order_id):
             return redirect(url_for("orders.choose_payment", order_id=order.id))
         order.payment_method_id = card.id
         db.session.commit()
+        queue_event("add_payment_info", order_id=order.id, payment_type="saved_card")
         return redirect(url_for("orders.confirm_order", order_id=order.id))
 
     return render_template(
@@ -92,12 +95,19 @@ def confirm_order(order_id):
         return redirect(url_for("orders.choose_payment", order_id=order.id))
 
     if request.method == "POST":
+        queue_event(
+            "checkout_submitted",
+            items=[{"item_id": order.gift_catalog_item_id, "item_name": order.gift_name_snapshot,
+                     "price": order.gift_price_cents / 100}],
+            value=order.total_cents / 100,
+        )
         success, intent_id, error = charge_saved_card(
             current_user, order.total_cents,
             description=f"{order.gift_name_snapshot} for {order.contact.household_name}",
             metadata={"order_id": order.id},
         )
         if not success:
+            queue_event("gift_order_failed", failure_reason=error)
             flash(f"Payment failed: {error}", "error")
             return redirect(url_for("orders.confirm_order", order_id=order.id))
 
@@ -127,6 +137,14 @@ def confirm_order(order_id):
             ),
         ))
         db.session.commit()
+        queue_event(
+            "purchase",
+            transaction_id=order.id,
+            value=order.total_cents / 100,
+            currency="USD",
+            items=[{"item_id": order.gift_catalog_item_id, "item_name": order.gift_name_snapshot,
+                     "price": order.gift_price_cents / 100}],
+        )
         send_order_confirmation(order)
         send_wdf_fulfillment_notice(order)
         return redirect(url_for("orders.order_success", order_id=order.id))

@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation, Order, User
@@ -15,6 +15,7 @@ from app.services.filler_actions import (
 from app.services.email import send_flow_action_email, send_wdf_fulfillment_notice, send_wdf_handwritten_note_notice
 from app.services.payments import charge_saved_card
 from app.services.wdf_client import send_wdf_webhook
+from app.services.analytics import queue_event, pop_pending_events
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -322,6 +323,7 @@ def approve_action(action_id):
         if not success:
             if _is_ajax_request():
                 return "", 400
+            queue_event("gift_order_failed", failure_reason=error)
             flash(f"Can't approve — payment failed: {error}", "error")
             return redirect(request.referrer or url_for("dashboard.index"))
 
@@ -354,6 +356,15 @@ def approve_action(action_id):
         )
         db.session.add(order)
         db.session.flush()  # order.id, for the notice and for linking ActionLog below
+        queue_event("gift_approved", action_type="gift", gift_price_tier=action.suggested_gift.price_cents / 100)
+        queue_event(
+            "purchase",
+            transaction_id=order.id,
+            value=order.gift_price_cents / 100,
+            currency="USD",
+            items=[{"item_id": action.suggested_gift_id, "item_name": action.suggested_gift.name,
+                     "price": action.suggested_gift.price_cents / 100}],
+        )
         send_wdf_fulfillment_notice(order)
         gift_timing = action.gift_timing
         send_wdf_webhook(
@@ -392,10 +403,20 @@ def approve_action(action_id):
         if not success:
             if _is_ajax_request():
                 return "", 400
+            queue_event("gift_order_failed", failure_reason=error)
             flash(f"Can't approve — payment failed: {error}", "error")
             return redirect(request.referrer or url_for("dashboard.index"))
 
         note_payment_intent_id = intent_id
+        queue_event("gift_approved", action_type="handwritten_note", gift_price_tier=HANDWRITTEN_NOTE_PRICE_CENTS / 100)
+        queue_event(
+            "purchase",
+            transaction_id=action.id,
+            value=HANDWRITTEN_NOTE_PRICE_CENTS / 100,
+            currency="USD",
+            items=[{"item_id": "handwritten_note", "item_name": "Handwritten note",
+                     "price": HANDWRITTEN_NOTE_PRICE_CENTS / 100}],
+        )
         send_wdf_handwritten_note_notice(action, billing_agent)
         send_wdf_webhook(
             "handwritten_note", action.id, action.contact, billing_agent,
@@ -430,6 +451,9 @@ def approve_action(action_id):
             delivered, error = send_flow_action_email(action, current_user.full_name, sender_user=current_user)
             delivery_status = "sent" if delivered else "failed"
             delivery_error = error
+            queue_event("email_approved", action_type="email")
+            if delivered:
+                queue_event("email_sent", action_type="email")
         else:
             delivery_status = "blocked"
             delivery_error = block_reason
@@ -468,6 +492,7 @@ def approve_action(action_id):
         suggested_action_id=action.id,
     ))
     db.session.commit()
+    queue_event("suggested_action_approved", action_type=action.action_type)
     if delivery_status == "failed":
         flash(f"Approved, but the email didn't send automatically: {delivery_error}", "error")
     else:
@@ -483,6 +508,13 @@ def approve_action(action_id):
                 "success",
             )
 
+    # today.js's fetch()-based approve never inserts this response's HTML
+    # into the page, so a queued dataLayer event rendered in base.html
+    # would silently never fire -- return it as JSON instead and let
+    # today.js push it into dataLayer directly (see submitApprove).
+    if _is_ajax_request():
+        return jsonify(ok=True, events=pop_pending_events())
+
     return redirect(request.referrer or url_for("dashboard.index"))
 
 
@@ -493,6 +525,9 @@ def skip_action(action_id):
     action.status = "skipped"
     action.resolved_at = datetime.utcnow()
     db.session.commit()
+    queue_event("suggested_action_ignored", action_type=action.action_type)
+    if _is_ajax_request():
+        return jsonify(ok=True, events=pop_pending_events())
     return redirect(request.referrer or url_for("dashboard.index"))
 
 
@@ -522,6 +557,9 @@ def delete_action(action_id):
     ))
     db.session.commit()
     flash("Deleted. It won't reappear for this occurrence, but the contact can still qualify next time.", "success")
+    queue_event("suggested_action_deleted", action_type=action.action_type)
+    if _is_ajax_request():
+        return jsonify(ok=True, events=pop_pending_events())
     return redirect(request.referrer or url_for("dashboard.index"))
 
 

@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}Ag{% endblock %}</title>
 
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-WQVQNDV');</script>
+  <!-- End Google Tag Manager -->
+
+  {# Server-queued events (see app/services/analytics.py) -- popped and
+     rendered on every page load, including auth pages before the
+     nav/session block below, so a redirect straight to a "logged out"
+     page (e.g. after account_deleted) still fires its event. #}
+  {% for evt in pop_pending_events() %}
+  <script>window.dataLayer = window.dataLayer || []; window.dataLayer.push({{ evt|tojson }});</script>
+  {% endfor %}
+
   <!-- PWA / Capacitor: installability + home-screen identity -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
   <meta name="theme-color" content="#2A1A45">
@@ -22,6 +38,11 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WQVQNDV"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
   {% if current_user.is_authenticated %}
   {% set nav_items = [
       ('dashboard.index', url_for('dashboard.index'), 'Today', 'today'),

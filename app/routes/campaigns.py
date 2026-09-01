@@ -10,6 +10,7 @@ from app.models.timeline import CustomEventType
 from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str
 from app.services import suggestion_engine
 from app.services import campaign_rules
+from app.services.analytics import queue_event
 from app.services import llm
 
 campaigns_bp = Blueprint("campaigns", __name__, url_prefix="/campaigns")
@@ -518,6 +519,7 @@ def add_from_recipe(recipe_id):
     db.session.add(campaign)
     db.session.commit()
 
+    queue_event("flow_added_from_library", template_name=recipe.name)
     flash(f"Added \u201c{campaign.name}\u201d to your flows.", "success")
     return redirect(url_for("campaigns.list_campaigns"))
 
@@ -605,6 +607,8 @@ def toggle_active(campaign_id):
 
     campaign.is_active = not campaign.is_active
     db.session.commit()
+    if not campaign.is_active:
+        queue_event("flow_paused", flow_id=campaign.id)
     flash(f"\u201c{campaign.name}\u201d is now {'active' if campaign.is_active else 'paused'}.", "success")
     # Pause/Resume is submitted from both the flows list (list.html's
     # kebab menu) and a single flow's own detail page -- a flag rather
@@ -692,6 +696,7 @@ def campaign_new():
         _save_recipe_from_form(recipe)
         db.session.add(recipe)
         db.session.commit()
+        queue_event("flow_completed", flow_source="custom", scope="library")
         flash(f"Added \u201c{recipe.name}\u201d to your agency's Flow Library.", "success")
         return redirect(url_for("campaigns.recipe_book"))
 
@@ -705,6 +710,7 @@ def campaign_new():
     db.session.add(campaign)
     db.session.commit()
 
+    queue_event("flow_completed", flow_source="custom", scope="personal")
     flash(f"Created \u201c{campaign.name}\u201d.", "success")
     return redirect(url_for("campaigns.list_campaigns"))
 

@@ -73,6 +73,13 @@ def create_app(config_name=None):
         return f"{url_for('static', filename=filename)}?v={app.config['STATIC_ASSET_VERSION']}"
 
     @app.template_global()
+    def pop_pending_events():
+        # See app/services/analytics.py -- base.html calls this on
+        # every render to flush server-queued GTM/GA4 events.
+        from app.services.analytics import pop_pending_events as _pop
+        return _pop()
+
+    @app.template_global()
     def condition_value_less_operators():
         # Single source of truth stays campaign_rules.VALUE_LESS_OPERATORS --
         # exposed as a template global (rather than threaded through every

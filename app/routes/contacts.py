@@ -14,6 +14,7 @@ from app.decorators import admin_required
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
 from app.services.catalog_helpers import filter_facets
 from app.services import llm
+from app.services.analytics import queue_event
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -169,6 +170,7 @@ def new_contact():
     ))
 
     db.session.commit()
+    queue_event("contact_added", creation_method="manual")
     flash(f"Added {contact.household_name}.", "success")
 
     if org.is_on_trial() and org.contact_count() == 5:
@@ -469,6 +471,12 @@ def new_order(contact_id, item_id):
         )
         db.session.add(order)
         db.session.commit()
+
+        queue_event(
+            "add_to_cart",
+            items=[{"item_id": item.id, "item_name": item.name, "price": item.price_cents / 100}],
+            value=order.gift_price_cents / 100,
+        )
 
         if fulfillment_method == "shipping" and not contact.has_shipping_address:
             return redirect(url_for("orders.collect_address", order_id=order.id))
