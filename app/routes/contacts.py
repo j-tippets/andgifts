@@ -310,6 +310,7 @@ def view_contact(contact_id):
         .limit(15)
         .all()
     )
+    action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
 
     # Badge data for the Timeline: for each event, the most recent completed
     # action that was triggered by it (if any), so the template can show a
@@ -344,6 +345,7 @@ def view_contact(contact_id):
         pending_actions=pending_actions,
         recent_activity=recent_activity,
         completed_by_event_id=completed_by_event_id,
+        action_log_count=action_log_count,
     )
 
 
@@ -501,7 +503,6 @@ def edit_contact(contact_id):
     if request.method == "GET":
         spouse = next((p for p in contact.people if p.household_role == "spouse"), None)
         custom_values = {v.field_definition_id: v.value for v in contact.custom_values}
-        action_log_count = ActionLog.query.filter_by(contact_id=contact.id).count()
         org_members = (
             User.query.filter_by(org_id=current_user.org_id, status="active")
             .order_by(User.first_name, User.last_name)
@@ -516,7 +517,6 @@ def edit_contact(contact_id):
             spouse=spouse,
             custom_fields=custom_fields,
             custom_values=custom_values,
-            action_log_count=action_log_count,
             org_members=org_members,
         )
 
@@ -649,7 +649,7 @@ def delete_contact(contact_id):
             f"with this contact.",
             "error",
         )
-        return redirect(url_for("contacts.edit_contact", contact_id=contact.id))
+        return redirect(url_for("contacts.view_contact", contact_id=contact.id))
 
     # ActionLog.suggested_action_id is a FK to suggested_actions.id, so the
     # ActionLog rows (child) must be cleared before the SuggestedAction rows

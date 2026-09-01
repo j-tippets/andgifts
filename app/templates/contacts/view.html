@@ -175,34 +175,6 @@
       {% endfor %}
     </div>
   {% endif %}
-
-  <div class="contact-card-section">
-    <details>
-      <summary style="cursor:pointer; font-weight:600; color:var(--evergreen); font-family:var(--font-display); font-size:17px;">Recent activity</summary>
-      <div style="margin-top:14px;">
-        {% if recent_activity %}
-          {% for entry in recent_activity %}
-            <div style="margin-bottom:10px;">
-              <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
-              <div class="subdued">{{ entry.summary }}</div>
-              {% if entry.action == 'action_deleted' and entry.suggested_action and entry.suggested_action.status == 'deleted' %}
-                <form id="dashboard-undelete-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
-                  <button class="btn btn-tertiary btn-small" type="submit">Undelete</button>
-                </form>
-              {% elif entry.action == 'action_approved' and entry.suggested_action and entry.suggested_action.status == 'approved' %}
-                <form id="dashboard-unapprove-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.unapprove_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;"
-                      onsubmit="return confirm('Undo this approval? It goes back to pending so you can edit it, and its spend/tax record is removed.');">
-                  <button class="btn btn-tertiary btn-small" type="submit">Undo approval</button>
-                </form>
-              {% endif %}
-            </div>
-          {% endfor %}
-        {% else %}
-          <p class="subdued">No activity recorded yet.</p>
-        {% endif %}
-      </div>
-    </details>
-  </div>
 </div>
 
 <div class="contact-card">
@@ -339,6 +311,62 @@
     {% endif %}
   </form>
 </div>
+
+<div class="contact-card">
+  <div class="contact-card-section">
+    <details>
+      <summary style="cursor:pointer; font-weight:600; color:var(--evergreen); font-family:var(--font-display); font-size:17px;">Recent activity</summary>
+      <div style="margin-top:14px;">
+        {% if recent_activity %}
+          {% for entry in recent_activity %}
+            <div style="margin-bottom:10px;">
+              <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
+              <div class="subdued">{{ entry.summary }}</div>
+              {% if entry.action == 'action_deleted' and entry.suggested_action and entry.suggested_action.status == 'deleted' %}
+                <form id="dashboard-undelete-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
+                  <button class="btn btn-tertiary btn-small" type="submit">Undelete</button>
+                </form>
+              {% elif entry.action == 'action_approved' and entry.suggested_action and entry.suggested_action.status == 'approved' %}
+                <form id="dashboard-unapprove-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.unapprove_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;"
+                      onsubmit="return confirm('Undo this approval? It goes back to pending so you can edit it, and its spend/tax record is removed.');">
+                  <button class="btn btn-tertiary btn-small" type="submit">Undo approval</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="subdued">No activity recorded yet.</p>
+        {% endif %}
+      </div>
+    </details>
+  </div>
+</div>
+
+<div class="danger-zone" style="margin-top:28px; text-align:center;">
+  <a href="#" onclick="document.getElementById('delete-contact-dialog').showModal(); return false;" class="subdued" style="color:var(--danger); text-decoration:underline; font-size:13px;">Delete the contact</a>
+</div>
+
+<dialog id="delete-contact-dialog" class="confirm-dialog">
+  <form id="contacts-delete-contact-{{ contact.id }}" method="post" action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}">
+    <h2 style="color:var(--danger);">Delete {{ contact.household_name }}?</h2>
+    <p class="subdued">This permanently removes the contact and their timeline. This can't be undone.</p>
+    {% if action_log_count %}
+      <div class="flash flash-error">
+        {{ contact.household_name }} has {{ action_log_count }} sent-gift record{{ 's' if action_log_count != 1 else '' }} on file
+        (used for spend/tax tracking). Deleting this contact will delete {{ 'those records' if action_log_count != 1 else 'that record' }} too.
+      </div>
+      <label class="checkbox-chip" style="margin-bottom:12px;">
+        <input type="checkbox" name="confirm_delete_history" value="1" required>
+        I understand — delete {{ contact.household_name }}'s {{ action_log_count }} sent-gift record{{ 's' if action_log_count != 1 else '' }} along with this contact
+      </label><br>
+    {% endif %}
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn btn-ghost"
+              onclick="document.getElementById('delete-contact-dialog').close();">Cancel</button>
+      <button type="submit" class="btn btn-danger">Delete contact</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
   (function () {
