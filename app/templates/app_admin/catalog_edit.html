@@ -7,7 +7,7 @@
   </div>
 </div>
 
-<form method="POST">
+<form method="POST" id="app-admin-catalog-edit-form">
   <fieldset>
     <legend>Basics</legend>
     <div class="field">
@@ -60,7 +60,7 @@
       Makes it available for suggestions and manual sends again, across every agency.
     {% endif %}
   </p>
-  <form method="post" action="{{ url_for('app_admin.catalog_toggle_active', item_id=item.id) }}">
+  <form id="app-admin-catalog-toggle-active-{{ item.id }}" method="post" action="{{ url_for('app_admin.catalog_toggle_active', item_id=item.id) }}">
     <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if item.is_active else 'Reactivate' }}</button>
   </form>
 </div>
@@ -74,7 +74,7 @@
     </div>
   {% else %}
     <p class="subdued">Permanently remove {{ item.name }} from the global catalog. This affects every agency and can't be undone.</p>
-    <form method="post" action="{{ url_for('app_admin.catalog_delete', item_id=item.id) }}"
+    <form id="app-admin-catalog-delete-{{ item.id }}" method="post" action="{{ url_for('app_admin.catalog_delete', item_id=item.id) }}"
           onsubmit="return confirm('Permanently delete {{ item.name }} from the GLOBAL catalog? Every agency loses access to it. This cannot be undone.');">
       <button type="submit" class="btn btn-danger">Delete item</button>
     </form>

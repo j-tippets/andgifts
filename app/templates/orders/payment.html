@@ -13,7 +13,7 @@
   {% elif not cards %}
     <p class="subdued">No cards saved yet — you'll need one on file to place this order.</p>
   {% else %}
-    <form method="post" style="margin-bottom:20px;">
+    <form method="post" style="margin-bottom:20px;" id="orders-choose-payment-form">
       {% for card in cards %}
         <label class="checkbox-chip" style="margin-bottom:10px;">
           <input type="radio" name="payment_method_id" value="{{ card.id }}" {{ 'checked' if card.is_default else '' }}>
@@ -28,7 +28,7 @@
   {% endif %}
 
   {% if stripe_configured %}
-    <form method="POST" action="{{ url_for('settings.add_payment_method') }}">
+    <form method="POST" action="{{ url_for('settings.add_payment_method') }}" id="orders-add-payment-method-form">
       <input type="hidden" name="next_url" value="{{ url_for('orders.choose_payment', order_id=order.id, _external=True) }}">
       <button type="submit" class="btn btn-ghost btn-small">+ Add a new card</button>
     </form>

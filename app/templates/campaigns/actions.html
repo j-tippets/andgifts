@@ -22,7 +22,7 @@
 </div>
 
 {% if agents is not none %}
-  <form method="get" style="margin-bottom:20px; display:flex; align-items:center; gap:10px;">
+  <form method="get" style="margin-bottom:20px; display:flex; align-items:center; gap:10px;" id="campaigns-actions-filter-form">
     <label for="agent-filter" class="subdued"><small>Agent</small></label>
     <select name="agent" id="agent-filter" onchange="this.form.submit()">
       <option value="" {{ 'selected' if not selected_agent }}>Everyone</option>

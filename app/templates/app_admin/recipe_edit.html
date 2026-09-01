@@ -7,7 +7,7 @@
   </div>
 </div>
 
-<form method="POST">
+<form method="POST" id="app-admin-recipe-edit-form">
   <fieldset>
     <legend>Basics</legend>
     <div class="field">
@@ -138,7 +138,7 @@
       Makes it available in the library again.
     {% endif %}
   </p>
-  <form method="post" action="{{ url_for('app_admin.recipe_toggle_active', recipe_id=recipe.id) }}">
+  <form id="app-admin-recipe-toggle-active-{{ recipe.id }}" method="post" action="{{ url_for('app_admin.recipe_toggle_active', recipe_id=recipe.id) }}">
     <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }}</button>
   </form>
 </div>

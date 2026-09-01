@@ -28,7 +28,7 @@
       <div style="display:flex; gap:8px;">
         <details>
           <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
-          <form method="post" action="{{ url_for('contacts.edit_badge', badge_id=badge.id) }}" style="margin-top:10px;">
+          <form id="contacts-edit-badge-{{ badge.id }}" method="post" action="{{ url_for('contacts.edit_badge', badge_id=badge.id) }}" style="margin-top:10px;">
             <div class="field-row">
               <div class="field"><label>Badge name</label><input type="text" name="label" value="{{ badge.label }}" required></div>
               <div class="field"><label>Color</label>{{ badge_color_swatches(badge.color) }}</div>
@@ -36,7 +36,7 @@
             <button type="submit" class="btn btn-primary btn-small">Save</button>
           </form>
         </details>
-        <form method="post" action="{{ url_for('contacts.delete_badge', badge_id=badge.id) }}"
+        <form id="contacts-delete-badge-{{ badge.id }}" method="post" action="{{ url_for('contacts.delete_badge', badge_id=badge.id) }}"
               onsubmit="return confirm('Remove your ' + {{ badge.label|tojson }} + ' badge from every contact? This cannot be undone.');">
           <button type="submit" class="btn btn-ghost btn-small">Remove</button>
         </form>
@@ -52,7 +52,7 @@
     <h3>Add a personal badge</h3>
     <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
   </div>
-  <form method="post" action="{{ url_for('contacts.new_badge') }}">
+  <form method="post" action="{{ url_for('contacts.new_badge') }}" id="contacts-new-badge-form">
     <div class="field">
       <label>Badge name</label>
       <input type="text" name="label" placeholder="e.g. Past Client Referral Source" required>

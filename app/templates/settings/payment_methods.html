@@ -24,11 +24,11 @@
       </div>
       <div style="display:flex; gap:8px;">
         {% if not card.is_default %}
-          <form method="POST" action="{{ url_for('settings.make_default_payment_method', payment_method_id=card.id) }}">
+          <form id="settings-make-default-payment-method-{{ card.id }}" method="POST" action="{{ url_for('settings.make_default_payment_method', payment_method_id=card.id) }}">
             <button type="submit" class="btn btn-ghost btn-small">Make default</button>
           </form>
         {% endif %}
-        <form method="POST" action="{{ url_for('settings.remove_payment_method', payment_method_id=card.id) }}"
+        <form id="settings-remove-payment-method-{{ card.id }}" method="POST" action="{{ url_for('settings.remove_payment_method', payment_method_id=card.id) }}"
               onsubmit="return confirm('Remove {{ card.display_label() }}? This can\'t be undone.');">
           <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Remove</button>
         </form>
@@ -39,7 +39,7 @@
   <p class="subdued">No cards saved yet. Add one below — you'll need at least one for automated flows to be able to purchase gifts.</p>
 {% endif %}
 
-<form method="POST" action="{{ url_for('settings.add_payment_method') }}" style="margin-top:16px;">
+<form method="POST" action="{{ url_for('settings.add_payment_method') }}" style="margin-top:16px;" id="settings-add-payment-method-form">
   <button type="submit" class="btn btn-primary" {{ 'disabled' if not stripe_configured else '' }}>+ Add a card</button>
 </form>
 {% endblock %}

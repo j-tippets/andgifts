@@ -1,6 +1,6 @@
 {% macro timeline_event_form(action_url, event_types, event=none, submit_label='Add event', button_class='btn-primary', form_id=none) %}
   {% set fid = form_id or (event.id if event else 'new') %}
-  <form method="POST" action="{{ action_url }}" style="margin-top:14px;">
+  <form method="POST" action="{{ action_url }}" style="margin-top:14px;" id="timeline-event-form-{{ fid }}">
     <div class="field">
       <label>Event type</label>
       <select name="event_type" class="timeline-event-type" data-label-target="timeline-label-field-{{ fid }}">

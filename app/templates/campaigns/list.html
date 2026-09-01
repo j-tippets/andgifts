@@ -65,7 +65,7 @@
     <div class="flow-card-menu s-card-menu">
       <button type="button" class="s-kebab-btn" aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#8942;</button>
       <div class="s-card-menu-dropdown" hidden>
-        <form method="POST" action="{{ url_for('campaigns.toggle_active', campaign_id=c.id) }}">
+        <form id="campaigns-toggle-active-{{ c.id }}" method="POST" action="{{ url_for('campaigns.toggle_active', campaign_id=c.id) }}">
           <button class="s-menu-delete" type="submit" style="color:var(--ink);">{{ 'Pause' if c.is_active else 'Resume' }}</button>
         </form>
         <a href="{{ url_for('campaigns.campaign_edit', campaign_id=c.id) }}" class="s-menu-delete" style="display:block; text-decoration:none;">Edit</a>

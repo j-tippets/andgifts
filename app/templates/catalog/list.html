@@ -10,7 +10,7 @@
   <div class="flash" style="background:#EDEAE3; color:#6B6459; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <span>Custom selection — {{ selected_ids|length }} of {{ items|length }} items available.</span>
     {% if current_user.is_admin %}
-      <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;">
+      <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;" id="catalog-reset-to-all-form">
         <button type="submit" class="btn btn-ghost btn-small">Reset to all items</button>
       </form>
     {% endif %}

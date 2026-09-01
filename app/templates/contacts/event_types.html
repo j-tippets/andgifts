@@ -34,11 +34,11 @@
             <button type="button" class="btn btn-ghost btn-small edit-toggle" aria-label="Rename {{ item.label }}">Edit</button>
             <button type="button" class="btn btn-ghost btn-small edit-save" style="display:none;">Save</button>
             <button type="button" class="btn btn-ghost btn-small edit-cancel" style="display:none;">Cancel</button>
-            <form method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=item.id) }}"
+            <form id="contacts-delete-event-type-{{ item.id }}" method="post" action="{{ url_for('contacts.delete_event_type', event_type_id=item.id) }}"
                   onsubmit="return confirm('Remove the {{ item.label }} milestone? Timeline events and flows already using it keep working, it just won\'t be offered as an option going forward.');">
               <button type="submit" class="btn btn-ghost btn-small">Remove</button>
             </form>
-            <form method="post" action="{{ url_for('contacts.edit_event_type', event_type_id=item.id) }}" class="edit-label-form" style="display:none;">
+            <form id="contacts-edit-event-type-{{ item.id }}" method="post" action="{{ url_for('contacts.edit_event_type', event_type_id=item.id) }}" class="edit-label-form" style="display:none;">
               <input type="hidden" name="label" class="edit-label-hidden">
             </form>
           {% endif %}
@@ -191,7 +191,7 @@
       <h3>Add a personal milestone</h3>
       <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
     </div>
-    <form method="post" action="{{ url_for('contacts.new_event_type') }}">
+    <form method="post" action="{{ url_for('contacts.new_event_type') }}" id="contacts-new-event-type-form">
       <input type="hidden" name="scope" value="personal">
       <div class="field">
         <label>Milestone name</label>

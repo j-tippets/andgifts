@@ -8,7 +8,7 @@
   </div>
 </div>
 
-<form method="POST">
+<form method="POST" id="campaigns-library-edit-form">
   <div class="form-section">
     <h3 class="form-section-title">Basics</h3>
     <div class="field">
@@ -186,7 +186,7 @@
       Makes it available in the library again.
     {% endif %}
   </p>
-  <form method="post" action="{{ url_for('campaigns.library_toggle_active', recipe_id=recipe.id) }}">
+  <form id="campaigns-library-toggle-active-{{ recipe.id }}" method="post" action="{{ url_for('campaigns.library_toggle_active', recipe_id=recipe.id) }}">
     <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }}</button>
   </form>
 </div>
@@ -194,7 +194,7 @@
 <div class="form-section" style="border-color: var(--danger);">
   <h3 class="form-section-title" style="color: var(--danger);">Delete this flow</h3>
   <p class="subdued" style="margin-bottom:12px;">Permanently removes it from your agency's Flow Library. Anyone who already added their own copy keeps it, unaffected.</p>
-  <form method="post" action="{{ url_for('campaigns.library_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete this local flow? Agents who already added it keep their own copy.');">
+  <form id="campaigns-library-delete-{{ recipe.id }}" method="post" action="{{ url_for('campaigns.library_delete', recipe_id=recipe.id) }}" onsubmit="return confirm('Delete this local flow? Agents who already added it keep their own copy.');">
     <button type="submit" class="btn btn-danger">Delete</button>
   </form>
 </div>

@@ -9,7 +9,7 @@
   {% include "onboarding/_step_dots.html" %}
   <h1 style="margin-bottom:8px;">What's your line of work?</h1>
   <p class="subdued" style="margin-bottom:20px;">We'll set you up with a starting toolkit for it — you can rename, remove, or add to it anytime.</p>
-  <form method="POST">
+  <form method="POST" id="onboarding-company-type-form">
     <div class="field">
       <select name="practice_type_id" required>
         <option value="" disabled selected>Choose one…</option>

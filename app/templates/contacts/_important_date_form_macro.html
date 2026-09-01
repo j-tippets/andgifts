@@ -1,4 +1,5 @@
 {% macro important_date_form(action_url, event=none, submit_label='Add important date', button_class='btn-primary') %}
+  {% set iid = event.id if event else 'new' %}
   {# Deliberately no Event type dropdown and no "Important Date"/"Repeats
      annually" checkboxes here (see _timeline_form_macro.html for the
      ordinary Timeline-milestone version that still has those) --
@@ -6,7 +7,7 @@
      the route always sets is_important_date=1 via the hidden field
      below, always annual, and the label is freeform text rather than
      picked from the org's managed milestone list. #}
-  <form method="POST" action="{{ action_url }}">
+  <form method="POST" action="{{ action_url }}" id="important-date-form-{{ iid }}">
     <input type="hidden" name="is_important_date" value="1">
     <div class="field">
       <label>What is it?</label>

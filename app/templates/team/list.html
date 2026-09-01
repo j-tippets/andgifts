@@ -32,7 +32,7 @@
         </a>
         <div style="display:flex; align-items:center; gap:10px;">
           <span class="status-pill status-pending">Pending</span>
-          <form method="POST" action="{{ url_for('team.resend_invite', user_id=member.id) }}">
+          <form id="team-resend-invite-{{ member.id }}" method="POST" action="{{ url_for('team.resend_invite', user_id=member.id) }}">
             <button type="submit" class="btn btn-ghost btn-small">Resend invite</button>
           </form>
         </div>

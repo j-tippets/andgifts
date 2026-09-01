@@ -5,7 +5,7 @@
    which reads the same element ids/classes these macros render. #}
 
 {% macro search_and_filters(all_themes, min_price, max_price, min_lead, max_lead) %}
-  <form method="get" class="search-wrap" onsubmit="return false;">
+  <form method="get" class="search-wrap" onsubmit="return false;" id="catalog-search-form">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="text" id="catalog-search" placeholder="Search by name or tag&hellip;">
   </form>

@@ -43,7 +43,7 @@
       {% if badges %}
         <details style="display:inline-block; vertical-align:middle;">
           <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">+ Add Badge</summary>
-          <form method="post" action="{{ url_for('contacts.update_contact_badges', contact_id=contact.id) }}"
+          <form id="contacts-update-contact-badges-{{ contact.id }}" method="post" action="{{ url_for('contacts.update_contact_badges', contact_id=contact.id) }}"
                 style="margin-top:10px; padding:14px; background:var(--paper-raised); border:1px solid var(--line); border-radius:8px;">
             <div class="badge-toggle-list">
               {% for badge in badges %}
@@ -107,7 +107,7 @@
 
         <details class="s-edit-disclosure">
           <summary class="s-edit-toggle">{{ 'Note' if a.action_type == 'gift' else 'Edit' }}</summary>
-          <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=a.id) }}" class="s-form s-form-edit">
+          <form id="dashboard-edit-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.edit_action', action_id=a.id) }}" class="s-form s-form-edit">
             <textarea name="generated_message" class="s-edit-textarea" rows="3"
                       placeholder="{{ 'Add a note about what this gift is for…' if a.action_type == 'gift' else 'Write your own ' ~ a.action_type.replace('_', ' ') ~ '…' }}">{{ a.generated_message or '' }}</textarea>
             <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if a.action_type == 'gift' else 'text' }}</button>
@@ -115,14 +115,14 @@
         </details>
 
         <div style="display:flex; gap:8px; margin-top:14px;">
-          <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=a.id) }}">
+          <form id="dashboard-approve-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.approve_action', action_id=a.id) }}">
             <button class="btn btn-primary btn-small" type="submit"
                     {% if blocked_reason %}disabled title="{{ blocked_reason }}"{% endif %}>Accept</button>
           </form>
-          <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=a.id) }}">
+          <form id="dashboard-skip-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.skip_action', action_id=a.id) }}">
             <button class="btn btn-skip btn-small" type="submit">Ignore</button>
           </form>
-          <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=a.id) }}"
+          <form id="dashboard-delete-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.delete_action', action_id=a.id) }}"
                 onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but this contact can still qualify next time -- you can also undelete it from the recent activity below.');">
             <button class="btn btn-delete btn-small" type="submit">Delete</button>
           </form>
@@ -186,11 +186,11 @@
               <div class="timeline-date">{{ entry.created_at.strftime('%b %-d, %Y %-I:%M %p') }} &middot; {{ entry.actor_name_snapshot }}</div>
               <div class="subdued">{{ entry.summary }}</div>
               {% if entry.action == 'action_deleted' and entry.suggested_action and entry.suggested_action.status == 'deleted' %}
-                <form method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
+                <form id="dashboard-undelete-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
                   <button class="btn btn-tertiary btn-small" type="submit">Undelete</button>
                 </form>
               {% elif entry.action == 'action_approved' and entry.suggested_action and entry.suggested_action.status == 'approved' %}
-                <form method="POST" action="{{ url_for('dashboard.unapprove_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;"
+                <form id="dashboard-unapprove-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.unapprove_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;"
                       onsubmit="return confirm('Undo this approval? It goes back to pending so you can edit it, and its spend/tax record is removed.');">
                   <button class="btn btn-tertiary btn-small" type="submit">Undo approval</button>
                 </form>
@@ -227,7 +227,7 @@
             url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=date.id),
             event=date, submit_label='Save changes'
           ) }}
-          <form method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=date.id) }}"
+          <form id="contacts-delete-timeline-event-{{ contact.id }}" method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=date.id) }}"
                 style="margin-top:8px;"
                 onsubmit="return confirm('Delete this important date? This can\'t be undone.');">
             <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete</button>
@@ -279,7 +279,7 @@
             url_for('contacts.edit_timeline_event', contact_id=contact.id, event_id=event.id),
             event_types, event=event, submit_label='Save changes'
           ) }}
-          <form method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=event.id) }}"
+          <form id="contacts-delete-timeline-event-{{ contact.id }}" method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=event.id) }}"
                 style="margin-top:8px;"
                 onsubmit="return confirm('Delete this timeline event? This can\'t be undone.');">
             <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete event</button>

@@ -32,7 +32,7 @@
       <td style="padding:10px 0 0;">Total</td><td style="text-align:right; padding:10px 0 0;">${{ '%.2f'|format(order.total_cents / 100) }}</td></tr>
   </table>
 
-  <form method="post">
+  <form method="post" id="orders-confirm-order-form">
     <button type="submit" class="btn btn-primary">Charge ${{ '%.2f'|format(order.total_cents / 100) }} and place order</button>
     <a href="{{ url_for('orders.choose_payment', order_id=order.id) }}" class="btn btn-ghost">Back</a>
   </form>

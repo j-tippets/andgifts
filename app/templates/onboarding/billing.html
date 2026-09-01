@@ -40,12 +40,12 @@
     {% endif %}
 
     {% if stripe_configured %}
-      <form method="POST" action="{{ url_for('onboarding.billing_start') }}">
+      <form method="POST" action="{{ url_for('onboarding.billing_start') }}" id="onboarding-billing-start-form">
         <button class="btn btn-primary" type="submit" style="width:100%;">Start my free trial</button>
       </form>
     {% else %}
       <p class="subdued">Billing setup isn't available right now — you can add it later from Settings → Billing.</p>
-      <form method="POST" action="{{ url_for('onboarding.billing_start') }}">
+      <form id="onboarding-billing-start" method="POST" action="{{ url_for('onboarding.billing_start') }}">
         <button class="btn btn-ghost" type="submit" style="width:100%; margin-top:8px;">Continue</button>
       </form>
     {% endif %}

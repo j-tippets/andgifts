@@ -90,10 +90,10 @@
               </p>
 
               <div class="s-card-footer">
-                <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-dismiss">
+                <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-dismiss" id="dismiss-flow-rec-{{ s.id }}">
                   <button class="s-skip-link" type="submit">Not now</button>
                 </form>
-                <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-build">
+                <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-build" id="accept-flow-rec-{{ s.id }}">
                   <button class="btn btn-primary s-approve-btn" type="submit">Build this flow</button>
                 </form>
               </div>
@@ -121,10 +121,10 @@
               <p class="s-card-reason">{{ s.reason_text }}</p>
 
               <div class="s-card-footer">
-                <form method="POST" action="{{ url_for('dashboard.dismiss_filler_action', filler_key=s.key) }}" class="s-form s-form-dismiss">
+                <form method="POST" action="{{ url_for('dashboard.dismiss_filler_action', filler_key=s.key) }}" class="s-form s-form-dismiss" id="dismiss-filler-{{ s.key }}">
                   <button class="s-skip-link" type="submit">Not now</button>
                 </form>
-                <form method="POST" action="{{ url_for('dashboard.go_filler_action', filler_key=s.key) }}" class="s-form s-form-build">
+                <form method="POST" action="{{ url_for('dashboard.go_filler_action', filler_key=s.key) }}" class="s-form s-form-build" id="go-filler-{{ s.key }}">
                   <button class="btn btn-primary s-approve-btn" type="submit">{{ s.cta_label }}</button>
                 </form>
               </div>
@@ -222,7 +222,7 @@
                   <summary class="s-message-edit-toggle" aria-label="Edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                   </summary>
-                  <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+                  <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit" id="edit-action-{{ s.id }}">
                     <textarea name="generated_message" class="s-edit-textarea" rows="4"
                               placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
                     <button class="btn btn-tertiary btn-small" type="submit">Save</button>
@@ -234,7 +234,7 @@
             <div class="s-card-expires">Expires {{ s.expires_on.strftime('%b %-d') }} if not actioned</div>
 
             <div class="s-card-footer">
-              <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip">
+              <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip" id="skip-action-{{ s.id }}">
                 <button class="s-skip-link" type="submit">Skip for now</button>
               </form>
 
@@ -250,7 +250,7 @@
               <div class="s-card-menu">
                 <button type="button" class="s-kebab-btn" aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#8942;</button>
                 <div class="s-card-menu-dropdown" hidden>
-                  <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
+                  <form id="dashboard-delete-action-{{ s.id }}" method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
                         onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
                     <button class="s-menu-delete" type="submit">Delete</button>
                   </form>
@@ -290,10 +290,10 @@
               {% endif %}
             </div>
             <div class="list-row-actions">
-              <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}">
+              <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}" id="list-accept-flow-rec-{{ s.id }}">
                 <button class="btn btn-primary btn-small" type="submit">Build this flow</button>
               </form>
-              <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}">
+              <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}" id="list-dismiss-flow-rec-{{ s.id }}">
                 <button class="btn btn-skip btn-small" type="submit">Not now</button>
               </form>
             </div>
@@ -309,10 +309,10 @@
               <div class="sub">{{ s.reason_text }}</div>
             </div>
             <div class="list-row-actions">
-              <form method="POST" action="{{ url_for('dashboard.go_filler_action', filler_key=s.key) }}">
+              <form method="POST" action="{{ url_for('dashboard.go_filler_action', filler_key=s.key) }}" id="list-go-filler-{{ s.key }}">
                 <button class="btn btn-primary btn-small" type="submit">{{ s.cta_label }}</button>
               </form>
-              <form method="POST" action="{{ url_for('dashboard.dismiss_filler_action', filler_key=s.key) }}">
+              <form method="POST" action="{{ url_for('dashboard.dismiss_filler_action', filler_key=s.key) }}" id="list-dismiss-filler-{{ s.key }}">
                 <button class="btn btn-skip btn-small" type="submit">Not now</button>
               </form>
             </div>
@@ -375,7 +375,7 @@
 
             <details class="s-edit-disclosure">
               <summary class="s-edit-toggle">{{ 'Note' if s.action_type == 'gift' else 'Edit' }}</summary>
-              <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit">
+              <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit" id="list-edit-action-{{ s.id }}">
                 <textarea name="generated_message" class="s-edit-textarea" rows="3"
                           placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
                 <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
@@ -388,10 +388,10 @@
                 <button class="btn btn-primary btn-small" type="submit">Approve</button>
               </form>
             {% endif %}
-            <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}">
+            <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" id="list-skip-action-{{ s.id }}">
               <button class="btn btn-skip btn-small" type="submit">Deny</button>
             </form>
-            <form method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}"
+            <form id="dashboard-delete-action-{{ s.id }}" method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}"
                   onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
               <button class="btn btn-delete btn-small" type="submit">Delete</button>
             </form>

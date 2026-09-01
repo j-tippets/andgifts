@@ -52,7 +52,7 @@
            subscription instead of modifying this one). #}
         <a href="{{ url_for('settings.billing') }}" class="btn {{ 'btn-primary' if t.highlight else 'btn-ghost' }}" style="width:100%; justify-content:center;">Switch plan</a>
       {% else %}
-        <form method="POST" action="{{ url_for('billing.checkout', tier=t.tier_key) }}">
+        <form method="POST" action="{{ url_for('billing.checkout', tier=t.tier_key) }}" id="pricing-checkout-form-{{ t.tier_key }}">
           <button type="submit" class="btn {{ 'btn-primary' if t.highlight else 'btn-ghost' }}" style="width:100%; justify-content:center;">{{ t.cta_label }}</button>
         </form>
       {% endif %}

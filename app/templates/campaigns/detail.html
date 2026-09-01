@@ -48,7 +48,7 @@
       Makes this flow active again.
     {% endif %}
   </p>
-  <form method="post" action="{{ url_for('campaigns.toggle_active', campaign_id=campaign.id) }}">
+  <form id="campaigns-toggle-active-{{ campaign.id }}" method="post" action="{{ url_for('campaigns.toggle_active', campaign_id=campaign.id) }}">
     <input type="hidden" name="next" value="detail">
     <button type="submit" class="btn btn-ghost">{{ 'Pause' if campaign.is_active else 'Resume' }}</button>
   </form>
@@ -58,7 +58,7 @@
   <h3 class="form-section-title" style="color: var(--danger);">Delete this flow</h3>
   {% if can_delete %}
     <p class="subdued" style="margin-bottom:12px;">Permanently removes this flow. Its past suggestions and sends stay in history.</p>
-    <form method="post" action="{{ url_for('campaigns.campaign_delete', campaign_id=campaign.id) }}" onsubmit="return confirm('Delete this flow?');">
+    <form id="campaigns-campaign-delete-{{ campaign.id }}" method="post" action="{{ url_for('campaigns.campaign_delete', campaign_id=campaign.id) }}" onsubmit="return confirm('Delete this flow?');">
       <button type="submit" class="btn btn-danger">Delete</button>
     </form>
   {% else %}
