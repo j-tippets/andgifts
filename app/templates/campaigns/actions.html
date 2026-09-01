@@ -12,7 +12,7 @@
     <p class="subdued" style="margin-top:4px;">
       <small>
         {% if agents is not none %}
-          Every action across the agency &mdash; use the filter below to narrow it to one agent.
+          Every action across the agency &mdash; use the filter below to narrow it to one team member.
         {% else %}
           Your actions across all your flows.
         {% endif %}
@@ -23,7 +23,7 @@
 
 {% if agents is not none %}
   <form method="get" style="margin-bottom:20px; display:flex; align-items:center; gap:10px;" id="campaigns-actions-filter-form">
-    <label for="agent-filter" class="subdued"><small>Agent</small></label>
+    <label for="agent-filter" class="subdued"><small>Team Member</small></label>
     <select name="agent" id="agent-filter" onchange="this.form.submit()">
       <option value="" {{ 'selected' if not selected_agent }}>Everyone</option>
       <option value="unassigned" {{ 'selected' if selected_agent == 'unassigned' }}>Unassigned / shared</option>
@@ -56,7 +56,7 @@
               {% endif %}
             </div>
             {% if agents is not none %}
-              <div class="subdued">Agent: {{ a.owning_agent.full_name if a.owning_agent else 'Unassigned / shared' }}</div>
+              <div class="subdued">Team Member: {{ a.owning_agent.full_name if a.owning_agent else 'Unassigned / shared' }}</div>
             {% endif %}
             <div class="subdued">{{ a.reason_text }}</div>
           </div>
@@ -90,7 +90,7 @@
               {% endif %}
             </div>
             {% if agents is not none %}
-              <div class="subdued">Agent: {{ entry.owning_agent.full_name if entry.owning_agent else 'Unassigned / shared' }}</div>
+              <div class="subdued">Team Member: {{ entry.owning_agent.full_name if entry.owning_agent else 'Unassigned / shared' }}</div>
             {% endif %}
             {% if entry.detail %}<div class="subdued">{{ entry.detail }}</div>{% endif %}
             {{ delivery_status_pill(entry) }}

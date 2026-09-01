@@ -7,12 +7,12 @@
     <p class="subdued">{{ org.name }} &middot; {{ org.seat_count() }}{% if org.limit_for('seats') %} / {{ org.limit_for('seats') }}{% endif %} seats used</p>
   </div>
   {% if can_add_seat %}
-    <a href="{{ url_for('team.new_member') }}" class="btn btn-primary">+ Add agent</a>
+    <a href="{{ url_for('team.new_member') }}" class="btn btn-primary">+ Add team member</a>
   {% endif %}
 </div>
 
 {% if not can_add_seat %}
-  <div class="flash flash-error">You've reached your plan's seat limit. Upgrade to add more agents.</div>
+  <div class="flash flash-error">You've reached your plan's seat limit. Upgrade to add more team members.</div>
 {% endif %}
 
 {% if members %}
@@ -57,7 +57,7 @@
 {% else %}
   <div class="empty-state">
     <h3>No teammates yet</h3>
-    <p>Add your first agent to start collaborating.</p>
+    <p>Add your first team member to start collaborating.</p>
   </div>
 {% endif %}
 {% endblock %}

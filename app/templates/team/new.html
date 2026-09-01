@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Add agent — Ag{% endblock %}
+{% block title %}Add team member — Ag{% endblock %}
 {% block content %}
-<h1 style="margin-bottom:24px;">Add an agent</h1>
+<h1 style="margin-bottom:24px;">Add a team member</h1>
 
 <form method="post" id="team-new-agent-form">
   <fieldset>
@@ -15,7 +15,7 @@
       <div class="field">
         <label>Role</label>
         <select name="role">
-          <option value="agent">Agent</option>
+          <option value="agent">Team Member</option>
           <option value="admin">Admin</option>
         </select>
       </div>
@@ -70,7 +70,7 @@
     })();
   </script>
 
-  <button type="submit" class="btn btn-primary">Add agent</button>
+  <button type="submit" class="btn btn-primary">Add team member</button>
   <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">Cancel</a>
 </form>
 {% endblock %}

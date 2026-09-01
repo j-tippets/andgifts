@@ -80,7 +80,7 @@
           <div class="subdued"><small>You can't change your own role.</small></div>
         {% else %}
           <select name="role">
-            <option value="agent" {{ 'selected' if member.role == 'agent' else '' }}>Agent</option>
+            <option value="agent" {{ 'selected' if member.role == 'agent' else '' }}>Team Member</option>
             <option value="admin" {{ 'selected' if member.role == 'admin' else '' }}>Admin</option>
           </select>
         {% endif %}

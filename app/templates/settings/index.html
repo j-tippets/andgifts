@@ -10,12 +10,12 @@
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
     <a href="{{ url_for('contacts.manage_fields') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
       <strong>Custom fields</strong>
-      <span class="subdued"><small>Add fields for your own contacts, or &mdash; if you're an admin &mdash; fields every agent in {{ current_user.org.name }} sees.</small></span>
+      <span class="subdued"><small>Add fields for your own contacts, or &mdash; if you're an admin &mdash; fields every team member in {{ current_user.org.name }} sees.</small></span>
     </a>
 
     <a href="{{ url_for('contacts.manage_event_types') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
       <strong>Milestones</strong>
-      <span class="subdued"><small>Add your own timeline milestones on top of the built-ins, or &mdash; if you're an admin &mdash; ones every agent shares.</small></span>
+      <span class="subdued"><small>Add your own timeline milestones on top of the built-ins, or &mdash; if you're an admin &mdash; ones every team member shares.</small></span>
     </a>
 
     <a href="{{ url_for('contacts.manage_badges') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
@@ -31,7 +31,7 @@
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
     <a href="{{ url_for('settings.sender_identity') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
       <strong>Sender email</strong>
-      <span class="subdued"><small>The address flow emails send from on behalf of your agents.</small></span>
+      <span class="subdued"><small>The address flow emails send from on behalf of your team.</small></span>
     </a>
   </div>
 </section>
@@ -60,7 +60,7 @@
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
     <a href="{{ url_for('team.list_members') }}" class="contact-row" style="flex-direction:column; align-items:flex-start; gap:8px; text-decoration:none;">
       <strong>Team</strong>
-      <span class="subdued"><small>Invite agents, manage roles and access.</small></span>
+      <span class="subdued"><small>Invite team members, manage roles and access.</small></span>
     </a>
   </div>
 </section>

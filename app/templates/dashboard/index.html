@@ -13,7 +13,7 @@
       <form method="GET" class="agent-filter-form" id="agentFilterForm">
         <label class="agent-filter-label" for="agentFilterSelect">Viewing</label>
         <select name="agent_id" id="agentFilterSelect" class="agent-filter-select" onchange="this.form.submit()">
-          <option value="">All agents</option>
+          <option value="">All team members</option>
           {% for agent in agents %}
             <option value="{{ agent.id }}" {{ 'selected' if viewing_agent and viewing_agent.id == agent.id else '' }}>{{ agent.full_name }}</option>
           {% endfor %}
@@ -76,7 +76,7 @@
                 </div>
                 <span class="s-badge">{{ s.contact_count }} contact{{ 's' if s.contact_count != 1 else '' }}</span>
                 {% if current_user.is_admin %}
-                  <span class="s-agent-badge" title="Assigned agent">{{ s.user.full_name }}</span>
+                  <span class="s-agent-badge" title="Assigned team member">{{ s.user.full_name }}</span>
                 {% endif %}
               </div>
 
@@ -163,7 +163,7 @@
                 <h3>{{ s.contact.household_name }}</h3>
               </a>
               {% if current_user.is_admin %}
-                <span class="s-agent-badge" title="Assigned agent">{{ s.owning_agent.full_name if s.owning_agent else 'Shared' }}</span>
+                <span class="s-agent-badge" title="Assigned team member">{{ s.owning_agent.full_name if s.owning_agent else 'Shared' }}</span>
               {% endif %}
             </div>
 
