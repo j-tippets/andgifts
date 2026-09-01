@@ -11,6 +11,7 @@ from app.decorators import admin_required
 from app.services.storage import upload_avatar, delete_avatar, StorageError
 from app.services.email import send_team_invite_email, send_account_created_email
 from app.services import org_billing
+from app.services.analytics import queue_event
 
 team_bp = Blueprint("team", __name__, url_prefix="/team")
 
@@ -42,7 +43,7 @@ def new_member():
         if not org.can_add_seat():
             flash(
                 f"You've hit your plan's seat limit ({org.limit_for('seats')}). "
-                f"Upgrade your plan to add another agent.",
+                f"Upgrade your plan to add another team member.",
                 "error",
             )
             return redirect(url_for("team.list_members"))
@@ -113,6 +114,7 @@ def new_member():
 
         invite_link = url_for("team.accept_invite", token=user.invite_token, _external=True)
         delivered = send_team_invite_email(user, invite_link, current_user.full_name)
+        queue_event("team_member_invited", org_id=org.id)
         if delivered:
             flash(f"Invite sent to {email}.", "success")
         else:
@@ -146,6 +148,7 @@ def accept_invite(token):
         db.session.commit()
 
         login_user(user)
+        queue_event("team_member_joined", org_id=user.org_id)
         flash(f"Welcome to {user.org.name}!", "success")
         return redirect(url_for("dashboard.index"))
 

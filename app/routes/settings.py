@@ -8,6 +8,7 @@ from app.models.org import Org, slugify_sender_local_part
 from app.models import PaymentMethod
 from app.services.stripe_client import get_stripe
 from app.services import payments
+from app.services.analytics import queue_event
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
@@ -162,6 +163,7 @@ def add_payment_method_return():
 
     saved = payments.save_payment_method_from_setup_intent(current_user, session.setup_intent)
     if saved:
+        queue_event("payment_method_added", context="checkout" if "/orders/" in next_url else "settings")
         flash(f"{saved.display_label()} saved.", "success")
     else:
         flash("Couldn't confirm the card was saved — try adding it again.", "error")

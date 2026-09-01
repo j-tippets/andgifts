@@ -630,6 +630,7 @@ def edit_contact(contact_id):
         _log_contact_activity(contact, "updated", "Contact details updated.")
 
     db.session.commit()
+    queue_event("contact_edited")
     flash(f"Updated {contact.household_name}.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
 
@@ -677,6 +678,7 @@ def delete_contact(contact_id):
 
     db.session.delete(contact)
     db.session.commit()
+    queue_event("contact_deleted")
     if photo_url_to_delete:
         delete_contact_photo(photo_url_to_delete)
     flash(f"{name} has been deleted.", "success")
@@ -735,6 +737,7 @@ def new_field():
     )
     db.session.add(field)
     db.session.commit()
+    queue_event("custom_field_added", field_type=field.field_type, scope=field.scope)
     flash(f"Added the '{field.label}' field.", "success")
     return redirect(url_for("contacts.manage_fields"))
 
@@ -826,6 +829,7 @@ def new_badge():
     )
     db.session.add(badge)
     db.session.commit()
+    queue_event("custom_badge_added")
     flash(f"Added the '{badge.label}' badge.", "success")
     return redirect(url_for("contacts.manage_badges"))
 
@@ -970,6 +974,7 @@ def new_event_type():
     )
     db.session.add(event_type)
     db.session.commit()
+    queue_event("custom_milestone_added", scope=event_type.scope)
     flash(f"Added the '{event_type.label}' milestone.", "success")
     return redirect(url_for("contacts.manage_event_types"))
 
@@ -1116,6 +1121,10 @@ def add_timeline_event(contact_id):
         f"Added timeline event: {event.display_label()} on {event.event_date.isoformat()}.",
     )
     db.session.commit()
+    if event.is_important_date:
+        queue_event("important_date_added", date_type=event.event_type)
+    else:
+        queue_event("timeline_event_added")
     flash("Timeline event added.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
 

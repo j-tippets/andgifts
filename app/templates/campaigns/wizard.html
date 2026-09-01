@@ -293,6 +293,16 @@
     var TOTAL_STEPS = 4;
     var currentPane = 1;
 
+    {% if preview_results is not defined %}
+    // Initial page render already shows step 1 in the markup, so there's
+    // no wizardGoImpl(1) call to hang this on the way every later step
+    // gets tracked -- push it once explicitly. Skipped on the
+    // preview-round-trip case below, which jumps straight to step 4
+    // (Review) without the person ever really seeing step 1 this load.
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'flow_wizard_step_viewed', step_number: 1, step_label: 'when' });
+    {% endif %}
+
     // A condition row left with a field/operator chosen but no value
     // typed in doesn't error server-side -- it saves as a real
     // condition that can never match anyone (e.g. "interest tag is ''"),
@@ -332,6 +342,18 @@
         dot.classList.toggle('done', i < n);
         label.classList.toggle('active', i === n);
       }
+      // Steps are client-side pane toggles, not page loads, so GA4 has
+      // no way to see this on its own -- push it ourselves. step_label
+      // matches the wizard's own dots (When/Who/What/Review) rather
+      // than a raw number, so it reads the same in reports as it does
+      // on screen.
+      var stepLabels = { 1: 'when', 2: 'who', 3: 'what', 4: 'review' };
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: 'flow_wizard_step_viewed',
+        step_number: n,
+        step_label: stepLabels[n] || String(n)
+      });
     }
     window.wizardGo = wizardGoImpl;
 
