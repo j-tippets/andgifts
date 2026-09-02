@@ -23,6 +23,7 @@
   </div>
 
   <form method="post" id="order-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset>
       <legend>How should this get to them?</legend>
 

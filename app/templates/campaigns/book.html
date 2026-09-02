@@ -43,6 +43,7 @@
         <div class="flow-actions">
           {% if recipe.is_active %}
             <form id="campaigns-add-from-recipe-{{ recipe.id }}" method="post" action="{{ url_for('campaigns.add_from_recipe', recipe_id=recipe.id) }}" style="margin:0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn btn-primary btn-small">Add to my campaigns</button>
             </form>
           {% endif %}

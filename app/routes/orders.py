@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, current_app, abort, redirect, url_for, flash
 from flask_login import login_required, current_user
 
-from app.extensions import db
+from app.extensions import db, csrf
 from app.models import Order, ActionLog, ContactAuditLog, Org, PaymentMethod
 from app.services.stripe_client import get_stripe
 from app.services.payments import charge_saved_card
@@ -190,7 +190,15 @@ def _tier_for_price_id(price_id):
 
 
 @orders_bp.route("/webhooks/stripe", methods=["POST"])
+@csrf.exempt
 def stripe_webhook():
+    # Stripe's servers POST here with no session/cookie at all, so
+    # there's no CSRF token to check -- this is legitimately exempt,
+    # not a shortcut. It's not unprotected, though: construct_event
+    # below verifies Stripe's own request signature (Stripe-Signature
+    # header + STRIPE_WEBHOOK_SECRET), which is the actual defense
+    # against a forged request here, same role a CSRF token plays for
+    # a same-origin browser form.
     stripe = get_stripe()
     if not stripe:
         abort(503)

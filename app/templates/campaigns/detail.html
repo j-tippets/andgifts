@@ -49,6 +49,7 @@
     {% endif %}
   </p>
   <form id="campaigns-toggle-active-{{ campaign.id }}" method="post" action="{{ url_for('campaigns.toggle_active', campaign_id=campaign.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="detail">
     <button type="submit" class="btn btn-ghost">{{ 'Pause' if campaign.is_active else 'Resume' }}</button>
   </form>
@@ -59,6 +60,7 @@
   {% if can_delete %}
     <p class="subdued" style="margin-bottom:12px;">Permanently removes this flow. Its past suggestions and sends stay in history.</p>
     <form id="campaigns-campaign-delete-{{ campaign.id }}" method="post" action="{{ url_for('campaigns.campaign_delete', campaign_id=campaign.id) }}" onsubmit="return confirm('Delete this flow?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger">Delete</button>
     </form>
   {% else %}

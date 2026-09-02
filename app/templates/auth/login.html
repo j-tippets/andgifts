@@ -7,6 +7,7 @@
   </div>
   <h1 style="margin-bottom:20px;">Welcome back</h1>
   <form method="POST" id="login-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>Email</label>
       <input type="email" name="email" required autofocus>

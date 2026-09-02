@@ -11,6 +11,7 @@
     <span>Custom selection — {{ selected_ids|length }} of {{ items|length }} items available.</span>
     {% if current_user.is_admin %}
       <form method="post" action="{{ url_for('catalog.reset_to_all') }}" style="margin:0;" id="catalog-reset-to-all-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-ghost btn-small">Reset to all items</button>
       </form>
     {% endif %}

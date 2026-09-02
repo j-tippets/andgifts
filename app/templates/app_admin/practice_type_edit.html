@@ -12,6 +12,7 @@
 
 <div class="contact-card" style="max-width:480px; margin-bottom:28px;">
   <form method="post" id="app-admin-practice-type-edit-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label for="name">Name</label>
       <input type="text" id="name" name="name" value="{{ practice_type.name }}" required>
@@ -32,15 +33,18 @@
       <div><strong>{{ m.label }}</strong></div>
       <div style="display:flex; gap:4px; align-items:center;">
         <form id="app-admin-practice-type-milestone-move-{{ practice_type.id }}" method="post" action="{{ url_for('app_admin.practice_type_milestone_move', practice_type_id=practice_type.id, milestone_id=m.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="direction" value="up">
           <button type="submit" class="btn btn-ghost btn-small" {{ 'disabled' if loop.first }} aria-label="Move {{ m.label }} up">&uarr;</button>
         </form>
         <form id="app-admin-practice-type-milestone-move-{{ practice_type.id }}" method="post" action="{{ url_for('app_admin.practice_type_milestone_move', practice_type_id=practice_type.id, milestone_id=m.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="direction" value="down">
           <button type="submit" class="btn btn-ghost btn-small" {{ 'disabled' if loop.last }} aria-label="Move {{ m.label }} down">&darr;</button>
         </form>
         <form id="app-admin-practice-type-milestone-delete-{{ practice_type.id }}" method="post" action="{{ url_for('app_admin.practice_type_milestone_delete', practice_type_id=practice_type.id, milestone_id=m.id) }}"
               onsubmit="return confirm('Remove {{ m.label }} from the preset? Orgs that already have it keep it.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost btn-small">Remove</button>
         </form>
       </div>
@@ -53,6 +57,7 @@
 <details style="margin-top:12px;">
   <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add milestone</summary>
   <form id="app-admin-practice-type-milestone-new-{{ practice_type.id }}" method="post" action="{{ url_for('app_admin.practice_type_milestone_new', practice_type_id=practice_type.id) }}" style="margin-top:14px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field"><label>Milestone name</label><input type="text" name="label" placeholder="e.g. Case Filed" required></div>
     <button type="submit" class="btn btn-primary">Add milestone</button>
   </form>
@@ -63,6 +68,7 @@
   <p class="subdued">Only possible while no org is assigned to it.</p>
   <form id="app-admin-practice-type-delete-{{ practice_type.id }}" method="post" action="{{ url_for('app_admin.practice_type_delete', practice_type_id=practice_type.id) }}"
         onsubmit="return confirm('Delete {{ practice_type.name }}? This cannot be undone.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-danger" {{ 'disabled' if org_count }}>Delete practice type</button>
   </form>
 </div>

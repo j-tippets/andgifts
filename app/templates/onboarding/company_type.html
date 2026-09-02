@@ -10,6 +10,7 @@
   <h1 style="margin-bottom:8px;">What's your line of work?</h1>
   <p class="subdued" style="margin-bottom:20px;">We'll set you up with a starting toolkit for it — you can rename, remove, or add to it anytime.</p>
   <form method="POST" id="onboarding-company-type-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <select name="practice_type_id" required>
         <option value="" disabled selected>Choose one…</option>

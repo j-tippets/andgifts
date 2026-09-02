@@ -8,6 +8,7 @@
   <h1 style="margin-bottom:12px;">Nice, you're verified!</h1>
   <p style="color:var(--evergreen-light); margin-bottom:24px;">Your email is confirmed. Click below to jump into your account.</p>
   <form method="POST" id="verify-email-confirm-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-primary" type="submit" style="width:100%;">Start using &amp;Gifts</button>
   </form>
 </div>

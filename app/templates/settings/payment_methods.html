@@ -25,11 +25,13 @@
       <div style="display:flex; gap:8px;">
         {% if not card.is_default %}
           <form id="settings-make-default-payment-method-{{ card.id }}" method="POST" action="{{ url_for('settings.make_default_payment_method', payment_method_id=card.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-small">Make default</button>
           </form>
         {% endif %}
         <form id="settings-remove-payment-method-{{ card.id }}" method="POST" action="{{ url_for('settings.remove_payment_method', payment_method_id=card.id) }}"
               onsubmit="return confirm('Remove {{ card.display_label() }}? This can\'t be undone.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Remove</button>
         </form>
       </div>
@@ -40,6 +42,7 @@
 {% endif %}
 
 <form method="POST" action="{{ url_for('settings.add_payment_method') }}" style="margin-top:16px;" id="settings-add-payment-method-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="btn btn-primary" {{ 'disabled' if not stripe_configured else '' }}>+ Add a card</button>
 </form>
 {% endblock %}

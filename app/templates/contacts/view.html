@@ -45,6 +45,7 @@
           <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">+ Add Badge</summary>
           <form id="contacts-update-contact-badges-{{ contact.id }}" method="post" action="{{ url_for('contacts.update_contact_badges', contact_id=contact.id) }}"
                 style="margin-top:10px; padding:14px; background:var(--paper-raised); border:1px solid var(--line); border-radius:8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="badge-toggle-list">
               {% for badge in badges %}
                 <label class="badge-toggle" style="{{ 'background:' ~ badge.color ~ ';' if badge.color else '' }}">
@@ -108,6 +109,7 @@
         <details class="s-edit-disclosure">
           <summary class="s-edit-toggle">{{ 'Note' if a.action_type == 'gift' else 'Edit' }}</summary>
           <form id="dashboard-edit-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.edit_action', action_id=a.id) }}" class="s-form s-form-edit">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <textarea name="generated_message" class="s-edit-textarea" rows="3"
                       placeholder="{{ 'Add a note about what this gift is for…' if a.action_type == 'gift' else 'Write your own ' ~ a.action_type.replace('_', ' ') ~ '…' }}">{{ a.generated_message or '' }}</textarea>
             <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if a.action_type == 'gift' else 'text' }}</button>
@@ -116,14 +118,17 @@
 
         <div style="display:flex; gap:8px; margin-top:14px;">
           <form id="dashboard-approve-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.approve_action', action_id=a.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-primary btn-small" type="submit"
                     {% if blocked_reason %}disabled title="{{ blocked_reason }}"{% endif %}>Accept</button>
           </form>
           <form id="dashboard-skip-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.skip_action', action_id=a.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-skip btn-small" type="submit">Ignore</button>
           </form>
           <form id="dashboard-delete-action-{{ a.id }}" method="POST" action="{{ url_for('dashboard.delete_action', action_id=a.id) }}"
                 onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but this contact can still qualify next time -- you can also undelete it from the recent activity below.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-delete btn-small" type="submit">Delete</button>
           </form>
         </div>
@@ -202,6 +207,7 @@
           <form id="contacts-delete-timeline-event-{{ contact.id }}" method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=date.id) }}"
                 style="margin-top:8px;"
                 onsubmit="return confirm('Delete this important date? This can\'t be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete</button>
           </form>
         </dialog>
@@ -254,6 +260,7 @@
           <form id="contacts-delete-timeline-event-{{ contact.id }}" method="POST" action="{{ url_for('contacts.delete_timeline_event', contact_id=contact.id, event_id=event.id) }}"
                 style="margin-top:8px;"
                 onsubmit="return confirm('Delete this timeline event? This can\'t be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-small" style="color:var(--danger);">Delete event</button>
           </form>
         </dialog>
@@ -280,6 +287,7 @@
 <div class="contact-card">
   <h2>Contact preferences</h2>
   <form method="post" action="{{ url_for('contacts.update_contact_preferences', contact_id=contact.id) }}" id="preferences-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="toggle-row">
       <div>
         <strong>Opted out of marketing</strong>
@@ -324,11 +332,13 @@
               <div class="subdued">{{ entry.summary }}</div>
               {% if entry.action == 'action_deleted' and entry.suggested_action and entry.suggested_action.status == 'deleted' %}
                 <form id="dashboard-undelete-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.undelete_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-tertiary btn-small" type="submit">Undelete</button>
                 </form>
               {% elif entry.action == 'action_approved' and entry.suggested_action and entry.suggested_action.status == 'approved' and entry.suggested_action.action_type not in paid_action_types() %}
                 <form id="dashboard-unapprove-action-{{ entry.suggested_action_id }}" method="POST" action="{{ url_for('dashboard.unapprove_action', action_id=entry.suggested_action_id) }}" style="margin-top:6px;"
                       onsubmit="return confirm('Undo this approval? It goes back to pending so you can edit it, and its spend/tax record is removed.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-tertiary btn-small" type="submit">Undo approval</button>
                 </form>
               {% endif %}
@@ -348,6 +358,7 @@
 
 <dialog id="delete-contact-dialog" class="confirm-dialog">
   <form id="contacts-delete-contact-{{ contact.id }}" method="post" action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 style="color:var(--danger);">Delete {{ contact.household_name }}?</h2>
     <p class="subdued">This permanently removes the contact and their timeline. This can't be undone.</p>
     {% if action_log_count %}

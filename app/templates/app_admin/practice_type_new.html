@@ -9,6 +9,7 @@
 
 <div class="contact-card" style="max-width:480px;">
   <form method="post" id="app-admin-practice-type-new-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label for="name">Name</label>
       <input type="text" id="name" name="name" placeholder="e.g. Law Firm" required autofocus>

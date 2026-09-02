@@ -9,6 +9,7 @@
 </div>
 
 <form method="post" enctype="multipart/form-data" id="profile-edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <fieldset>
     <legend>Photo</legend>
     <div style="display:flex; align-items:center; gap:20px;">
@@ -96,6 +97,7 @@
 
 <dialog id="delete-account-dialog" class="confirm-dialog">
   <form method="post" action="{{ url_for('profile.delete_account') }}" id="profile-delete-account-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 style="color:var(--danger);">Delete my account?</h2>
     {% if is_sole_user %}
       <p class="subdued">You're the only person on {{ current_user.org.name }}, so this permanently deletes the entire account: every contact, gift, campaign, and order. This can't be undone.</p>

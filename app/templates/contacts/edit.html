@@ -8,6 +8,7 @@
 </div>
 
 <form method="POST" enctype="multipart/form-data" id="contacts-edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <fieldset>
     <legend>Photo</legend>
     <div style="display:flex; align-items:center; gap:20px;">

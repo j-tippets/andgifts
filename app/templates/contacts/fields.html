@@ -24,6 +24,7 @@
           <details>
             <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
             <form id="contacts-edit-field-{{ field.id }}" method="post" action="{{ url_for('contacts.edit_field', field_id=field.id) }}" style="margin-top:10px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="field-row">
                 <div class="field"><label>Field name</label><input type="text" name="label" value="{{ field.label }}" required></div>
                 {% if field.field_type == 'select' %}
@@ -35,6 +36,7 @@
           </details>
           <form id="contacts-delete-field-{{ field.id }}" method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
                 onsubmit="return confirm('Remove the {{ field.label }} field from every contact? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-small">Remove</button>
           </form>
         </div>
@@ -54,6 +56,7 @@
         <details>
           <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
           <form id="contacts-edit-field-{{ field.id }}" method="post" action="{{ url_for('contacts.edit_field', field_id=field.id) }}" style="margin-top:10px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="field-row">
               <div class="field"><label>Field name</label><input type="text" name="label" value="{{ field.label }}" required></div>
               {% if field.field_type == 'select' %}
@@ -65,6 +68,7 @@
         </details>
         <form id="contacts-delete-field-{{ field.id }}" method="post" action="{{ url_for('contacts.delete_field', field_id=field.id) }}"
               onsubmit="return confirm('Remove your {{ field.label }} field from every contact? This cannot be undone.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost btn-small">Remove</button>
         </form>
       </div>
@@ -80,6 +84,7 @@
     <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
   </div>
   <form method="post" action="{{ url_for('contacts.new_field') }}" id="contacts-new-field-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="scope" value="personal">
     <div class="field">
       <label>Field name</label>

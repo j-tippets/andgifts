@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from config import config_by_name
-from app.extensions import db, migrate, login_manager, limiter
+from app.extensions import db, migrate, login_manager, limiter, csrf
 
 
 def _compute_static_asset_version(app):
@@ -45,6 +45,7 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
+    csrf.init_app(app)
 
     # STATIC_ASSET_VERSION drives cache-busting for every CSS/JS asset
     # (see versioned_static below) and the service worker's cache

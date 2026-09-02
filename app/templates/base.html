@@ -105,6 +105,7 @@
           <span>{{ current_user.org.trial_days_remaining() }} day{{ 's' if current_user.org.trial_days_remaining() != 1 else '' }} left on your Solo trial.</span>
           {% if current_user.is_admin %}
             <form method="POST" action="{{ url_for('billing.checkout', tier='starter') }}" id="trial-banner-checkout-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="trial-banner__cta">Add a card to keep going</button>
             </form>
           {% endif %}
@@ -114,6 +115,7 @@
           <span>Your Solo trial has ended -- you're now on the Free plan.</span>
           {% if current_user.is_admin %}
             <form id="billing-checkout-{{ 'starter' }}" method="POST" action="{{ url_for('billing.checkout', tier='starter') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="trial-banner__cta">Upgrade to Solo</button>
             </form>
           {% endif %}

@@ -34,6 +34,7 @@
     <p class="subdued" style="margin-bottom:12px;">Upgrade to unlock more contacts and monthly sends:</p>
     {% for t in other_self_serve_tiers %}
       <form method="POST" action="{{ url_for('billing.checkout', tier=t.tier_key) }}" style="margin-bottom:8px;" id="settings-billing-checkout-form-{{ t.tier_key }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-ghost" style="width:100%; justify-content:space-between;">
           <span>{{ t.display_name }}</span>
           <span class="subdued">

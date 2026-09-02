@@ -7,6 +7,7 @@
   </div>
   <h1 style="margin-bottom:20px;">Start your free plan</h1>
   <form method="POST" id="register-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>Your business / brokerage name</label>
       <input type="text" name="org_name" placeholder="e.g. Smith Realty Group" required>

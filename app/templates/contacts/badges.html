@@ -29,6 +29,7 @@
         <details>
           <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
           <form id="contacts-edit-badge-{{ badge.id }}" method="post" action="{{ url_for('contacts.edit_badge', badge_id=badge.id) }}" style="margin-top:10px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="field-row">
               <div class="field"><label>Badge name</label><input type="text" name="label" value="{{ badge.label }}" required></div>
               <div class="field"><label>Color</label>{{ badge_color_swatches(badge.color) }}</div>
@@ -38,6 +39,7 @@
         </details>
         <form id="contacts-delete-badge-{{ badge.id }}" method="post" action="{{ url_for('contacts.delete_badge', badge_id=badge.id) }}"
               onsubmit="return confirm('Remove your ' + {{ badge.label|tojson }} + ' badge from every contact? This cannot be undone.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost btn-small">Remove</button>
         </form>
       </div>
@@ -53,6 +55,7 @@
     <button type="button" class="app-modal-close" onclick="this.closest('dialog').close()">&times;</button>
   </div>
   <form method="post" action="{{ url_for('contacts.new_badge') }}" id="contacts-new-badge-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>Badge name</label>
       <input type="text" name="label" placeholder="e.g. Past Client Referral Source" required>

@@ -91,9 +91,11 @@
 
               <div class="s-card-footer">
                 <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-dismiss" id="dismiss-flow-rec-{{ s.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="s-skip-link" type="submit">Not now</button>
                 </form>
                 <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}" class="s-form s-form-build" id="accept-flow-rec-{{ s.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-primary s-approve-btn" type="submit">Build this flow</button>
                 </form>
               </div>
@@ -122,9 +124,11 @@
 
               <div class="s-card-footer">
                 <form method="POST" action="{{ url_for('dashboard.dismiss_filler_action', filler_key=s.key) }}" class="s-form s-form-dismiss" id="dismiss-filler-{{ s.key }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="s-skip-link" type="submit">Not now</button>
                 </form>
                 <form method="POST" action="{{ url_for('dashboard.go_filler_action', filler_key=s.key) }}" class="s-form s-form-build" id="go-filler-{{ s.key }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-primary s-approve-btn" type="submit">{{ s.cta_label }}</button>
                 </form>
               </div>
@@ -231,6 +235,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                   </summary>
                   <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit" id="edit-action-{{ s.id }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <textarea name="generated_message" class="s-edit-textarea" rows="4"
                               placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
                     <button class="btn btn-tertiary btn-small" type="submit">Save</button>
@@ -243,11 +248,13 @@
 
             <div class="s-card-footer">
               <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" class="s-form s-form-skip" id="skip-action-{{ s.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="s-skip-link" type="submit">Skip for now</button>
               </form>
 
               {% if not blocked_reason %}
-                <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">{%- if s.action_type != 'gift' -%}
+                <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" class="s-form s-form-approve" id="s-approve-{{ s.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{%- if s.action_type != 'gift' -%}
                     <button class="btn btn-primary s-approve-btn" type="submit">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                       Approve &amp; Send
@@ -260,6 +267,7 @@
                 <div class="s-card-menu-dropdown" hidden>
                   <form id="dashboard-delete-action-{{ s.id }}" method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}" class="s-form s-form-delete"
                         onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="s-menu-delete" type="submit">Delete</button>
                   </form>
                 </div>
@@ -299,9 +307,11 @@
             </div>
             <div class="list-row-actions">
               <form method="POST" action="{{ url_for('dashboard.accept_flow_recommendation', recommendation_id=s.id) }}" id="list-accept-flow-rec-{{ s.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-primary btn-small" type="submit">Build this flow</button>
               </form>
               <form method="POST" action="{{ url_for('dashboard.dismiss_flow_recommendation', recommendation_id=s.id) }}" id="list-dismiss-flow-rec-{{ s.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-skip btn-small" type="submit">Not now</button>
               </form>
             </div>
@@ -318,9 +328,11 @@
             </div>
             <div class="list-row-actions">
               <form method="POST" action="{{ url_for('dashboard.go_filler_action', filler_key=s.key) }}" id="list-go-filler-{{ s.key }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-primary btn-small" type="submit">{{ s.cta_label }}</button>
               </form>
               <form method="POST" action="{{ url_for('dashboard.dismiss_filler_action', filler_key=s.key) }}" id="list-dismiss-filler-{{ s.key }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-skip btn-small" type="submit">Not now</button>
               </form>
             </div>
@@ -403,6 +415,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                   </summary>
                   <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit" id="list-edit-action-{{ s.id }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <textarea name="generated_message" class="s-edit-textarea" rows="3"
                               placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
                     <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
@@ -414,14 +427,17 @@
           <div class="list-row-actions">
             {% if not blocked_reason %}
               <form method="POST" action="{{ url_for('dashboard.approve_action', action_id=s.id) }}" id="list-approve-{{ s.id }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-primary btn-small" type="submit">Approve</button>
               </form>
             {% endif %}
             <form method="POST" action="{{ url_for('dashboard.skip_action', action_id=s.id) }}" id="list-skip-action-{{ s.id }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-skip btn-small" type="submit">Deny</button>
             </form>
             <form id="dashboard-delete-action-{{ s.id }}" method="POST" action="{{ url_for('dashboard.delete_action', action_id=s.id) }}"
                   onsubmit="return confirm('Delete this suggestion? It won\'t reappear for this occurrence, but {{ s.contact.household_name }} can still qualify next time -- you can also undelete it from their recent activity.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-delete btn-small" type="submit">Delete</button>
             </form>
           </div>

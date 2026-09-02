@@ -11,6 +11,7 @@
   <p class="subdued" style="margin-bottom:20px;">Add up to {{ max_invites }} teammates.</p>
 
   <form method="POST" id="onboarding-invites-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div id="inviteRows">
       <div class="field invite-row">
         <label>Teammate email</label>
@@ -24,6 +25,7 @@
     <button class="btn btn-primary" type="submit" style="width:100%; margin-bottom:12px;">Continue to billing</button>
   </form>
   <form method="POST" action="{{ url_for('onboarding.invites_skip') }}" style="text-align:center;" id="onboarding-invites-skip-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="link-button" type="submit">Skip for now</button>
   </form>
 </div>

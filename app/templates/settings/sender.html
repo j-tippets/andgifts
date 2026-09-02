@@ -18,6 +18,7 @@
   </fieldset>
 
   <form method="post" id="settings-sender-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset>
       <legend>{{ 'Change it' if org.sender_local_part else 'Set it up' }}</legend>
       <div class="field">

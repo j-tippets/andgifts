@@ -8,6 +8,7 @@
 </div>
 
 <form method="POST" id="app-admin-catalog-edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <fieldset>
     <legend>Basics</legend>
     <div class="field">
@@ -61,6 +62,7 @@
     {% endif %}
   </p>
   <form id="app-admin-catalog-toggle-active-{{ item.id }}" method="post" action="{{ url_for('app_admin.catalog_toggle_active', item_id=item.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if item.is_active else 'Reactivate' }}</button>
   </form>
 </div>
@@ -76,6 +78,7 @@
     <p class="subdued">Permanently remove {{ item.name }} from the global catalog. This affects every agency and can't be undone.</p>
     <form id="app-admin-catalog-delete-{{ item.id }}" method="post" action="{{ url_for('app_admin.catalog_delete', item_id=item.id) }}"
           onsubmit="return confirm('Permanently delete {{ item.name }} from the GLOBAL catalog? Every agency loses access to it. This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger">Delete item</button>
     </form>
   {% endif %}

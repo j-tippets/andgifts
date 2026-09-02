@@ -158,6 +158,12 @@
   function submitApprove(card) {
     var form = card.querySelector('.s-form-approve');
     if (!form) return Promise.resolve(false);
+    // body: new FormData(form) picks up the form's own hidden
+    // csrf_token input automatically -- CSRFProtect is on globally
+    // now, so this fetch() needs to actually carry that token or the
+    // request gets rejected with a 400 before this view ever runs.
+    // Keep submitting the real <form>'s FormData (not a hand-built
+    // body) so that stays true without extra plumbing here.
     return fetch(form.getAttribute('action'), {
       method: 'POST',
       credentials: 'same-origin',

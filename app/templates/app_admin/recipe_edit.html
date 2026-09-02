@@ -8,6 +8,7 @@
 </div>
 
 <form method="POST" id="app-admin-recipe-edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <fieldset>
     <legend>Basics</legend>
     <div class="field">
@@ -139,6 +140,7 @@
     {% endif %}
   </p>
   <form id="app-admin-recipe-toggle-active-{{ recipe.id }}" method="post" action="{{ url_for('app_admin.recipe_toggle_active', recipe_id=recipe.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-ghost">{{ 'Deactivate' if recipe.is_active else 'Reactivate' }}</button>
   </form>
 </div>

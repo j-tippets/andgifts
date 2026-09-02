@@ -8,6 +8,7 @@
 </div>
 
 <form method="POST" id="app-admin-catalog-new-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <fieldset>
     <legend>Basics</legend>
     <div class="field">

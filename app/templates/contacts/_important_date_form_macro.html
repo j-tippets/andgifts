@@ -8,6 +8,7 @@
      below, always annual, and the label is freeform text rather than
      picked from the org's managed milestone list. #}
   <form method="POST" action="{{ action_url }}" id="important-date-form-{{ iid }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="is_important_date" value="1">
     <div class="field">
       <label>What is it?</label>

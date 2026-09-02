@@ -10,6 +10,7 @@
 
 <div class="contact-card" style="max-width:480px;">
   <form method="post" id="orders-collect-address-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>Address line 1</label>
       <input type="text" name="shipping_address_line1" value="{{ contact.shipping_address_line1 or '' }}" required>

@@ -4,6 +4,7 @@
 <h1 style="margin-bottom:24px;">Add a team member</h1>
 
 <form method="post" id="team-new-agent-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <fieldset>
     <legend>Details</legend>
     <div class="field-row">

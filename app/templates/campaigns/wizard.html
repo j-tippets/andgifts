@@ -38,6 +38,7 @@
 </div>
 
 <form method="POST" id="wizard-form" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="scope" value="{{ scope }}">
   {% set is_post = request.method == 'POST' %}
   {% set repeat_checked = (request.form.get('repeat_enabled') if is_post else (campaign and campaign.repeat_enabled)) %}

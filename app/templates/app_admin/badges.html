@@ -18,6 +18,7 @@
           <details>
             <summary class="btn btn-ghost btn-small" style="display:inline-block; cursor:pointer;">Edit</summary>
             <form id="app-admin-badge-edit-{{ badge.id }}" method="post" action="{{ url_for('app_admin.badge_edit', badge_id=badge.id) }}" style="margin-top:10px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="field-row">
                 <div class="field"><label>Badge name</label><input type="text" name="label" value="{{ badge.label }}" required></div>
                 <div class="field"><label>Color</label>{{ badge_color_swatches(badge.color) }}</div>
@@ -27,6 +28,7 @@
           </details>
           <form id="app-admin-badge-delete-{{ badge.id }}" method="post" action="{{ url_for('app_admin.badge_delete', badge_id=badge.id) }}"
                 onsubmit="return confirm('Remove the ' + {{ badge.label|tojson }} + ' badge from every agency\'s contacts? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-small">Remove</button>
           </form>
         </div>
@@ -40,6 +42,7 @@
 <details style="margin-top:12px;">
   <summary style="cursor:pointer; font-weight:600; color:var(--evergreen);">+ Add global badge</summary>
   <form method="post" action="{{ url_for('app_admin.badge_new') }}" style="margin-top:14px;" id="app-admin-new-badge-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <div class="field"><label>Badge name</label><input type="text" name="label" placeholder="e.g. VIP" required></div>
       <div class="field"><label>Color</label>{{ badge_color_swatches(None) }}</div>
