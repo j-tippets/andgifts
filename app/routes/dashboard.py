@@ -34,6 +34,57 @@ def _get_visible_action(action_id, status=None):
     return query.first_or_404()
 
 
+def _claim_action_for_processing(action_id, org_id):
+    """Atomically transitions a pending SuggestedAction to "processing",
+    returning True only if THIS call performed that transition.
+
+    This exists because a plain read-then-write ("fetch the action,
+    check action.status == 'pending' in Python, then set
+    action.status = 'approved'") is not actually safe against two
+    near-simultaneous approve_action requests for the same action_id --
+    a double-click, a client retry after a slow response, or two
+    browser tabs. Both requests can read status == "pending" before
+    either commits, and SQLAlchemy's normal UPDATE-by-primary-key
+    doesn't re-check status at write time, so both would proceed to
+    charge the card.
+
+    An UPDATE ... WHERE status = 'pending' does not have that gap: it's
+    a single atomic statement, so only one of two concurrent
+    transactions can match that WHERE clause and actually flip the
+    row -- the other affects zero rows and knows immediately that it
+    lost the race, before ever touching Stripe."""
+    result = db.session.execute(
+        db.update(SuggestedAction)
+        .where(
+            SuggestedAction.id == action_id,
+            SuggestedAction.org_id == org_id,
+            SuggestedAction.status == "pending",
+        )
+        .values(status="processing")
+    )
+    db.session.commit()
+    return result.rowcount == 1
+
+
+def _release_action_claim(action_id, org_id):
+    """Reverts a "processing" claim back to "pending" after a failed
+    charge, so the agent (or a legitimate retry) can try again --
+    see _claim_action_for_processing. Scoped the same way (id + org_id
+    + expected current status) as a defensive habit, not because a
+    race is expected here: only the request that won the claim above
+    would ever call this."""
+    db.session.execute(
+        db.update(SuggestedAction)
+        .where(
+            SuggestedAction.id == action_id,
+            SuggestedAction.org_id == org_id,
+            SuggestedAction.status == "processing",
+        )
+        .values(status="pending")
+    )
+    db.session.commit()
+
+
 def _is_ajax_request():
     """True for today.js's fetch()-based approve (see submitApprove) --
     it sends this header specifically so routes can tell it apart from
@@ -254,6 +305,72 @@ def go_filler_action(filler_key):
     return redirect(target_url or url_for("dashboard.index"))
 
 
+def _current_action_status(action_id):
+    """A fresh read of just the status column, bypassing the ORM
+    session's possibly-stale cached copy of an already-loaded
+    SuggestedAction -- used only after a failed claim (see
+    _charge_for_approval) to report an accurate reason."""
+    return db.session.query(SuggestedAction.status).filter_by(id=action_id).scalar()
+
+
+def _charge_for_approval(action, billing_agent, cost_cents, description, idempotency_suffix):
+    """Atomically claims `action` for processing (see
+    _claim_action_for_processing) and, if that succeeds, charges
+    billing_agent's saved card with a deterministic Stripe idempotency
+    key -- the combination that makes a gift/handwritten_note approval
+    safe against a double-click, a retried request, or two browser tabs
+    all trying to approve the same suggestion.
+
+    Returns (ok, intent_id, early_response). On success, ok is True and
+    early_response is None. On failure -- lost the claim race, or the
+    charge itself failed -- ok is False and early_response is a
+    ready-to-return Flask response; the caller should `return
+    early_response` immediately without doing anything else (in
+    particular: without setting action.status = "approved" or creating
+    an Order/ActionLog for a charge that never happened or that another
+    request already handled)."""
+    if not _claim_action_for_processing(action.id, action.org_id):
+        # Either another near-simultaneous request already claimed this
+        # (still "processing", or has since finished as "approved"), or
+        # it's been moved to a terminal state (skipped/deleted/expired)
+        # by someone acting on it elsewhere in the meantime. Either way,
+        # WE must not charge -- re-read the actual current status just
+        # to report something accurate.
+        current_status = _current_action_status(action.id)
+        if current_status == "approved":
+            # A retry landing after the original request already
+            # finished successfully -- not an error from the agent's
+            # point of view, the thing they wanted (an approved,
+            # charged suggestion) already exists.
+            if _is_ajax_request():
+                return False, None, ("", 200)
+            flash("Already approved.", "success")
+            return False, None, redirect(request.referrer or url_for("dashboard.index"))
+        if _is_ajax_request():
+            return False, None, ("", 409)
+        flash("This suggestion can't be approved right now -- refresh and try again.", "error")
+        return False, None, redirect(request.referrer or url_for("dashboard.index"))
+
+    success, intent_id, error = charge_saved_card(
+        billing_agent, cost_cents, description=description,
+        metadata={"suggested_action_id": action.id},
+        idempotency_key=f"suggested-action-{action.id}-{idempotency_suffix}",
+    )
+    if not success:
+        # Charging failed outright (declined, no card, Stripe error) --
+        # release the claim so the agent (or a legitimate retry) can
+        # try again instead of this suggestion being stuck unable to
+        # ever be approved.
+        _release_action_claim(action.id, action.org_id)
+        if _is_ajax_request():
+            return False, None, ("", 400)
+        queue_event("gift_order_failed", failure_reason=error)
+        flash(f"Can't approve — payment failed: {error}", "error")
+        return False, None, redirect(request.referrer or url_for("dashboard.index"))
+
+    return True, intent_id, None
+
+
 @dashboard_bp.route("/actions/<action_id>/approve", methods=["POST"])
 @login_required
 def approve_action(action_id):
@@ -315,17 +432,13 @@ def approve_action(action_id):
             )
             return redirect(request.referrer or url_for("dashboard.index"))
 
-        success, intent_id, error = charge_saved_card(
-            billing_agent, cost_cents,
+        success, intent_id, early_response = _charge_for_approval(
+            action, billing_agent, cost_cents,
             description=f"{action.suggested_gift.name} for {action.contact.household_name}",
-            metadata={"suggested_action_id": action.id},
+            idempotency_suffix="gift",
         )
         if not success:
-            if _is_ajax_request():
-                return "", 400
-            queue_event("gift_order_failed", failure_reason=error)
-            flash(f"Can't approve — payment failed: {error}", "error")
-            return redirect(request.referrer or url_for("dashboard.index"))
+            return early_response
 
         gift_payment_intent_id = intent_id
 
@@ -395,17 +508,13 @@ def approve_action(action_id):
             )
             return redirect(request.referrer or url_for("dashboard.index"))
 
-        success, intent_id, error = charge_saved_card(
-            billing_agent, cost_cents,
+        success, intent_id, early_response = _charge_for_approval(
+            action, billing_agent, cost_cents,
             description=f"Handwritten note for {action.contact.household_name}",
-            metadata={"suggested_action_id": action.id},
+            idempotency_suffix="handwritten-note",
         )
         if not success:
-            if _is_ajax_request():
-                return "", 400
-            queue_event("gift_order_failed", failure_reason=error)
-            flash(f"Can't approve — payment failed: {error}", "error")
-            return redirect(request.referrer or url_for("dashboard.index"))
+            return early_response
 
         note_payment_intent_id = intent_id
         queue_event("gift_approved", action_type="handwritten_note", gift_price_tier=HANDWRITTEN_NOTE_PRICE_CENTS / 100)

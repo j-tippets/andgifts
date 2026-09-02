@@ -83,8 +83,19 @@ class SuggestedAction(db.Model):
     generated_message = db.Column(db.Text, nullable=True)
     target_date = db.Column(db.Date, nullable=False)  # the date of the event this relates to
 
+    # "processing" is a brief, transitional claim state -- see
+    # dashboard.approve_action's _claim_action_for_processing: a gift or
+    # handwritten_note approval atomically flips pending -> processing
+    # before charging the card, so a double-click, a retried request, or
+    # two browser tabs can't both pass a plain status check and both
+    # charge. Reverts to "pending" if the charge fails, or moves on to
+    # "approved" once it succeeds -- a row should never be visibly stuck
+    # here outside of that brief window.
     status = db.Column(
-        db.Enum("pending", "approved", "skipped", "sent", "deleted", "expired", name="suggested_action_status"),
+        db.Enum(
+            "pending", "processing", "approved", "skipped", "sent", "deleted", "expired",
+            name="suggested_action_status",
+        ),
         default="pending",
         index=True,
     )

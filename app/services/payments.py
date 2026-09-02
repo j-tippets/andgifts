@@ -124,13 +124,25 @@ def remove_payment_method(user, payment_method_id):
     return True, None
 
 
-def charge_saved_card(user, amount_cents, description, metadata=None):
+def charge_saved_card(user, amount_cents, description, metadata=None, idempotency_key=None):
     """Charges `user`'s default saved card off-session -- there's no
     live card form in either caller (the in-app order confirm screen
     is just a "Charge $X" button, and an automated flow approval has
     no customer present at all), so this is always an off-session
     reuse of an already-saved, already-verified payment method rather
     than a fresh on-session confirmation.
+
+    idempotency_key, when provided, is passed straight through to
+    Stripe's PaymentIntent.create -- Stripe uses it to recognize a
+    retried request (a network timeout on our end where Stripe's
+    server actually processed the original call, a caller re-invoking
+    this after a crash before it recorded success, etc.) and return
+    the ORIGINAL PaymentIntent instead of creating a second charge.
+    Callers billing a specific, already-identified thing (a
+    SuggestedAction approval) should pass a deterministic key derived
+    from that thing's id so a retry of the exact same intended charge
+    reuses it; a fresh ad-hoc charge (no natural stable identity yet)
+    can leave this None.
 
     Returns (success, payment_intent_id_or_None, error_message_or_None).
     A decline (stripe.error.CardError) or a card that unexpectedly
@@ -157,6 +169,7 @@ def charge_saved_card(user, amount_cents, description, metadata=None):
             confirm=True,
             description=description,
             metadata=metadata or {},
+            idempotency_key=idempotency_key,
         )
         return True, intent.id, None
     except stripe.error.CardError as e:
