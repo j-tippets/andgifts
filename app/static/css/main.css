@@ -293,6 +293,36 @@ h3 { font-size: 17px; }
 }
 .trial-banner__cta:hover { opacity: 0.85; }
 
+/* Version-mismatch toast -- see static/js/version-check.js. Fixed
+   (not part of page flow) so it's visible regardless of scroll
+   position, and sits above .bottom-nav on mobile rather than under
+   it. Inserted/removed by JS, not server-rendered. */
+.version-banner {
+  position: fixed; left: 12px; right: 12px; bottom: 76px; z-index: 70;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  background: var(--ink); color: #fff;
+  border-radius: 12px; padding: 12px 16px;
+  font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 8px 24px -8px rgba(42,26,69,.4);
+}
+.version-banner__actions { display: flex; gap: 8px; flex-shrink: 0; }
+.version-banner__cta {
+  background: #fff; color: var(--ink); border: none; border-radius: 8px;
+  padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+.version-banner__cta:hover { opacity: 0.85; }
+.version-banner__dismiss {
+  background: transparent; color: rgba(255,255,255,.7); border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 4px;
+  white-space: nowrap;
+}
+.version-banner__dismiss:hover { color: #fff; }
+@media (min-width: 880px) {
+  .version-banner { left: auto; right: 20px; bottom: 20px; max-width: 420px; }
+}
+
 /* ---- Buttons & forms ---- */
 .btn {
   display: inline-flex;

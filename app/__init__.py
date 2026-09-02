@@ -73,6 +73,15 @@ def create_app(config_name=None):
         return f"{url_for('static', filename=filename)}?v={app.config['STATIC_ASSET_VERSION']}"
 
     @app.template_global()
+    def current_static_version():
+        # Exposed to templates so the page can stamp the version it was
+        # rendered with (see base.html's <html data-app-version> and
+        # static/js/version-check.js) -- same value versioned_static()
+        # uses for cache-busting, just surfaced for client-side
+        # comparison instead of a URL query string.
+        return app.config["STATIC_ASSET_VERSION"]
+
+    @app.template_global()
     def pop_pending_events():
         # See app/services/analytics.py -- base.html calls this on
         # every render to flush server-queued GTM/GA4 events.
@@ -164,6 +173,21 @@ def create_app(config_name=None):
             mimetype="application/javascript",
         )
         response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.route("/api/app-version")
+    def app_version():
+        # Polled client-side by static/js/version-check.js so a long-lived
+        # open tab/session can notice a deploy happened and prompt a
+        # refresh, instead of silently running a mix of old and new
+        # assets (see base.html's data-app-version and the comment on
+        # STATIC_ASSET_VERSION above for the failure mode this covers).
+        # Deliberately not behind login_required: a session hiccup around
+        # a deploy is exactly when this should still work.
+        from flask import jsonify
+
+        response = jsonify({"version": app.config["STATIC_ASSET_VERSION"]})
+        response.headers["Cache-Control"] = "no-store"
         return response
 
     return app
