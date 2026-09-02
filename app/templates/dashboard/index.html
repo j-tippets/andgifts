@@ -217,15 +217,15 @@
             {% endif %}
 
             {% if s.action_type != 'gift' or s.generated_message %}
-              <details class="s-message-box">
-                <summary class="s-message-label">
+              <div class="s-message-box">
+                <div class="s-message-label">
                   {% if s.action_type == 'gift' %}Note
                   {% elif s.action_type == 'email' %}Suggested email
                   {% elif s.action_type == 'text' %}Suggested text
                   {% else %}Suggested note
                   {% endif %}
-                </summary>
-                <p class="s-message-text">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
+                </div>
+                <p class="s-message-text s-message-text-clamped">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
                 <details class="s-edit-disclosure">
                   <summary class="s-message-edit-toggle" aria-label="Edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -236,7 +236,7 @@
                     <button class="btn btn-tertiary btn-small" type="submit">Save</button>
                   </form>
                 </details>
-              </details>
+              </div>
             {% endif %}
 
             <div class="s-card-expires">Expires {{ s.expires_on.strftime('%b %-d') }} if not actioned</div>
@@ -387,15 +387,15 @@
             {% endif %}
 
             {% if s.action_type != 'gift' or s.generated_message %}
-              <details class="s-message-box">
-                <summary class="s-message-label">
+              <div class="s-message-box">
+                <div class="s-message-label">
                   {% if s.action_type == 'gift' %}Note
                   {% elif s.action_type == 'email' %}Suggested email
                   {% elif s.action_type == 'text' %}Suggested text
                   {% else %}Suggested note
                   {% endif %}
-                </summary>
-                <p class="s-message-text">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
+                </div>
+                <p class="s-message-text s-message-text-clamped">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
                 <details class="s-edit-disclosure">
                   <summary class="s-message-edit-toggle" aria-label="Edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -406,7 +406,7 @@
                     <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
                   </form>
                 </details>
-              </details>
+              </div>
             {% endif %}
           </div>
           <div class="list-row-actions">
