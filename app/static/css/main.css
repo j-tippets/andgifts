@@ -781,8 +781,15 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 /* Larger lead image on the swipeable card view -- gives the gift itself
    some visual appeal instead of leading with a name and a price. List
    view keeps the small inline thumb (.s-gift-thumb below) since it's a
-   denser, scan-oriented layout. */
-.s-gift-hero { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; display: block; }
+   denser, scan-oriented layout. Placeholder gets the same treatment
+   (not just a small icon) so a gift without a photo yet still carries
+   the same visual weight as one that has one. */
+.s-gift-hero { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; display: block; }
+.s-gift-hero-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-soft); color: var(--gold-ink);
+}
+.s-gift-hero-placeholder svg { width: 32px; height: 32px; }
 .s-gift-eyebrow {
   display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
   font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px;
@@ -890,6 +897,8 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   transform: rotate(45deg); transition: transform .16s var(--ease);
 }
 .s-edit-disclosure[open] > .s-edit-toggle::before { transform: rotate(-135deg); margin-top: 2px; }
+.s-reason-disclosure { margin-top: 2px; }
+.s-reason-disclosure .s-card-reason { margin: 10px 0 0; }
 
 .s-edit-textarea {
   width: 100%; box-sizing: border-box; font-family: var(--font-body); font-size: 13.5px; line-height: 1.5;
