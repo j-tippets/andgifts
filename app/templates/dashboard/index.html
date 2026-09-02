@@ -328,11 +328,13 @@
         {% else %}
         {% set blocked_reason = s.readiness_blocked_reason %}
         <div class="list-row" data-id="{{ s.id }}">
-          <span class="status-pill s-type-pill pill-type-{{ s.action_type }}">
-            {{ type_icon(s.action_type) }}
-            {{ s.action_type.replace('_', ' ')|capitalize }}
-          </span>
-          <span class="s-category-label">{{ s.category_label }}</span>
+          <div class="list-row-badges">
+            <span class="status-pill s-type-pill pill-type-{{ s.action_type }}">
+              {{ type_icon(s.action_type) }}
+              {{ s.action_type.replace('_', ' ')|capitalize }}
+            </span>
+            <span class="s-category-label">{{ s.category_label }}</span>
+          </div>
           <div class="list-row-info">
             <h4>
               <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}" class="list-row-contact-link">{{ s.contact.household_name }}</a>
