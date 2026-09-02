@@ -334,15 +334,22 @@
           </span>
           <span class="s-category-label">{{ s.category_label }}</span>
           <div class="list-row-info">
-            <h4>{{ s.reason_text }}</h4>
-            <div class="sub">
+            <h4>
               <a href="{{ url_for('contacts.view_contact', contact_id=s.contact_id) }}" class="list-row-contact-link">{{ s.contact.household_name }}</a>
-              &middot; {{ s.target_date.strftime('%b %-d') }}
+            </h4>
+            <div class="sub">
+              {{ s.target_date.strftime('%b %-d') }}
               &middot; <span class="s-card-expires">expires {{ s.expires_on.strftime('%b %-d') }}</span>
               {% if current_user.is_admin %}
                 &middot; {{ s.owning_agent.full_name if s.owning_agent else 'Shared' }}
               {% endif %}
             </div>
+
+            <details class="s-edit-disclosure s-reason-disclosure">
+              <summary class="s-edit-toggle">Why this {{ 'gift' if s.action_type == 'gift' else 'suggestion' }}</summary>
+              <p class="s-card-reason">{{ s.reason_text }}</p>
+            </details>
+
             {% if blocked_reason %}
               <a href="{{ url_for('contacts.edit_contact', contact_id=s.contact_id) }}" class="s-readiness-warning">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -351,6 +358,7 @@
             {% endif %}
             {% if s.action_type == 'gift' %}
               <div class="s-gift-box">
+                {{ gift_timing_badge(s.gift_timing) }}
                 <div class="s-gift-info">
                   {% if s.suggested_gift and s.suggested_gift.image_url %}
                     <img src="{{ s.suggested_gift.image_url }}" alt="" class="s-gift-thumb">
@@ -363,33 +371,43 @@
                     {% if s.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(s.suggested_gift.price_cents / 100) }}</div>{% endif %}
                   </div>
                 </div>
-                {{ gift_timing_badge(s.gift_timing) }}
                 {% if not blocked_reason %}
-                  <label class="s-gift-select-label">
-                    <span>Change gift</span>
+                  <details class="s-edit-disclosure s-gift-change-disclosure">
+                    <summary class="s-edit-toggle">Change gift</summary>
                     <select name="gift_catalog_item_id" form="list-approve-{{ s.id }}" class="s-gift-select">
                       <option value="">Keep as shown</option>
                       {% for item in current_user.org.available_catalog_items() %}
                         <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" data-description="{{ item.description or '' }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
                       {% endfor %}
                     </select>
-                  </label>
+                  </details>
                   <button type="submit" class="btn btn-save-gift" form="list-approve-{{ s.id }}">Save &amp; approve</button>
                 {% endif %}
               </div>
             {% endif %}
-            {% if s.generated_message %}
-              <p class="list-row-quote">&ldquo;{{ s.generated_message }}&rdquo;</p>
-            {% endif %}
 
-            <details class="s-edit-disclosure">
-              <summary class="s-edit-toggle">{{ 'Note' if s.action_type == 'gift' else 'Edit' }}</summary>
-              <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit" id="list-edit-action-{{ s.id }}">
-                <textarea name="generated_message" class="s-edit-textarea" rows="3"
-                          placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
-                <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
-              </form>
-            </details>
+            {% if s.action_type != 'gift' or s.generated_message %}
+              <details class="s-message-box">
+                <summary class="s-message-label">
+                  {% if s.action_type == 'gift' %}Note
+                  {% elif s.action_type == 'email' %}Suggested email
+                  {% elif s.action_type == 'text' %}Suggested text
+                  {% else %}Suggested note
+                  {% endif %}
+                </summary>
+                <p class="s-message-text">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
+                <details class="s-edit-disclosure">
+                  <summary class="s-message-edit-toggle" aria-label="Edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </summary>
+                  <form method="POST" action="{{ url_for('dashboard.edit_action', action_id=s.id) }}" class="s-form s-form-edit" id="list-edit-action-{{ s.id }}">
+                    <textarea name="generated_message" class="s-edit-textarea" rows="3"
+                              placeholder="{{ 'Add a note about what this gift is for…' if s.action_type == 'gift' else 'Write your own ' ~ s.action_type.replace('_', ' ') ~ '…' }}">{{ s.generated_message or '' }}</textarea>
+                    <button class="btn btn-tertiary btn-small" type="submit">Save {{ 'note' if s.action_type == 'gift' else 'text' }}</button>
+                  </form>
+                </details>
+              </details>
+            {% endif %}
           </div>
           <div class="list-row-actions">
             {% if not blocked_reason %}

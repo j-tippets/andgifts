@@ -797,12 +797,12 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 }
 .s-gift-eyebrow svg { width: 12px; height: 12px; }
 .s-gift-info { display: flex; align-items: center; gap: 12px; }
-.s-gift-thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+.s-gift-thumb { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
 .s-gift-thumb-placeholder {
   display: flex; align-items: center; justify-content: center;
   background: var(--gold-soft); color: var(--gold-ink);
 }
-.s-gift-thumb-placeholder svg { width: 20px; height: 20px; }
+.s-gift-thumb-placeholder svg { width: 26px; height: 26px; }
 .s-gift-name { font-family: var(--font-rounded); font-weight: 700; font-size: 14px; }
 .s-gift-description { font-size: 12.5px; color: rgba(42,26,69,.65); line-height: 1.4; margin-top: 2px; }
 .s-gift-price { font-size: 12.5px; color: rgba(42,26,69,.55); margin-top: 2px; }
@@ -912,7 +912,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   transform: rotate(45deg); transition: transform .16s var(--ease);
 }
 .s-edit-disclosure[open] > .s-edit-toggle::before { transform: rotate(-135deg); margin-top: 2px; }
-.s-reason-disclosure { margin-top: 2px; }
+.s-reason-disclosure { margin: 2px 0 10px; }
 .s-reason-disclosure .s-card-reason { margin: 10px 0 0; }
 
 .s-edit-textarea {
@@ -1039,10 +1039,6 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .list-row-info .sub { font-size: 12.5px; color: rgba(42,26,69,.55); }
 .list-row-contact-link { color: inherit; font-weight: 600; text-decoration: none; }
 .list-row-contact-link:hover { text-decoration: underline; }
-.list-row-quote {
-  background: var(--paper); border-radius: 10px; padding: 10px 12px; margin: 8px 0 0;
-  font-style: italic; font-size: 13px; line-height: 1.5; color: rgba(42,26,69,.8);
-}
 .list-row-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 .list-row-actions form { margin: 0; }
 .list-row-actions .btn { width: 100px; justify-content: center; }
