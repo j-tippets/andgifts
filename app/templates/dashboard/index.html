@@ -202,29 +202,29 @@
                   </div>
                 </div>
                 {% if not blocked_reason %}
-                  <label class="s-gift-select-label">
-                    <span>Change gift</span>
+                  <details class="s-edit-disclosure s-gift-change-disclosure">
+                    <summary class="s-edit-toggle">Change gift</summary>
                     <select name="gift_catalog_item_id" form="s-approve-{{ s.id }}" class="s-gift-select">
                       <option value="">Keep as shown</option>
                       {% for item in current_user.org.available_catalog_items() %}
                         <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" data-description="{{ item.description or '' }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
                       {% endfor %}
                     </select>
-                  </label>
+                  </details>
                   <button type="submit" class="btn btn-save-gift" form="s-approve-{{ s.id }}">Save &amp; approve</button>
                 {% endif %}
               </div>
             {% endif %}
 
             {% if s.action_type != 'gift' or s.generated_message %}
-              <div class="s-message-box">
-                <div class="s-message-label">
+              <details class="s-message-box">
+                <summary class="s-message-label">
                   {% if s.action_type == 'gift' %}Note
                   {% elif s.action_type == 'email' %}Suggested email
                   {% elif s.action_type == 'text' %}Suggested text
                   {% else %}Suggested note
                   {% endif %}
-                </div>
+                </summary>
                 <p class="s-message-text">&ldquo;{{ s.generated_message or 'Nothing written yet.' }}&rdquo;</p>
                 <details class="s-edit-disclosure">
                   <summary class="s-message-edit-toggle" aria-label="Edit">
@@ -236,7 +236,7 @@
                     <button class="btn btn-tertiary btn-small" type="submit">Save</button>
                   </form>
                 </details>
-              </div>
+              </details>
             {% endif %}
 
             <div class="s-card-expires">Expires {{ s.expires_on.strftime('%b %-d') }} if not actioned</div>

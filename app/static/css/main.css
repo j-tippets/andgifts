@@ -825,6 +825,8 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   letter-spacing: normal; color: var(--ink); padding: 8px 10px; border-radius: 8px;
   border: 1px solid var(--line); background: var(--paper-raised);
 }
+.s-gift-change-disclosure { margin: 0; }
+.s-gift-change-disclosure .s-gift-select { width: 100%; margin-top: 10px; box-sizing: border-box; }
 .s-quote {
   background: var(--paper); border-radius: 14px; padding: 14px 16px;
   font-style: italic; font-size: 14px; line-height: 1.55; color: rgba(42,26,69,.85);
@@ -833,15 +835,28 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 
 /* Suggested-text / note box on the redesigned Today card: one place for
    the reason-generated copy, with a small pencil toggle in the corner
-   instead of a separate labeled "Edit" pill floating below. */
+   instead of a separate labeled "Edit" pill floating below. Now a
+   <details> itself so the note is collapsed by default -- the quoted
+   text was one of the tallest blocks on the card. */
 .s-message-box {
   position: relative; background: var(--paper); border-radius: 14px;
-  padding: 12px 40px 12px 14px; margin: 0 0 10px;
+  padding: 12px 14px; margin: 0 0 10px;
 }
+.s-message-box[open] { padding-right: 40px; }
 .s-message-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px; letter-spacing: .04em;
-  text-transform: uppercase; color: rgba(42,26,69,.45); margin-bottom: 4px;
+  text-transform: uppercase; color: rgba(42,26,69,.45); cursor: pointer; list-style: none;
 }
+.s-message-box[open] .s-message-label { margin-bottom: 4px; }
+.s-message-label::-webkit-details-marker { display: none; }
+.s-message-label::marker { content: ""; }
+.s-message-label::after {
+  content: ""; width: 6px; height: 6px; flex-shrink: 0;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg); transition: transform .16s var(--ease);
+}
+.s-message-box[open] .s-message-label::after { transform: rotate(-135deg); }
 .s-message-text {
   font-style: italic; font-size: 14px; line-height: 1.5; color: rgba(42,26,69,.85); margin: 0;
 }
