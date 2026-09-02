@@ -7,6 +7,7 @@ from app.decorators import admin_required
 from app.models.org import Org, slugify_sender_local_part
 from app.models import PaymentMethod
 from app.services.stripe_client import get_stripe
+from app.services.http_safety import is_safe_redirect_target
 from app.services import payments
 from app.services.analytics import queue_event
 
@@ -116,8 +117,15 @@ def add_payment_method():
     new card" button (orders/payment.html) can send the agent back to
     finish the order they were placing instead of stranding them on
     the generic Settings page -- see add_payment_method_return, which
-    carries it through Stripe's round trip and honors it on return."""
-    next_url = request.form.get("next_url", "").strip() or url_for("settings.payment_methods", _external=True)
+    carries it through Stripe's round trip and honors it on return.
+    Validated with is_safe_redirect_target -- this value ends up as
+    both a local redirect() target and Stripe's own success/cancel
+    URLs, so an unvalidated one would be an open redirect (a crafted
+    link with a next_url pointing off-site, followed once the victim
+    completes or cancels the Stripe flow)."""
+    next_url = request.form.get("next_url", "").strip()
+    if not is_safe_redirect_target(next_url):
+        next_url = url_for("settings.payment_methods", _external=True)
 
     stripe, customer_id = payments.get_or_create_stripe_customer(current_user)
     if not stripe:
@@ -149,7 +157,15 @@ def add_payment_method():
 def add_payment_method_return():
     stripe = get_stripe()
     session_id = request.args.get("session_id")
-    next_url = request.args.get("next") or url_for("settings.payment_methods")
+    # Validated the same way as add_payment_method above -- this is a
+    # plain GET endpoint (no CSRF check applies to GET at all), so an
+    # unvalidated `next` here would be directly exploitable via a bare
+    # link with no login/session trickery needed: send a logged-in
+    # agent /settings/payment-methods/added?next=https://evil.example.com
+    # and they land off-site the moment they click it.
+    next_url = request.args.get("next")
+    if not is_safe_redirect_target(next_url):
+        next_url = url_for("settings.payment_methods")
     if not stripe or not session_id:
         flash("Couldn't confirm the card was saved — try adding it again.", "error")
         return redirect(next_url)
