@@ -98,6 +98,16 @@ def create_app(config_name=None):
         from app.services.campaign_rules import VALUE_LESS_OPERATORS
         return sorted(VALUE_LESS_OPERATORS)
 
+    @app.template_global()
+    def paid_action_types():
+        # Single source of truth stays models.actions.PAID_ACTION_TYPES --
+        # exposed so templates (contacts/view.html's Undo approval button)
+        # can match the same gift/handwritten_note set dashboard.py's
+        # unapprove_action enforces server-side, instead of a second
+        # hardcoded literal that could silently drift from it.
+        from app.models.actions import PAID_ACTION_TYPES
+        return PAID_ACTION_TYPES
+
     # Import models so Flask-Migrate can see them for autogenerate
     from app import models  # noqa: F401
 

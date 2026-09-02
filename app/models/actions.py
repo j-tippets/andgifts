@@ -15,6 +15,16 @@ EXPIRATION_GRACE_DAYS = 10
 # there's no product/size variation the way there is for gifts.
 HANDWRITTEN_NOTE_PRICE_CENTS = 500
 
+# action_type values that mean a real Stripe charge happens at approval
+# time (see dashboard.approve_action's _charge_for_approval). Single
+# source of truth for anywhere that needs to treat these differently
+# from a non-paid action (email, text) -- e.g. dashboard.unapprove_action
+# refuses to undo one of these, since doing so would discard the only
+# record of a completed financial transaction and reopen the door to a
+# duplicate charge on re-approval, with no refund/cancellation flow yet
+# to actually reverse what already happened.
+PAID_ACTION_TYPES = ("gift", "handwritten_note")
+
 
 class SuggestedAction(db.Model):
     """

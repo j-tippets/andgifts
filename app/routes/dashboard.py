@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import SuggestedAction, ActionLog, ContactAuditLog, FlowRecommendation, Order, User
-from app.models.actions import HANDWRITTEN_NOTE_PRICE_CENTS
+from app.models.actions import HANDWRITTEN_NOTE_PRICE_CENTS, PAID_ACTION_TYPES
 from app.services.suggestion_engine import (
     generate_suggestions_for_org, generate_campaign_suggestions_for_org, expire_stale_suggestions,
 )
@@ -599,8 +599,28 @@ def unapprove_action(action_id):
     otherwise create a second, duplicate ActionLog entry for the same
     suggestion. Only called from the contact's Recent Activity list,
     next to the action_approved entry it's undoing -- same pattern as
-    undelete_action next to action_deleted."""
+    undelete_action next to action_deleted.
+
+    NOT available for gift or handwritten_note: by the time either is
+    "approved", a real Stripe charge has already happened (and for a
+    gift, WDF has already been notified to build/ship it). Undoing that
+    here would silently discard the only record of a completed
+    financial transaction and leave the door open to a duplicate charge
+    on re-approval -- see PAID_ACTION_TYPES below. Financial history
+    must be append-only; there's no refund/cancellation flow yet, so
+    for now this is simply blocked rather than attempting a "best
+    effort" undo that can't actually reverse the charge or the
+    fulfillment notice."""
     action = _get_visible_action(action_id, status="approved")
+
+    if action.action_type in PAID_ACTION_TYPES:
+        flash(
+            "This approval can't be undone -- the card has already been charged"
+            + (" and the order sent to fulfillment" if action.action_type == "gift" else "")
+            + ". Contact support if this needs to be reversed.",
+            "error",
+        )
+        return redirect(request.referrer or url_for("contacts.view_contact", contact_id=action.contact_id))
 
     ActionLog.query.filter_by(suggested_action_id=action.id).delete(synchronize_session=False)
 
