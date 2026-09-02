@@ -53,6 +53,18 @@ flask --app wsgi run --debug
 
 Visit `http://localhost:5000/auth/register` to create your first account.
 
+## Running tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Tests run against an in-memory SQLite DB via the `testing` config
+(`config.TestingConfig`) -- no `.env`, MySQL, or real Stripe/SendGrid
+keys needed. Stripe calls are monkeypatched per-test where relevant
+(see `tests/test_onboarding_billing.py` for the pattern).
+
 ## Deploying to DigitalOcean
 
 ### 1. Create the managed MySQL database

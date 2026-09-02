@@ -194,13 +194,45 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    # Explicit environment name, deliberately separate from DEBUG.
+    # DEBUG toggles the Werkzeug debugger/reloader; ENV_NAME gates
+    # security-relevant "fail closed in prod" checks (missing Stripe
+    # config, missing secrets, etc. -- see services/environment.py).
+    # Keeping these independent means flipping DEBUG for local
+    # troubleshooting can never accidentally loosen (or someone
+    # forgetting to flip it back can never accidentally tighten) a
+    # fail-closed check.
+    ENV_NAME = "development"
 
 
 class ProductionConfig(Config):
     DEBUG = False
+    ENV_NAME = "production"
+
+
+class TestingConfig(Config):
+    """Used by the pytest suite (see tests/conftest.py). In-memory
+    SQLite, CSRF and rate limiting off so tests don't need to work
+    around either, ENV_NAME left as a real value tests can override
+    per-test via app.config["ENV_NAME"] to exercise both the prod
+    fail-closed path and the dev fallback path."""
+    DEBUG = False
+    TESTING = True
+    ENV_NAME = "testing"
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    # Config's own SQLALCHEMY_ENGINE_OPTIONS is computed once at import
+    # time against the mysql default and carries a mysql-only
+    # connect_args (ssl) that sqlite3 chokes on -- override rather than
+    # inherit it here.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    SECRET_KEY = "test-secret-key"
+    WTF_CSRF_ENABLED = False
+    SESSION_COOKIE_SECURE = False
+    RATELIMIT_ENABLED = False
 
 
 config_by_name = {
     "development": DevelopmentConfig,
     "production": ProductionConfig,
+    "testing": TestingConfig,
 }
