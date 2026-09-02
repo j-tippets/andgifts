@@ -8,21 +8,29 @@ and pays for gift orders -- this is the org's subscription
 (Org.stripe_customer_id / Org.stripe_subscription_id /
 Org.stripe_default_payment_method_id), not an agent's. Team is a real
 per-seat subscription now (see config.STRIPE_PRICE_IDS["team"] and
-config.TEAM_MIN_SEATS), same "webhook is truth" pattern as the
-Starter/Pro self-serve checkout in routes/billing.py -- this module
-only creates the Checkout Session and mirrors card-display details
-onto the org row for the wizard's own UI; org.tier itself is only
-ever changed by the checkout.session.completed webhook.
+config.TEAM_MIN_SEATS).
 
-save_org_subscription_from_checkout_session also (optionally) shares
-the just-added card with the wizard's owner as their own PaymentMethod
-for gift purchases, so Team signup only asks for a card once -- see
-that function and _share_subscription_card_with_owner below.
+org.tier="team" can be granted by TWO independent paths that race
+each other in production -- the checkout.session.completed webhook
+(routes/orders.py, arrives async from Stripe) and the browser's own
+return to /get-started/billing/return (routes/onboarding.py,
+synchronous with the redirect) -- both go through
+confirm_team_subscription_from_checkout_session below so whichever
+lands first does the real work and the second is a harmless re-save
+of the same details (see that function's docstring for the specific
+idempotency guarantee).
+
+confirm_team_subscription_from_checkout_session also (optionally)
+shares the just-added card with the wizard's owner as their own
+PaymentMethod for gift purchases, so Team signup only asks for a card
+once -- see that function and _share_subscription_card_with_owner
+below.
 """
 from flask import current_app
 
 from app.extensions import db
 from app.services.stripe_client import get_stripe
+from app.services.org_events import record_org_event
 
 
 def get_or_create_org_stripe_customer(org):
@@ -43,36 +51,96 @@ def get_or_create_org_stripe_customer(org):
     return stripe, customer.id
 
 
-def save_org_subscription_from_checkout_session(org, session_id, owner=None):
-    """Called after the wizard's Team subscription Checkout session
-    completes (see routes/onboarding.billing_return). Mirrors the
-    subscription id + card display details onto the org row so the
-    wizard's own pages can show "card on file" immediately, without
-    waiting on the checkout.session.completed webhook (which remains
-    the only thing allowed to actually set org.tier/stripe_subscription_id
-    as the system of record -- see routes/orders.py). Idempotent:
-    re-hitting the return URL just re-saves the same details.
+def confirm_team_subscription_from_checkout_session(org, session_id, owner=None):
+    """The single place org.tier actually becomes "team". Called from
+    BOTH the checkout.session.completed webhook (routes/orders.py --
+    arrives async from Stripe, the durable source of truth) and the
+    wizard's own browser return (routes/onboarding.billing_return --
+    synchronous with the redirect, so the UI doesn't have to wait on
+    the webhook to show "you're on Team"). Whichever of the two runs
+    first does the real work; the second call re-validates and
+    re-saves the same details rather than erroring or double-applying
+    anything -- record_org_event only fires on an actual tier change,
+    and _share_subscription_card_with_owner already no-ops on a
+    retried PaymentMethod id.
 
-    If `owner` is given (the person running the wizard) and doesn't
-    already have their own separate gifting Stripe Customer/cards,
-    this also reuses the just-added card as their saved PaymentMethod
-    for gift purchases -- see _share_subscription_card_with_owner --
-    so they aren't asked to enter the same card twice during
-    onboarding. Returns (saved, shared_with_owner)."""
+    Independently re-fetches and validates the session/subscription
+    from Stripe rather than trusting session_id alone: mode must be
+    "subscription", the Checkout Session must be status="complete",
+    the session's AND the subscription's org_id metadata must both
+    match `org`, the subscription's price must be the configured Team
+    price, and (once org.stripe_customer_id is known) the customer
+    must match. Any mismatch is treated as "not confirmed" rather than
+    raising -- this is what stands between an org and being handed
+    Team for free (or another org's subscription) via a
+    guessed/replayed/tampered session_id.
+
+    Returns (confirmed: bool, shared_card_with_owner: bool).
+    """
     stripe = get_stripe()
     if not stripe:
         return False, False
 
-    checkout_session = stripe.checkout.Session.retrieve(
-        session_id, expand=["subscription.default_payment_method"],
-    )
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(
+            session_id, expand=["subscription.default_payment_method"],
+        )
+    except Exception as e:
+        current_app.logger.error(
+            "Team checkout session retrieve failed (org %s, session %s): %s",
+            org.id, session_id, e,
+        )
+        return False, False
+
+    if checkout_session.get("mode") != "subscription":
+        current_app.logger.warning(
+            "Team checkout confirm rejected: wrong mode (org %s, session %s)", org.id, session_id,
+        )
+        return False, False
+
+    if checkout_session.get("status") != "complete":
+        return False, False
+
+    session_org_id = checkout_session.get("client_reference_id") or (checkout_session.get("metadata") or {}).get("org_id")
+    if session_org_id != org.id:
+        current_app.logger.warning(
+            "Team checkout confirm rejected: session org_id mismatch (org %s, session claims %s)",
+            org.id, session_org_id,
+        )
+        return False, False
+
     subscription = checkout_session.subscription
     if not subscription:
+        return False, False
+
+    sub_org_id = (subscription.get("metadata") or {}).get("org_id")
+    if sub_org_id != org.id:
+        current_app.logger.warning(
+            "Team checkout confirm rejected: subscription org_id mismatch (org %s, subscription claims %s)",
+            org.id, sub_org_id,
+        )
+        return False, False
+
+    expected_price_id = current_app.config["STRIPE_PRICE_IDS"].get("team")
+    actual_price_id = subscription["items"]["data"][0]["price"]["id"]
+    if not expected_price_id or actual_price_id != expected_price_id:
+        current_app.logger.warning(
+            "Team checkout confirm rejected: price mismatch (org %s, expected %s, got %s)",
+            org.id, expected_price_id, actual_price_id,
+        )
+        return False, False
+
+    if org.stripe_customer_id and checkout_session.customer != org.stripe_customer_id:
+        current_app.logger.warning(
+            "Team checkout confirm rejected: customer mismatch (org %s, expected %s, got %s)",
+            org.id, org.stripe_customer_id, checkout_session.customer,
+        )
         return False, False
 
     pm = subscription.default_payment_method
     card = (pm.card if pm else None) or {}
 
+    old_tier = org.tier
     org.stripe_customer_id = checkout_session.customer
     org.stripe_subscription_id = subscription.id
     org.stripe_default_payment_method_id = pm.id if pm else None
@@ -80,6 +148,9 @@ def save_org_subscription_from_checkout_session(org, session_id, owner=None):
     org.card_last4 = card.get("last4")
     org.card_exp_month = card.get("exp_month")
     org.card_exp_year = card.get("exp_year")
+    org.tier = "team"
+    if old_tier != "team":
+        record_org_event(org, "upgrade", old_tier, "team")
 
     shared = False
     if owner is not None and pm is not None:

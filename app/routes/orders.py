@@ -10,6 +10,7 @@ from app.services.payments import charge_saved_card
 from app.services.email import send_order_confirmation, send_wdf_fulfillment_notice
 from app.services.org_events import record_org_event
 from app.services.analytics import queue_event
+from app.services import org_billing
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -225,7 +226,23 @@ def stripe_webhook():
                     "Subscription checkout.session.completed missing org_id/tier (org_id=%s tier=%s session=%s)",
                     org_id, tier, session.get("id"),
                 )
+            elif tier == "team":
+                # Team's onboarding-wizard checkout gets the fuller
+                # validation (session status, subscription org_id,
+                # price, customer match) and card-detail mirroring
+                # that confirm_team_subscription_from_checkout_session
+                # does -- see services/org_billing.py. This is the
+                # SAME function routes/onboarding.billing_return calls
+                # on the browser-return path, specifically so whichever
+                # of the two runs first does the real work and the
+                # other is a harmless re-save, never a double-apply.
+                org_billing.confirm_team_subscription_from_checkout_session(org, session.get("id"))
             else:
+                # Starter/Pro self-serve checkout (routes/billing.py) --
+                # simpler by design: no onboarding wizard pre-selects a
+                # tier ahead of payment for these, so there's no
+                # "granted before confirmed" window to defend against
+                # here the way there is for Team.
                 old_tier = org.tier
                 org.stripe_customer_id = session.get("customer")
                 org.stripe_subscription_id = session.get("subscription")

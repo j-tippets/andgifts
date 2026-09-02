@@ -52,6 +52,7 @@ from app.services.org_events import record_org_event
 from app.services.analytics import queue_event
 from app.services.practice_types import seed_org_milestones
 from app.services.stripe_client import get_stripe
+from app.services.environment import is_production
 from app.services import org_billing
 from app.routes.auth import _send_verification  # reuse register()'s verification-send helper
 from app.routes.team import INVITE_EXPIRY_DAYS
@@ -188,13 +189,28 @@ def plan():
             flash("Pick a plan to continue.", "error")
             return redirect(url_for("onboarding.plan"))
 
-        org.tier = tier
-        if tier == "starter" and org.trial_ends_at is None:
-            # Only set once, ever -- an org that picks Solo, later
-            # switches tiers, and comes back to Solo again should NOT
-            # get a fresh 14 days (see trial_ends_at's comment on Org).
-            org.trial_ends_at = datetime.utcnow() + timedelta(days=current_app.config["TRIAL_DAYS"])
-        org.onboarding_step = "invites" if tier == "team" else "done"
+        if tier == "team":
+            # Deliberately NOT org.tier = "team" here. Team is a paid
+            # subscription -- org.tier is only allowed to become
+            # "team" once Stripe actually confirms it (the
+            # checkout.session.completed webhook, or the
+            # dev-environment fallback in billing_start when Stripe
+            # isn't configured at all). Selecting the plan just moves
+            # the wizard forward; org.onboarding_step (not org.tier)
+            # is what /team and /billing below gate on, so nothing
+            # downstream ever treats "picked Team" as "is entitled to
+            # Team" before payment resolves. See billing_return and
+            # billing_start for where org.tier actually gets set.
+            org.onboarding_step = "invites"
+        else:
+            org.tier = tier
+            if tier == "starter" and org.trial_ends_at is None:
+                # Only set once, ever -- an org that picks Solo, later
+                # switches tiers, and comes back to Solo again should
+                # NOT get a fresh 14 days (see trial_ends_at's comment
+                # on Org).
+                org.trial_ends_at = datetime.utcnow() + timedelta(days=current_app.config["TRIAL_DAYS"])
+            org.onboarding_step = "done"
         db.session.commit()
 
         if tier == "team":
@@ -281,7 +297,11 @@ def invites():
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
-    if org.tier != "team":
+    # Gate on wizard progress, not org.tier -- org.tier isn't granted
+    # "team" until payment resolves (see plan() above), so checking it
+    # here would bounce a legitimate mid-wizard Team signup back to
+    # Step 3.
+    if org.onboarding_step != "invites":
         return redirect(url_for("onboarding.plan"))
 
     if request.method == "POST":
@@ -320,6 +340,8 @@ def invites_skip():
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
+    if org.onboarding_step != "invites":
+        return redirect(url_for("onboarding.plan"))
     org.set_pending_invite_emails(None)
     org.onboarding_step = "billing"
     db.session.commit()
@@ -335,7 +357,7 @@ def billing():
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
-    if org.tier != "team":
+    if org.onboarding_step != "billing":
         return redirect(url_for("onboarding.plan"))
 
     return render_template(
@@ -372,13 +394,37 @@ def billing_start():
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
-    if org.tier != "team":
+    if org.onboarding_step != "billing":
         return redirect(url_for("onboarding.plan"))
 
     stripe, customer_id = org_billing.get_or_create_org_stripe_customer(org)
     price_id = current_app.config["STRIPE_PRICE_IDS"].get("team")
     if not stripe or not price_id:
-        flash("Billing setup isn't available right now -- you can add it later from Settings → Billing.", "error")
+        if is_production():
+            # Stripe is a deployment misconfiguration in prod, not a
+            # business-logic branch to gracefully route around --
+            # finishing this signup any other way would either grant
+            # Team for free (the bug this whole flow exists to avoid)
+            # or silently downgrade to Free while still emailing real
+            # invites to teammates as if they'd joined a paid Team.
+            # Leave the org sitting at onboarding_step="billing" (they
+            # can just retry) and surface the problem loudly.
+            current_app.logger.error(
+                "Team checkout unavailable in production (org %s): stripe=%s price_id=%s",
+                org.id, bool(stripe), bool(price_id),
+            )
+            flash("Billing is temporarily unavailable -- please try again shortly, or contact support.", "error")
+            return redirect(url_for("onboarding.billing"))
+
+        # Local/dev convenience only: no Stripe keys configured at
+        # all. Finish signup on Free (org.tier was never bumped to
+        # "team" -- see plan() above) rather than pretending Team
+        # billing succeeded.
+        flash(
+            "Billing setup isn't available in this environment -- continuing on Free. "
+            "Add billing later from Settings → Billing.",
+            "error",
+        )
         sent, skipped = _create_pending_invites(org, user)
         if sent:
             flash(f"Invites sent to {', '.join(sent)}.", "success")
@@ -411,45 +457,64 @@ def billing_start():
 
 @onboarding_bp.route("/billing/return")
 def billing_return():
-    """Checkout succeeded (or at least Stripe sent us back here with a
-    session id) -- mirror the subscription/card details onto the org,
-    then actually create whatever invites were collected earlier and
-    finish the wizard. Nothing past this point depends on `saved`:
-    even if confirming the subscription details failed, the checkout
-    itself already succeeded (that's the only way to reach this
-    success_url at all), so there's no reason to hold the invites or
-    the rest of signup hostage to a display-only confirmation call."""
+    """Stripe sent us back here with a session id -- independently
+    verify the checkout session actually belongs to this org and was
+    for a completed Team subscription (see
+    org_billing.confirm_team_subscription_from_checkout_session), and
+    only THEN grant org.tier="team". This is a race with the
+    checkout.session.completed webhook, not a replacement for it --
+    whichever confirms first wins, the other is a no-op re-save (see
+    that function's docstring).
+
+    If confirmation fails or never runs (Stripe not configured,
+    missing/tampered session_id, a real Stripe-side hiccup), org.tier
+    is simply left as whatever it already was -- never assumed to be
+    "team" -- and the wizard still finishes so the person isn't
+    stranded, just on whatever tier they're actually entitled to."""
     org, user, bounce = _require_wizard()
     if bounce:
         return bounce
 
     stripe = get_stripe()
     session_id = request.args.get("session_id")
+    confirmed = False
     if stripe and session_id:
         try:
-            saved, shared = org_billing.save_org_subscription_from_checkout_session(
+            confirmed, shared = org_billing.confirm_team_subscription_from_checkout_session(
                 org, session_id, owner=user,
             )
-            if saved:
-                if shared:
-                    flash(
-                        f"{org.card_on_file_label()} saved -- you're set up on Team, "
-                        f"and this card is now on file for your own gift purchases too.",
-                        "success",
-                    )
-                else:
-                    flash(f"{org.card_on_file_label()} saved -- you're set up on Team.", "success")
-            else:
-                flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
         except Exception as e:
             current_app.logger.error("Stripe checkout session retrieval failed (org %s): %s", org.id, e)
-            flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
 
-    sent, skipped = _create_pending_invites(org, user)
-    if sent:
-        flash(f"Invites sent to {', '.join(sent)}.", "success")
-    if skipped:
-        flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
+        if confirmed:
+            if shared:
+                flash(
+                    f"{org.card_on_file_label()} saved -- you're set up on Team, "
+                    f"and this card is now on file for your own gift purchases too.",
+                    "success",
+                )
+            else:
+                flash(f"{org.card_on_file_label()} saved -- you're set up on Team.", "success")
+
+    if not confirmed:
+        flash("Couldn't confirm your subscription — check Settings → Billing once you're in.", "error")
+
+    if confirmed:
+        # Only invite teammates onto a subscription that's actually
+        # confirmed -- see this module's docstring on why that's
+        # deferred until billing resolves. If confirmation failed here,
+        # the collected emails stay on org.onboarding_pending_invites;
+        # if the webhook independently confirms moments later it won't
+        # replay this invite step (onboarding is already marked done),
+        # so a failed browser-return currently means those invites need
+        # sending manually from Team → Invite once the org owner
+        # verifies billing in Settings. Worth a follow-up if this proves
+        # to happen often in practice.
+        sent, skipped = _create_pending_invites(org, user)
+        if sent:
+            flash(f"Invites sent to {', '.join(sent)}.", "success")
+        if skipped:
+            flash(f"Skipped (already registered): {', '.join(skipped)}.", "error")
 
     return _finish_signup(org, user)
 
