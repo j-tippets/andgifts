@@ -23,6 +23,7 @@ dashboard route.
 """
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import (
@@ -488,8 +489,21 @@ def generate_campaign_suggestions_for_org(org, today=None):
                         target_date=trigger_date,
                         status="pending",
                     )
-                    db.session.add(suggestion)
-                    db.session.flush()  # populate suggestion.id before logging the FK reference
+                    try:
+                        # Nested (SAVEPOINT) so a loss here only unwinds
+                        # this one insert, not every suggestion already
+                        # added earlier in this same run -- see
+                        # SuggestedAction.uq_suggested_action_campaign_occurrence
+                        # for why this can legitimately fail: another
+                        # near-simultaneous run (a second gunicorn worker,
+                        # or the nightly job overlapping an on-demand
+                        # dashboard-triggered run) can win the same
+                        # check-then-insert race and commit first.
+                        with db.session.begin_nested():
+                            db.session.add(suggestion)
+                            db.session.flush()  # populate suggestion.id before logging the FK reference
+                    except IntegrityError:
+                        continue
                     _log_qualified(suggestion, contact)
                     created.append(suggestion)
                     if cap is not None:

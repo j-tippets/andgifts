@@ -24,6 +24,30 @@ class SuggestedAction(db.Model):
     """
     __tablename__ = "suggested_actions"
 
+    __table_args__ = (
+        # Backstop for _campaign_suggestion_exists in suggestion_engine.py,
+        # which is a check-then-insert with no transactional guarantee: two
+        # near-simultaneous runs of generate_campaign_suggestions_for_org
+        # for the same org (two gunicorn workers, or the nightly job
+        # overlapping an on-demand dashboard-triggered run) can both pass
+        # the "does this already exist" check before either commits, and
+        # both create a suggestion -- observed in practice as a paused-
+        # then-resumed flow producing two suggestions for the same
+        # occurrence, each with its own independently-generated LLM
+        # reasoning text. MySQL treats each NULL as distinct in a unique
+        # index, so this only actually constrains campaign-sourced rows
+        # (source_campaign_id and triggering_event_id both set) -- the
+        # older non-campaign GiftTrigger path (both NULL there) is
+        # untouched, and dedup logic for it lives elsewhere (see
+        # expire_stale_suggestions's docstring). See suggestion_engine.py's
+        # generate_campaign_suggestions_for_org for the matching
+        # savepoint + IntegrityError handling this relies on.
+        db.UniqueConstraint(
+            "org_id", "source_campaign_id", "contact_id", "triggering_event_id", "target_date",
+            name="uq_suggested_action_campaign_occurrence",
+        ),
+    )
+
     # Lets dashboard/index.html's merged card stack (suggestions +
     # FlowRecommendation, sorted together by created_at) branch on type
     # without checking __class__ in the template.
