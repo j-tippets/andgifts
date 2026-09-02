@@ -5,6 +5,7 @@ from app.extensions import db
 from app.models import User, Contact, ContactAuditLog
 from app.services.storage import upload_avatar, delete_avatar, StorageError
 from app.services.account_deletion import delete_org_completely
+from app.services.org_billing import cancel_org_subscription
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -97,7 +98,12 @@ def delete_account():
     Two very different outcomes depending on org shape:
     - Sole user in the org: the org itself is meaningless without
       them, so the whole org and every row scoped to it is deleted
-      (see delete_org_completely).
+      (see delete_org_completely) -- but only after any live Stripe
+      subscription is confirmed canceled first (see
+      org_billing.cancel_org_subscription). Fails closed: if
+      cancellation itself errors, nothing is deleted and the agent is
+      told to retry, rather than the org disappearing while Stripe
+      keeps billing a subscription no one can see anymore.
     - One of several users: only their own User row is removed,
       mirroring team.delete_member's handling of owned contacts and
       dangling references -- the org and everyone else keep working.
@@ -112,6 +118,14 @@ def delete_account():
     org = current_user.org
 
     if len(org.users) == 1:
+        ok, error = cancel_org_subscription(org)
+        if not ok:
+            flash(
+                f"Couldn't cancel your subscription before deleting your account: {error} "
+                "Nothing was deleted -- please try again, or contact support if this keeps happening.",
+                "error",
+            )
+            return redirect(url_for("profile.edit_profile"))
         delete_org_completely(org)
         logout_user()
         flash("Your account and all its data have been permanently deleted.", "success")

@@ -221,3 +221,43 @@ def sync_team_subscription_quantity(org):
             "Failed to sync Team subscription quantity for org %s: %s", org.id, e,
         )
         return False
+
+
+def cancel_org_subscription(org):
+    """Cancels org's live Stripe subscription, if it has one -- called
+    from profile.delete_account BEFORE delete_org_completely touches
+    any local rows, so a Stripe-side failure never results in an org
+    (and its billing contact) being permanently deleted while Stripe
+    keeps billing a subscription nobody can see or cancel anymore.
+
+    Returns (ok, error_message_or_None):
+    - (True, None): nothing to cancel (Stripe isn't configured, or
+      this org never had a subscription) -- deletion should proceed.
+    - (True, None): Stripe already reports the subscription as
+      canceled -- makes this safe to call again on a retry (a browser
+      refresh, a double form submit) without erroring on work that's
+      already done.
+    - (True, None): the cancel call succeeds.
+    - (False, message): Stripe is configured and a subscription id is
+      on file, but the cancel attempt itself failed for any other
+      reason (network error, Stripe outage, etc). The caller MUST NOT
+      proceed with deletion in this case -- fail closed. Leaving the
+      org (temporarily) undeleted with a subscription still active is
+      recoverable (retry, or cancel manually in the Stripe dashboard);
+      deleting the org out from under an active subscription is not.
+    """
+    stripe = get_stripe()
+    if not stripe or not org.stripe_subscription_id:
+        return True, None
+
+    try:
+        subscription = stripe.Subscription.retrieve(org.stripe_subscription_id)
+        if subscription.status == "canceled":
+            return True, None
+        stripe.Subscription.cancel(org.stripe_subscription_id)
+        return True, None
+    except Exception as e:
+        current_app.logger.error(
+            "Failed to cancel Stripe subscription for org %s before deletion: %s", org.id, e,
+        )
+        return False, str(e)
