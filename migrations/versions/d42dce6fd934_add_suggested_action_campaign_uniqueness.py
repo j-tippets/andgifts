@@ -35,23 +35,50 @@ def upgrade():
     # make the constraint creation below fail loudly -- that's a real,
     # separate problem (a client double-charged/double-gifted) that
     # deserves manual review, not a silent migration-time deletion.
-    op.execute("""
-        DELETE t1 FROM suggested_actions t1
-        INNER JOIN suggested_actions t2
-          ON t1.org_id = t2.org_id
-          AND t1.source_campaign_id = t2.source_campaign_id
-          AND t1.contact_id = t2.contact_id
-          AND t1.triggering_event_id = t2.triggering_event_id
-          AND t1.target_date = t2.target_date
-        WHERE t1.source_campaign_id IS NOT NULL
-          AND t1.triggering_event_id IS NOT NULL
-          AND (t1.created_at > t2.created_at
-               OR (t1.created_at = t2.created_at AND t1.id > t2.id))
-          AND NOT EXISTS (
-              SELECT 1 FROM action_log
-              WHERE action_log.suggested_action_id = t1.id
-          )
-    """)
+    #
+    # ContactAuditLog also has a plain FK to suggested_actions.id (no
+    # cascade) -- and unlike ActionLog, a row there gets written for
+    # EVERY suggestion the moment it's created (_log_qualified, fired
+    # from both generation paths), not just approved ones. So virtually
+    # every duplicate has at least one ContactAuditLog row pointing at
+    # it, and deleting the suggestion first would hit that FK
+    # constraint. Since these duplicates are, by the ActionLog check
+    # above, confirmed never approved, their only ContactAuditLog
+    # entries are "qualified for a suggestion" noise from the bug this
+    # migration is fixing -- safe to remove alongside the duplicate
+    # itself, not a real audit trail worth preserving.
+    connection = op.get_bind()
+
+    victim_ids = [
+        row[0] for row in connection.execute(sa.text("""
+            SELECT t1.id FROM suggested_actions t1
+            INNER JOIN suggested_actions t2
+              ON t1.org_id = t2.org_id
+              AND t1.source_campaign_id = t2.source_campaign_id
+              AND t1.contact_id = t2.contact_id
+              AND t1.triggering_event_id = t2.triggering_event_id
+              AND t1.target_date = t2.target_date
+            WHERE t1.source_campaign_id IS NOT NULL
+              AND t1.triggering_event_id IS NOT NULL
+              AND (t1.created_at > t2.created_at
+                   OR (t1.created_at = t2.created_at AND t1.id > t2.id))
+              AND NOT EXISTS (
+                  SELECT 1 FROM action_log
+                  WHERE action_log.suggested_action_id = t1.id
+              )
+        """))
+    ]
+
+    if victim_ids:
+        delete_audit = sa.text(
+            "DELETE FROM contact_audit_log WHERE suggested_action_id IN :ids"
+        ).bindparams(sa.bindparam("ids", expanding=True))
+        connection.execute(delete_audit, {"ids": victim_ids})
+
+        delete_actions = sa.text(
+            "DELETE FROM suggested_actions WHERE id IN :ids"
+        ).bindparams(sa.bindparam("ids", expanding=True))
+        connection.execute(delete_actions, {"ids": victim_ids})
 
     with op.batch_alter_table('suggested_actions', schema=None) as batch_op:
         batch_op.create_unique_constraint(
@@ -63,6 +90,7 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table('suggested_actions', schema=None) as batch_op:
         batch_op.drop_constraint('uq_suggested_action_campaign_occurrence', type_='unique')
-    # The duplicate rows removed in upgrade() are not restored -- this is
-    # a data cleanup, not just a schema change, and there's no record of
-    # exactly which rows were deleted to bring back.
+    # The duplicate rows (and their ContactAuditLog entries) removed in
+    # upgrade() are not restored -- this is a data cleanup, not just a
+    # schema change, and there's no record of exactly which rows were
+    # deleted to bring back.
