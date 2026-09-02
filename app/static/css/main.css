@@ -774,7 +774,21 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .s-gift-box {
   background: var(--paper); border-radius: 14px; padding: 12px 14px; margin: 0 0 14px;
   display: flex; flex-direction: column; gap: 10px;
+  /* Bordered so the suggested gift reads as its own distinct module
+     rather than blending into the rest of the card's content. */
+  border: 1.5px solid var(--coral);
 }
+/* Larger lead image on the swipeable card view -- gives the gift itself
+   some visual appeal instead of leading with a name and a price. List
+   view keeps the small inline thumb (.s-gift-thumb below) since it's a
+   denser, scan-oriented layout. */
+.s-gift-hero { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; display: block; }
+.s-gift-eyebrow {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  font-family: var(--font-rounded); font-weight: 700; font-size: 10.5px;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--coral-deep);
+}
+.s-gift-eyebrow svg { width: 12px; height: 12px; }
 .s-gift-info { display: flex; align-items: center; gap: 12px; }
 .s-gift-thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
 .s-gift-thumb-placeholder {
@@ -783,6 +797,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 }
 .s-gift-thumb-placeholder svg { width: 20px; height: 20px; }
 .s-gift-name { font-family: var(--font-rounded); font-weight: 700; font-size: 14px; }
+.s-gift-description { font-size: 12.5px; color: rgba(42,26,69,.65); line-height: 1.4; margin-top: 2px; }
 .s-gift-price { font-size: 12.5px; color: rgba(42,26,69,.55); margin-top: 2px; }
 .s-gift-select-label {
   display: flex; flex-direction: column; gap: 4px;

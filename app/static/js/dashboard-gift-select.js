@@ -16,7 +16,13 @@
 
     var nameEl = box.querySelector('.s-gift-name');
     var priceEl = box.querySelector('.s-gift-price');
+    var descriptionEl = box.querySelector('.s-gift-description');
     if (nameEl) nameEl.textContent = option.getAttribute('data-name');
     if (priceEl) priceEl.textContent = '$' + option.getAttribute('data-price');
+    if (descriptionEl) {
+      var description = option.getAttribute('data-description') || '';
+      descriptionEl.textContent = description;
+      descriptionEl.style.display = description ? '' : 'none';
+    }
   });
 })();

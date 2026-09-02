@@ -181,14 +181,20 @@
 
             {% if s.action_type == 'gift' %}
               <div class="s-gift-box">
+                {% if s.suggested_gift and s.suggested_gift.image_url %}
+                  <img src="{{ s.suggested_gift.image_url }}" alt="" class="s-gift-hero">
+                {% endif %}
+                <div class="s-gift-eyebrow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.62Z"/></svg>
+                  Suggested gift
+                </div>
                 <div class="s-gift-info">
-                  {% if s.suggested_gift and s.suggested_gift.image_url %}
-                    <img src="{{ s.suggested_gift.image_url }}" alt="" class="s-gift-thumb">
-                  {% else %}
+                  {% if not (s.suggested_gift and s.suggested_gift.image_url) %}
                     <div class="s-gift-thumb s-gift-thumb-placeholder">{{ type_icon('gift') }}</div>
                   {% endif %}
                   <div>
                     <div class="s-gift-name">{{ s.suggested_gift.name if s.suggested_gift else 'No gift selected yet' }}</div>
+                    <div class="s-gift-description" {{ 'style="display:none;"' | safe if not (s.suggested_gift and s.suggested_gift.description) }}>{{ s.suggested_gift.description if s.suggested_gift else '' }}</div>
                     {% if s.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(s.suggested_gift.price_cents / 100) }}</div>{% endif %}
                   </div>
                 </div>
@@ -199,7 +205,7 @@
                     <select name="gift_catalog_item_id" form="s-approve-{{ s.id }}" class="s-gift-select">
                       <option value="">Keep as shown</option>
                       {% for item in current_user.org.available_catalog_items() %}
-                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
+                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" data-description="{{ item.description or '' }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
                       {% endfor %}
                     </select>
                   </label>
@@ -351,6 +357,7 @@
                   {% endif %}
                   <div>
                     <div class="s-gift-name">{{ s.suggested_gift.name if s.suggested_gift else 'No gift selected yet' }}</div>
+                    <div class="s-gift-description" {{ 'style="display:none;"' | safe if not (s.suggested_gift and s.suggested_gift.description) }}>{{ s.suggested_gift.description if s.suggested_gift else '' }}</div>
                     {% if s.suggested_gift %}<div class="s-gift-price">${{ '%.2f'|format(s.suggested_gift.price_cents / 100) }}</div>{% endif %}
                   </div>
                 </div>
@@ -361,7 +368,7 @@
                     <select name="gift_catalog_item_id" form="list-approve-{{ s.id }}" class="s-gift-select">
                       <option value="">Keep as shown</option>
                       {% for item in current_user.org.available_catalog_items() %}
-                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
+                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ '%.2f'|format(item.price_cents / 100) }}" data-description="{{ item.description or '' }}" {{ 'selected' if s.suggested_gift_id == item.id else '' }}>{{ item.name }} &mdash; ${{ '%.2f'|format(item.price_cents / 100) }}</option>
                       {% endfor %}
                     </select>
                   </label>
