@@ -1,6 +1,16 @@
 import os
 from datetime import timedelta
 
+# The checked-in fallback SECRET_KEY -- fine for local development
+# (Config.SECRET_KEY below falls back to it there), but a real
+# security hole if it's ever what's actually running in production:
+# it's public (it's sitting right here in the repo), so anyone could
+# forge session cookies or CSRF tokens against a deploy that's still
+# using it. See app/services/environment.validate_secret_key, which
+# refuses to start outside of development if SECRET_KEY is missing or
+# still equal to this.
+DEV_SECRET_KEY_DEFAULT = "dev-secret-change-me"
+
 
 class Config:
     """
@@ -9,7 +19,16 @@ class Config:
     env vars from the managed MySQL database + app-level secrets).
     """
 
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+    SECRET_KEY = os.environ.get("SECRET_KEY", DEV_SECRET_KEY_DEFAULT)
+
+    # Minimum length for any password a person sets themselves (signup,
+    # invite acceptance, reset, profile change, an admin typing a
+    # teammate's temp password) -- see the various set_password() call
+    # sites for where this gets checked. No complexity rules (uppercase/
+    # symbol/number) on top of it: length alone is a stronger, more
+    # usable signal than composition rules, which mostly train people
+    # into predictable substitutions (e.g. "Password1!").
+    MIN_PASSWORD_LENGTH = 12
 
     # --- Database ---
     # DigitalOcean managed MySQL gives you individual components; we build

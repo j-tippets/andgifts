@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
 from flask_login import login_user, logout_user, login_required
 from markupsafe import Markup, escape
 from app.extensions import db, limiter
@@ -170,6 +170,9 @@ def reset_password(token):
         confirm = request.form.get("confirm_password")
         if password != confirm:
             flash("Passwords don't match.", "error")
+            return render_template("auth/reset_password.html", token=token)
+        if len(password) < current_app.config["MIN_PASSWORD_LENGTH"]:
+            flash(f"Password must be at least {current_app.config['MIN_PASSWORD_LENGTH']} characters.", "error")
             return render_template("auth/reset_password.html", token=token)
 
         user.set_password(password)

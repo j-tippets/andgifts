@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user, logout_user
 
 from app.extensions import db
@@ -8,8 +8,6 @@ from app.services.account_deletion import delete_org_completely
 from app.services.org_billing import cancel_org_subscription
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
-
-MIN_PASSWORD_LENGTH = 8
 
 
 @profile_bp.route("/", methods=["GET", "POST"])
@@ -77,8 +75,8 @@ def edit_profile():
         if new_password != confirm_password:
             flash("New passwords don't match.", "error")
             return redirect(url_for("profile.edit_profile"))
-        if len(new_password) < MIN_PASSWORD_LENGTH:
-            flash(f"New password must be at least {MIN_PASSWORD_LENGTH} characters.", "error")
+        if len(new_password) < current_app.config["MIN_PASSWORD_LENGTH"]:
+            flash(f"New password must be at least {current_app.config['MIN_PASSWORD_LENGTH']} characters.", "error")
             return redirect(url_for("profile.edit_profile"))
         current_user.set_password(new_password)
 

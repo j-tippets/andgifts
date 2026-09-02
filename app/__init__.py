@@ -41,6 +41,9 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name if config_name in config_by_name else "production"])
 
+    from app.services.environment import validate_secret_key
+    validate_secret_key(app)
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)

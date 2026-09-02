@@ -113,6 +113,11 @@ def start():
             flash("An account with that email already exists.", "error")
             return redirect(url_for("onboarding.start"))
 
+        password = request.form["password"]
+        if len(password) < current_app.config["MIN_PASSWORD_LENGTH"]:
+            flash(f"Password must be at least {current_app.config['MIN_PASSWORD_LENGTH']} characters.", "error")
+            return redirect(url_for("onboarding.start"))
+
         org = Org(name=request.form.get("org_name", "My Business"), tier="free")
         db.session.add(org)
         db.session.flush()
@@ -126,7 +131,7 @@ def start():
             role="admin",
             email_verified=False,
         )
-        user.set_password(request.form["password"])
+        user.set_password(password)
         db.session.add(user)
         db.session.commit()
 

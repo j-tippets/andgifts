@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import current_user, login_user
 
 from app.extensions import db
@@ -72,6 +72,9 @@ def new_member():
     if method == "direct":
         # Admin sets a temp password right now; agent can change it after login.
         temp_password = request.form.get("temp_password") or secrets.token_urlsafe(9)
+        if len(temp_password) < current_app.config["MIN_PASSWORD_LENGTH"]:
+            flash(f"Temporary password must be at least {current_app.config['MIN_PASSWORD_LENGTH']} characters.", "error")
+            return redirect(url_for("team.new_member"))
         user.set_password(temp_password)
         user.status = "active"
         db.session.add(user)
@@ -139,6 +142,9 @@ def accept_invite(token):
         confirm = request.form.get("confirm_password")
         if password != confirm:
             flash("Passwords don't match.", "error")
+            return render_template("team/accept_invite.html", user=user)
+        if len(password) < current_app.config["MIN_PASSWORD_LENGTH"]:
+            flash(f"Password must be at least {current_app.config['MIN_PASSWORD_LENGTH']} characters.", "error")
             return render_template("team/accept_invite.html", user=user)
 
         user.set_password(password)
