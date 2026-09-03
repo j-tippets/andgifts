@@ -21,6 +21,19 @@ class Config:
 
     SECRET_KEY = os.environ.get("SECRET_KEY", DEV_SECRET_KEY_DEFAULT)
 
+    # Flask/Werkzeug-level cap on the ENTIRE request body, enforced
+    # before any view code (or even request.form/.files parsing) runs --
+    # rejects with 413 immediately. This is distinct from, and sits
+    # above, services.storage's own 5MB MAX_PHOTO_SIZE_BYTES check:
+    # without this, Werkzeug will happily buffer an arbitrarily large
+    # upload into memory (or spill it to a temp file) before the app
+    # ever gets a chance to reject it on size grounds -- the app-level
+    # check was real but came too late to actually bound resource use.
+    # 10MB leaves headroom above the 5MB photo limit for multipart
+    # overhead and the other form fields photo uploads are submitted
+    # alongside (name, email, etc.).
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+
     # Minimum length for any password a person sets themselves (signup,
     # invite acceptance, reset, profile change, an admin typing a
     # teammate's temp password) -- see the various set_password() call

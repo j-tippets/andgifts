@@ -14,6 +14,11 @@ import uuid
 import boto3
 from flask import current_app
 
+# Informational only -- lists what _sniff_image_type below actually
+# accepts, for anywhere client-side that wants to hint at allowed file
+# types (e.g. a file input's accept attribute). Not itself used for
+# server-side validation; see _sniff_image_type's docstring for why an
+# extension is never trusted on its own.
 ALLOWED_PHOTO_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -47,22 +52,53 @@ def _public_url(key):
     return f"https://{cfg['SPACES_BUCKET']}.{region}.digitaloceanspaces.com/{key}"
 
 
-def _validate_photo(file_storage):
-    """Raises StorageError if the file fails extension/size checks; otherwise
-    returns (ext, content_type)."""
-    filename = file_storage.filename or ""
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if ext not in ALLOWED_PHOTO_EXTENSIONS:
-        raise StorageError("Photo must be a PNG, JPG, or WEBP file.")
+def _sniff_image_type(file_storage):
+    """Returns "png", "jpg", or "webp" based on the file's actual
+    leading bytes (each format's well-known magic-byte signature), or
+    None if the content doesn't match any of them.
 
+    Deliberately never looks at file_storage.filename or .content_type
+    -- both are just labels the uploader's browser/client attached,
+    freely settable to anything regardless of what the file actually
+    contains. A file named "photo.png" with actual HTML/JS content
+    inside would pass an extension-only check; sniffing the real bytes
+    is what actually enforces "this is really an image of a type we
+    serve." This also means SVG (or any other script-capable format)
+    is rejected by construction -- it simply won't match any of these
+    three signatures -- without needing its own explicit blocklist
+    entry."""
+    file_storage.stream.seek(0)
+    header = file_storage.stream.read(16)
+    file_storage.stream.seek(0)
+
+    if header[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if header[:3] == b"\xff\xd8\xff":
+        return "jpg"
+    if header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def _validate_photo(file_storage):
+    """Raises StorageError if the file fails validation; otherwise
+    returns (ext, content_type). Both are derived from _sniff_image_type
+    (the file's actual content), not from the client-supplied filename
+    or Content-Type header -- see that function's docstring for why."""
     file_storage.stream.seek(0, 2)
     size = file_storage.stream.tell()
     file_storage.stream.seek(0)
+    if size == 0:
+        raise StorageError("That file is empty.")
     if size > MAX_PHOTO_SIZE_BYTES:
         raise StorageError("Photo must be smaller than 5MB.")
 
-    content_type = file_storage.content_type or f"image/{'jpeg' if ext == 'jpg' else ext}"
-    return ext, content_type
+    detected = _sniff_image_type(file_storage)
+    if not detected:
+        raise StorageError("Photo must be a PNG, JPG, or WEBP file.")
+
+    content_type = f"image/{'jpeg' if detected == 'jpg' else detected}"
+    return detected, content_type
 
 
 def _upload(file_storage, key, content_type):
