@@ -58,12 +58,24 @@ def register_cli(app):
     @app.cli.command("wipe-all-tenant-data")
     @click.option("--yes", "confirm_phrase", default="",
                   help='Must be exactly "DELETE EVERYTHING" to actually run -- otherwise this is a dry run.')
-    def wipe_all_tenant_data(confirm_phrase):
+    @click.option("--keep-org-email", "keep_org_email", default=None,
+                  help="Email of a user whose entire org should be preserved untouched "
+                       "(e.g. your own platform_admin login) -- everything belonging to "
+                       "every OTHER org still gets wiped. Omit for the original all-orgs "
+                       "behavior.")
+    def wipe_all_tenant_data(confirm_phrase, keep_org_email):
         """Deletes every Org, User, and Contact (and everything scoped to
         them) across the entire platform. Run with no --yes flag first --
         that's a dry run that only prints row counts, nothing is deleted.
 
-        Left untouched, since they aren't tenant data:
+        Pass --keep-org-email to preserve one org (and everything scoped
+        to it -- its users, contacts, orders, flows, etc.) untouched while
+        still wiping every other org. Typical use: keep your own
+        platform_admin login so you don't have to re-register and
+        re-grant platform_admin by hand afterward (see the old workflow
+        this replaces).
+
+        Left untouched regardless, since they aren't tenant data:
           - practice_types / practice_type_milestones (preset milestone
             templates)
           - interests (global tag list)
@@ -76,7 +88,8 @@ def register_cli(app):
         were deliberately designed (see their model docstrings) to
         survive their org/user being removed, via denormalized snapshot
         columns. Their org_id/user_id FKs are set to NULL instead so the
-        rows stay in place and legible.
+        rows stay in place and legible (rows already belonging to the
+        kept org, if any, are left completely alone).
 
         Runs as a single transaction with FK checks suspended for the
         duration (mirrors mysqldump's own approach to avoid ordering
@@ -86,47 +99,134 @@ def register_cli(app):
 
         Usage:
             flask wipe-all-tenant-data                      # dry run, prints counts only
-            flask wipe-all-tenant-data --yes "DELETE EVERYTHING"   # actually deletes
+            flask wipe-all-tenant-data --yes "DELETE EVERYTHING"   # actually deletes everything
+            flask wipe-all-tenant-data --keep-org-email you@example.com   # dry run, one org spared
+            flask wipe-all-tenant-data --yes "DELETE EVERYTHING" --keep-org-email you@example.com
         """
         from app.extensions import db
         from sqlalchemy import text
 
         dry_run = confirm_phrase != "DELETE EVERYTHING"
+        params = {}
+
+        if keep_org_email:
+            row = db.session.execute(
+                text("SELECT org_id, org_id IS NULL AS missing FROM users WHERE email = :email"),
+                {"email": keep_org_email},
+            ).first()
+            if row is None:
+                click.echo(f"No user found with email {keep_org_email!r} -- aborting without "
+                           f"touching anything, since a typo here would otherwise wipe that "
+                           f"org too.")
+                return
+            params["keep_org_id"] = row[0]
+            click.echo(f"Keeping org {row[0]} (owner: {keep_org_email}) untouched.\n")
+
+        def scope(sql_no_keep, sql_with_keep):
+            return sql_with_keep if keep_org_email else sql_no_keep
 
         # (label, DELETE sql) in dependency-safe (child-before-parent) order.
         # Every statement scopes out the global/platform rows called out in
-        # the docstring above via its WHERE clause.
+        # the docstring above via its WHERE clause, and additionally excludes
+        # the kept org's data (directly via org_id where the table has one,
+        # otherwise via a join back to whichever parent row carries org_id)
+        # when --keep-org-email is passed.
         delete_statements = [
-            ("contact_audit_log", "DELETE FROM contact_audit_log"),
-            ("action_log", "DELETE FROM action_log"),
-            ("suggested_actions", "DELETE FROM suggested_actions"),
-            ("contact_methods", "DELETE FROM contact_methods"),
-            ("campaign_rules", "DELETE FROM campaign_rules"),
-            ("timeline_events", "DELETE FROM timeline_events"),
-            ("orders", "DELETE FROM orders"),
-            ("custom_field_values", "DELETE FROM custom_field_values"),
-            ("contact_people", "DELETE FROM contact_people"),
-            ("contact_interests", "DELETE FROM contact_interests"),
-            ("contact_badges", "DELETE FROM contact_badges"),
-            ("campaigns", "DELETE FROM campaigns"),
-            ("campaign_recipe_rules",
-             "DELETE FROM campaign_recipe_rules WHERE recipe_id IN "
-             "(SELECT id FROM campaign_recipes WHERE org_id IS NOT NULL)"),
-            ("milestone_priorities", "DELETE FROM milestone_priorities"),
-            ("org_catalog_selections", "DELETE FROM org_catalog_selections"),
-            ("gift_triggers", "DELETE FROM gift_triggers WHERE org_id IS NOT NULL"),
-            ("custom_field_definitions", "DELETE FROM custom_field_definitions"),
-            ("custom_event_types", "DELETE FROM custom_event_types"),
-            ("contacts", "DELETE FROM contacts"),
-            ("campaign_recipes", "DELETE FROM campaign_recipes WHERE org_id IS NOT NULL"),
-            ("badges", "DELETE FROM badges WHERE org_id IS NOT NULL OR owner_user_id IS NOT NULL"),
-            ("users", "DELETE FROM users"),
-            ("gift_catalog_items", "DELETE FROM gift_catalog_items WHERE org_id IS NOT NULL"),
-            ("orgs", "DELETE FROM orgs"),
+            ("contact_audit_log", scope(
+                "DELETE FROM contact_audit_log",
+                "DELETE FROM contact_audit_log WHERE org_id != :keep_org_id")),
+            ("action_log", scope(
+                "DELETE FROM action_log",
+                "DELETE FROM action_log WHERE org_id != :keep_org_id")),
+            ("suggested_actions", scope(
+                "DELETE FROM suggested_actions",
+                "DELETE FROM suggested_actions WHERE org_id != :keep_org_id")),
+            ("contact_methods", scope(
+                "DELETE FROM contact_methods",
+                "DELETE FROM contact_methods WHERE person_id IN "
+                "(SELECT cp.id FROM contact_people cp JOIN contacts c ON c.id = cp.contact_id "
+                "WHERE c.org_id != :keep_org_id)")),
+            ("campaign_rules", scope(
+                "DELETE FROM campaign_rules",
+                "DELETE FROM campaign_rules WHERE campaign_id IN "
+                "(SELECT id FROM campaigns WHERE org_id != :keep_org_id)")),
+            ("timeline_events", scope(
+                "DELETE FROM timeline_events",
+                "DELETE FROM timeline_events WHERE contact_id IN "
+                "(SELECT id FROM contacts WHERE org_id != :keep_org_id)")),
+            ("orders", scope(
+                "DELETE FROM orders",
+                "DELETE FROM orders WHERE org_id != :keep_org_id")),
+            ("custom_field_values", scope(
+                "DELETE FROM custom_field_values",
+                "DELETE FROM custom_field_values WHERE contact_id IN "
+                "(SELECT id FROM contacts WHERE org_id != :keep_org_id)")),
+            ("contact_people", scope(
+                "DELETE FROM contact_people",
+                "DELETE FROM contact_people WHERE contact_id IN "
+                "(SELECT id FROM contacts WHERE org_id != :keep_org_id)")),
+            ("contact_interests", scope(
+                "DELETE FROM contact_interests",
+                "DELETE FROM contact_interests WHERE contact_id IN "
+                "(SELECT id FROM contacts WHERE org_id != :keep_org_id)")),
+            ("contact_badges", scope(
+                "DELETE FROM contact_badges",
+                "DELETE FROM contact_badges WHERE contact_id IN "
+                "(SELECT id FROM contacts WHERE org_id != :keep_org_id)")),
+            ("campaigns", scope(
+                "DELETE FROM campaigns",
+                "DELETE FROM campaigns WHERE org_id != :keep_org_id")),
+            ("campaign_recipe_rules", scope(
+                "DELETE FROM campaign_recipe_rules WHERE recipe_id IN "
+                "(SELECT id FROM campaign_recipes WHERE org_id IS NOT NULL)",
+                "DELETE FROM campaign_recipe_rules WHERE recipe_id IN "
+                "(SELECT id FROM campaign_recipes WHERE org_id IS NOT NULL AND org_id != :keep_org_id)")),
+            ("milestone_priorities", scope(
+                "DELETE FROM milestone_priorities",
+                "DELETE FROM milestone_priorities WHERE user_id IN "
+                "(SELECT id FROM users WHERE org_id != :keep_org_id)")),
+            ("org_catalog_selections", scope(
+                "DELETE FROM org_catalog_selections",
+                "DELETE FROM org_catalog_selections WHERE org_id != :keep_org_id")),
+            ("gift_triggers", scope(
+                "DELETE FROM gift_triggers WHERE org_id IS NOT NULL",
+                "DELETE FROM gift_triggers WHERE org_id IS NOT NULL AND org_id != :keep_org_id")),
+            ("custom_field_definitions", scope(
+                "DELETE FROM custom_field_definitions",
+                "DELETE FROM custom_field_definitions WHERE org_id != :keep_org_id")),
+            ("custom_event_types", scope(
+                "DELETE FROM custom_event_types",
+                "DELETE FROM custom_event_types WHERE org_id != :keep_org_id")),
+            ("contacts", scope(
+                "DELETE FROM contacts",
+                "DELETE FROM contacts WHERE org_id != :keep_org_id")),
+            ("campaign_recipes", scope(
+                "DELETE FROM campaign_recipes WHERE org_id IS NOT NULL",
+                "DELETE FROM campaign_recipes WHERE org_id IS NOT NULL AND org_id != :keep_org_id")),
+            ("badges", scope(
+                "DELETE FROM badges WHERE org_id IS NOT NULL OR owner_user_id IS NOT NULL",
+                "DELETE FROM badges WHERE (org_id IS NOT NULL OR owner_user_id IS NOT NULL) "
+                "AND (org_id IS NULL OR org_id != :keep_org_id) "
+                "AND (owner_user_id IS NULL OR owner_user_id NOT IN "
+                "(SELECT id FROM users WHERE org_id = :keep_org_id))")),
+            ("users", scope(
+                "DELETE FROM users",
+                "DELETE FROM users WHERE org_id != :keep_org_id")),
+            ("gift_catalog_items", scope(
+                "DELETE FROM gift_catalog_items WHERE org_id IS NOT NULL",
+                "DELETE FROM gift_catalog_items WHERE org_id IS NOT NULL AND org_id != :keep_org_id")),
+            ("orgs", scope(
+                "DELETE FROM orgs",
+                "DELETE FROM orgs WHERE id != :keep_org_id")),
         ]
         null_out_statements = [
-            ("support_requests", "UPDATE support_requests SET org_id = NULL, user_id = NULL"),
-            ("org_event_log", "UPDATE org_event_log SET org_id = NULL"),
+            ("support_requests", scope(
+                "UPDATE support_requests SET org_id = NULL, user_id = NULL WHERE org_id IS NOT NULL",
+                "UPDATE support_requests SET org_id = NULL, user_id = NULL "
+                "WHERE org_id IS NOT NULL AND org_id != :keep_org_id")),
+            ("org_event_log", scope(
+                "UPDATE org_event_log SET org_id = NULL WHERE org_id IS NOT NULL",
+                "UPDATE org_event_log SET org_id = NULL WHERE org_id IS NOT NULL AND org_id != :keep_org_id")),
         ]
 
         click.echo("DRY RUN -- nothing will be deleted (pass --yes \"DELETE EVERYTHING\" to actually run)\n"
@@ -141,17 +241,19 @@ def register_cli(app):
 
             for label, sql in delete_statements:
                 count_sql = "SELECT COUNT(*) FROM (" + sql.replace("DELETE FROM", "SELECT * FROM", 1) + ") t"
-                count = conn.execute(text(count_sql)).scalar()
+                count = conn.execute(text(count_sql), params).scalar()
                 click.echo(f"{'would delete' if dry_run else 'deleting':13s} {count:6d}  {label}")
                 if not dry_run and count:
-                    conn.execute(text(sql))
+                    conn.execute(text(sql), params)
 
             for label, sql in null_out_statements:
-                table = label
-                count = conn.execute(text(f"SELECT COUNT(*) FROM {table} WHERE org_id IS NOT NULL")).scalar()
+                table = sql.split(" SET ", 1)[0].replace("UPDATE ", "").strip()
+                where_clause = sql.split(" WHERE ", 1)[1]
+                count_sql = f"SELECT COUNT(*) FROM {table} WHERE {where_clause}"
+                count = conn.execute(text(count_sql), params).scalar()
                 click.echo(f"{'would clear org_id on' if dry_run else 'clearing org_id on':22s} {count:6d}  {label}")
                 if not dry_run and count:
-                    conn.execute(text(sql))
+                    conn.execute(text(sql), params)
 
             if not dry_run:
                 conn.execute(text("PRAGMA foreign_keys=ON" if is_sqlite else "SET FOREIGN_KEY_CHECKS=1"))
@@ -162,5 +264,10 @@ def register_cli(app):
         finally:
             conn.close()
 
-        click.echo("\nDry run complete -- nothing was deleted." if dry_run
-                   else "\nDone. Every org, user, and contact (and everything scoped to them) is gone.")
+        if dry_run:
+            click.echo("\nDry run complete -- nothing was deleted.")
+        elif keep_org_email:
+            click.echo(f"\nDone. Every org except {keep_org_email}'s is gone, along with "
+                       f"everything scoped to them.")
+        else:
+            click.echo("\nDone. Every org, user, and contact (and everything scoped to them) is gone.")
