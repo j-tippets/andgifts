@@ -26,30 +26,31 @@ def upgrade():
     # duplicates already sitting in the table from before this fix would
     # make the ALTER TABLE itself fail -- so clean those up first.
     #
-    # Deliberately conservative about what counts as "safe to delete":
-    # only rows with no ActionLog record pointing at them (i.e. never
-    # actually approved/charged/sent) are candidates, and among those we
-    # always keep the earliest (by created_at, tying on id) and remove
-    # the rest. A duplicate pair that both have an ActionLog entry (two
-    # real approvals of the same occurrence) is left untouched and will
-    # make the constraint creation below fail loudly -- that's a real,
-    # separate problem (a client double-charged/double-gifted) that
-    # deserves manual review, not a silent migration-time deletion.
+    # Two categories of "safe to delete", handled differently:
     #
-    # ContactAuditLog also has a plain FK to suggested_actions.id (no
-    # cascade) -- and unlike ActionLog, a row there gets written for
-    # EVERY suggestion the moment it's created (_log_qualified, fired
-    # from both generation paths), not just approved ones. So virtually
-    # every duplicate has at least one ContactAuditLog row pointing at
-    # it, and deleting the suggestion first would hit that FK
-    # constraint. Since these duplicates are, by the ActionLog check
-    # above, confirmed never approved, their only ContactAuditLog
-    # entries are "qualified for a suggestion" noise from the bug this
-    # migration is fixing -- safe to remove alongside the duplicate
-    # itself, not a real audit trail worth preserving.
+    # 1. Never approved at all (no ActionLog row) -- always safe to just
+    #    remove outright, regardless of action_type.
+    #
+    # 2. Approved, but for a non-paid action_type (email, text) -- no
+    #    Stripe charge is EVER involved for these (ActionLog.cost_cents
+    #    and .stripe_payment_intent_id are always NULL for them; see
+    #    ActionLog.stripe_payment_intent_id's own docstring), so unlike
+    #    gift/handwritten_note there's no financial transaction at stake
+    #    in removing the later duplicate's SuggestedAction row. Its
+    #    ActionLog stays -- append-only, same principle as ever, and it
+    #    genuinely happened (the email really was sent) -- just detached
+    #    from the suggestion being removed by nulling
+    #    suggested_action_id, rather than the row being deleted.
+    #
+    # A duplicate pair that's approved AND for a paid action_type (gift,
+    # handwritten_note) is left completely untouched by both categories
+    # above, and still makes the constraint creation below fail loudly
+    # -- that's a real, separate problem (a client actually
+    # double-charged/double-gifted) that deserves manual review, not a
+    # migration-time decision either way.
     connection = op.get_bind()
 
-    victim_ids = [
+    unsent_victim_ids = [
         row[0] for row in connection.execute(sa.text("""
             SELECT t1.id FROM suggested_actions t1
             INNER JOIN suggested_actions t2
@@ -68,6 +69,35 @@ def upgrade():
               )
         """))
     ]
+
+    sent_non_paid_victim_ids = [
+        row[0] for row in connection.execute(sa.text("""
+            SELECT t1.id FROM suggested_actions t1
+            INNER JOIN suggested_actions t2
+              ON t1.org_id = t2.org_id
+              AND t1.source_campaign_id = t2.source_campaign_id
+              AND t1.contact_id = t2.contact_id
+              AND t1.triggering_event_id = t2.triggering_event_id
+              AND t1.target_date = t2.target_date
+            WHERE t1.source_campaign_id IS NOT NULL
+              AND t1.triggering_event_id IS NOT NULL
+              AND t1.action_type NOT IN ('gift', 'handwritten_note')
+              AND (t1.created_at > t2.created_at
+                   OR (t1.created_at = t2.created_at AND t1.id > t2.id))
+              AND EXISTS (
+                  SELECT 1 FROM action_log
+                  WHERE action_log.suggested_action_id = t1.id
+              )
+        """))
+    ]
+
+    if sent_non_paid_victim_ids:
+        null_action_log_fk = sa.text(
+            "UPDATE action_log SET suggested_action_id = NULL WHERE suggested_action_id IN :ids"
+        ).bindparams(sa.bindparam("ids", expanding=True))
+        connection.execute(null_action_log_fk, {"ids": sent_non_paid_victim_ids})
+
+    victim_ids = unsent_victim_ids + sent_non_paid_victim_ids
 
     if victim_ids:
         delete_audit = sa.text(
@@ -91,6 +121,7 @@ def downgrade():
     with op.batch_alter_table('suggested_actions', schema=None) as batch_op:
         batch_op.drop_constraint('uq_suggested_action_campaign_occurrence', type_='unique')
     # The duplicate rows (and their ContactAuditLog entries) removed in
-    # upgrade() are not restored -- this is a data cleanup, not just a
-    # schema change, and there's no record of exactly which rows were
-    # deleted to bring back.
+    # upgrade() are not restored, and ActionLog rows that had their
+    # suggested_action_id nulled out stay that way -- this is a data
+    # cleanup, not just a schema change, and there's no record of
+    # exactly what was changed to restore it.
