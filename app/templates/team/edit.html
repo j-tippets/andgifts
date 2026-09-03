@@ -88,30 +88,33 @@
         {% endif %}
       </div>
     </div>
-    <div class="field">
-      <label>Status</label>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span class="status-pill status-{{ member.status }}">{{ member.status|capitalize }}</span>
-        {% if member.id != current_user.id %}
-          {% if member.status == 'disabled' %}
-            <form id="team-reactivate-member-{{ member.id }}" method="post" action="{{ url_for('team.reactivate_member', user_id=member.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-ghost btn-small">Reactivate</button>
-            </form>
-          {% else %}
-            <form id="team-disable-member-{{ member.id }}" method="post" action="{{ url_for('team.disable_member', user_id=member.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-ghost btn-small">Disable</button>
-            </form>
-          {% endif %}
-        {% endif %}
-      </div>
-    </div>
   </fieldset>
 
   <button type="submit" class="btn btn-primary">Save changes</button>
   <a href="{{ url_for('team.list_members') }}" class="btn btn-ghost">Cancel</a>
 </form>
+
+<div class="contact-card" style="margin-top:20px; padding:20px 24px;">
+  <div class="field">
+    <label>Status</label>
+    <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+      <span class="status-pill status-{{ member.status }}">{{ member.status|capitalize }}</span>
+      {% if member.id != current_user.id %}
+        {% if member.status == 'disabled' %}
+          <form id="team-reactivate-member-{{ member.id }}" method="post" action="{{ url_for('team.reactivate_member', user_id=member.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-small">Reactivate</button>
+          </form>
+        {% else %}
+          <form id="team-disable-member-{{ member.id }}" method="post" action="{{ url_for('team.disable_member', user_id=member.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-small">Disable</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div>
 
 {% if member.id != current_user.id %}
 <div class="danger-zone">
