@@ -1058,19 +1058,30 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 .view-toggle-btn.active { background: var(--paper-raised); color: var(--ink); box-shadow: 0 2px 6px -2px rgba(42,26,69,.25); }
 
 .list-rows { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
+/* Always a vertical stack (badges, then info, then actions), on every
+   screen size -- was row-direction above a 640px breakpoint, with a
+   column layout only below it. That meant desktop and mobile List
+   view looked like different components entirely once a row had a
+   gift box/note in it: badges (a short flex item) sitting in their
+   own left column next to the row's full-height info column, wide
+   blank space beside them up to that height. Column-stacking removes
+   the ambiguity across the board rather than just under 640px, so
+   desktop and mobile now render identically -- just wider on desktop
+   thanks to .list-rows' own max-width. */
 .list-row {
-  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px 18px;
   background: var(--paper-raised); border: 1px solid var(--line); border-radius: 14px;
 }
 .list-row-info { flex: 1; min-width: 0; }
-.list-row-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.list-row-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; align-self: flex-start; }
+.list-row > .status-pill { align-self: flex-start; }
 .list-row-info h4 { font-family: var(--font-rounded); font-weight: 700; font-size: 14.5px; margin: 2px 0 4px; line-height: 1.35; }
 .list-row-info .sub { font-size: 12.5px; color: rgba(42,26,69,.55); }
 .list-row-contact-link { color: inherit; font-weight: 600; text-decoration: none; }
 .list-row-contact-link:hover { text-decoration: underline; }
-.list-row-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.list-row-actions { display: flex; flex-direction: row; gap: 8px; flex-shrink: 0; width: 100%; }
 .list-row-actions form { margin: 0; }
-.list-row-actions .btn { width: 100px; justify-content: center; }
+.list-row-actions .btn { flex: 1; width: auto; justify-content: center; }
 
 .pill-type-gift { background: var(--gold-soft); color: var(--gold-ink); }
 .pill-type-email { background: #E4EEF7; color: #2A5D8A; }
@@ -1097,20 +1108,6 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 @media (max-width: 480px) {
   .contact-header-actions { width: 100%; }
   .contact-header-actions .btn { flex: 1; justify-content: center; }
-}
-
-@media (max-width: 640px) {
-  /* Was flex-wrap:wrap on the row, which let the two badges (a short
-     flex item) and .list-row-info (tall, once it has a gift box/note
-     in it) end up as separate columns instead of stacking -- the
-     badges' column would be short, leaving a large blank gap beside
-     it up to .list-row-info's full height. Column stacking removes
-     the ambiguity: badges, then info, then actions, always in that
-     vertical order and always full width. */
-  .list-row { flex-direction: column; align-items: stretch; }
-  .list-row-badges, .list-row > .status-pill { align-self: flex-start; }
-  .list-row-actions { flex-direction: row; width: 100%; }
-  .list-row-actions .btn { flex: 1; width: auto; }
 }
 
 /* ---- Contacts: search, filter chips, cards ---- */
