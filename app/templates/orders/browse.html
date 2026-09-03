@@ -9,6 +9,23 @@
 </div>
 
 {% if items %}
+  <div class="ai-gift-search">
+    <h3>Not sure what to get?</h3>
+    <p class="subdued">Describe the situation in your own words and I'll look through {{ contact.household_name }}'s available catalog for a fit.</p>
+    <form id="ai-gift-search-form" method="POST" action="{{ url_for('contacts.ai_search_gifts', contact_id=contact.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="description" id="ai-gift-search-input" rows="2" placeholder="e.g. My friend just lost her mom -- what's an appropriate gift for a good friend, but not a close friend?"></textarea>
+      <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+        <button type="submit" class="btn btn-primary btn-small" id="ai-gift-search-btn">Find a gift</button>
+        <span id="ai-gift-search-status" class="subdued" style="display:none;"><small>Looking through the catalog&hellip;</small></span>
+      </div>
+    </form>
+    <div id="ai-gift-search-results" style="display:none; margin-top:10px;">
+      <p id="ai-gift-search-message" class="subdued"></p>
+      <button type="button" id="ai-gift-search-clear" class="btn btn-ghost btn-small">Clear and show everything</button>
+    </div>
+  </div>
+
   {{ search_and_filters(all_occasions, all_themes, min_price, max_price, min_lead, max_lead) }}
 
   <div id="catalog-items">
@@ -21,6 +38,7 @@
   </div>
 
   <script src="{{ versioned_static('js/catalog-filters.js') }}" defer></script>
+  <script src="{{ versioned_static('js/ai-gift-search.js') }}" defer></script>
 {% else %}
   <div class="empty-state">
     <h3>No gifts available</h3>

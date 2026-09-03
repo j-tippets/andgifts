@@ -103,7 +103,95 @@ def _heuristic_pick_gift(contact, candidates):
     return ranked[0] if ranked else None
 
 
-def generate_gift_note(contact, event, gift_item, prompt_hint=None):
+def find_matching_gifts(description, items, max_results=3):
+    """Free-form natural-language gift search (the "explain the situation"
+    box on the per-contact Send a gift page) -- takes something like "my
+    friend just lost her mom, good friend but not close friend" and
+    returns up to `max_results` items from `items` (already scoped by the
+    caller to the org's available + active catalog) ranked best first,
+    each with a short reasoning tied to what was actually described.
+
+    Returns (matches, used_ai) where matches is a list of dicts
+    {"item": GiftCatalogItem, "reasoning": str}, possibly empty if
+    nothing in the catalog is a good fit -- callers should show that
+    honestly rather than forcing a bad match. used_ai is False when this
+    fell back to the keyword heuristic (no API key, or the call failed),
+    so the caller can be upfront about that too.
+    """
+    description = (description or "").strip()
+    if not description or not items:
+        return [], False
+
+    client = _client()
+    if client is not None:
+        try:
+            options = "\n".join(
+                f"- id={i.id}: {i.name} (${i.price_cents / 100:.2f}, ships in {i.lead_time_days} days) "
+                f"-- occasion: {i.occasion or 'none'} -- tags: {i.interest_tags or 'none'} "
+                f"-- {i.description or 'no description'}"
+                for i in items
+            )
+            prompt = (
+                f"Someone is choosing a gift and described their situation like this:\n"
+                f'"{description}"\n\n'
+                f"Here is the available gift catalog:\n{options}\n\n"
+                f"Pick up to {max_results} gifts from the list above that genuinely fit this "
+                "situation, best match first. Use judgment about tone -- a relationship "
+                "described as not close shouldn't get an overly intimate/expensive gift, a "
+                "loss or hardship calls for something comforting rather than celebratory, "
+                "and so on. If nothing in the list is actually appropriate, return fewer "
+                "results or an empty list rather than forcing a weak match.\n\n"
+                "Respond with ONLY a JSON object, no markdown formatting, no preamble:\n"
+                '{"matches": [{"item_id": "<id>", "reasoning": "<one short sentence tied to '
+                'their specific situation>"}]}'
+            )
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            data = json.loads(_strip_json_fences(_extract_text(response)))
+            by_id = {i.id: i for i in items}
+            matches = []
+            for m in data.get("matches", [])[:max_results]:
+                item = by_id.get(m.get("item_id"))
+                if item is not None:
+                    matches.append({"item": item, "reasoning": m.get("reasoning")})
+            return matches, True
+        except Exception:
+            pass  # fall through to the keyword heuristic below
+
+    return _heuristic_find_gifts(description, items, max_results), False
+
+
+def _heuristic_find_gifts(description, items, max_results):
+    """Keyword-overlap stand-in for find_matching_gifts, used when no API
+    key is set or the call fails -- can't do real semantic matching
+    without the LLM, so this just scores each item by how many of the
+    description's words appear in its name/occasion/description/tags,
+    and is upfront in its reasoning that that's all it did."""
+    words = {w for w in description.lower().split() if len(w) > 3}
+    if not words:
+        return []
+
+    def score_and_hits(item):
+        text = " ".join(filter(None, [
+            item.name, item.occasion, item.description, item.interest_tags,
+        ])).lower()
+        hits = {w for w in words if w in text}
+        return len(hits), hits
+
+    scored = [(item, *score_and_hits(item)) for item in items]
+    scored = [s for s in scored if s[1] > 0]
+    scored.sort(key=lambda s: -s[1])
+
+    return [
+        {
+            "item": item,
+            "reasoning": f"Matched on: {', '.join(sorted(hits))}.",
+        }
+        for item, count, hits in scored[:max_results]
+    ]
     """Returns a short note to go with a gift suggestion -- something the
     agent can attach to a physical gift or, later, send along with an
     e-gift-card delivery -- explaining what it's for. Same fallback

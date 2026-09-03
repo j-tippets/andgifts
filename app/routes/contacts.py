@@ -1,8 +1,8 @@
 from datetime import datetime
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import or_
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import (
     Contact, ContactPerson, ContactMethod,
     TimelineEvent, CUSTOM_MILESTONE_KEY, CustomEventType, slugify_event_key, MilestonePriority,
@@ -415,6 +415,43 @@ def browse_gifts(contact_id):
         max_price=max_price,
         min_lead=min_lead,
         max_lead=max_lead,
+    )
+
+
+@contacts_bp.route("/<contact_id>/gifts/ai-search", methods=["POST"])
+@login_required
+@limiter.limit("20 per hour")
+def ai_search_gifts(contact_id):
+    """AJAX endpoint backing the "explain the situation" free-form box on
+    the Send a gift page (see orders/browse.html + ai-gift-search.js) --
+    takes a plain-English description and asks the LLM to pick the best
+    fitting item(s) from the same active/available catalog the page
+    already shows (never a wider set -- an item excluded from the org's
+    catalog or marked inactive shouldn't turn up here just because it's
+    a good semantic match). Rate-limited since this fires a real
+    Anthropic API call on demand, same reasoning as
+    campaigns.preview_message.
+    """
+    query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
+    contact = Contact.visible_to(query, current_user).first_or_404()
+
+    description = request.form.get("description", "").strip()
+    if not description:
+        return jsonify(error="Describe the situation first."), 400
+
+    candidates = current_user.org.available_catalog_items()
+    matches, used_ai = llm.find_matching_gifts(description, candidates)
+
+    return jsonify(
+        used_ai=used_ai,
+        matches=[
+            {
+                "item_id": m["item"].id,
+                "reasoning": m["reasoning"],
+                "order_url": url_for("contacts.new_order", contact_id=contact.id, item_id=m["item"].id),
+            }
+            for m in matches
+        ],
     )
 
 

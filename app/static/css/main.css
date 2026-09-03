@@ -663,6 +663,28 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   margin: 0 0 6px 0;
 }
 
+.ai-gift-search {
+  background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 14px;
+  padding: 16px 18px; margin-bottom: 22px;
+}
+.ai-gift-search h3 { font-family: var(--font-rounded); font-size: 15px; margin: 0 0 2px; }
+.ai-gift-search textarea {
+  width: 100%; font-family: var(--font-body); font-size: 14.5px; padding: 11px 14px;
+  border-radius: 10px; border: 1.5px solid var(--line); background: #fff; color: var(--ink);
+  outline: none; resize: vertical; transition: border-color .2s; margin-top: 8px;
+}
+.ai-gift-search textarea:focus { border-color: var(--coral); }
+#ai-gift-search-message { margin: 0 0 8px; }
+
+.ai-match-note {
+  position: relative; background: #fff; border-radius: 8px; padding: 8px 10px 8px 14px;
+  font-size: 12.5px; font-style: italic; color: rgba(42,26,69,.75); margin: 0 0 8px;
+}
+.ai-match-note::before {
+  content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+  border-radius: 3px; background: var(--gold);
+}
+
 /* ---- Page head (Today, Contacts, etc.) ---- */
 .page-head { margin-bottom: 20px; }
 .page-head.with-action { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

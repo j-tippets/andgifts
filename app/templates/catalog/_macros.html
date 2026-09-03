@@ -51,6 +51,7 @@
 {% macro gift_card(item, order_url, included=true) %}
   <div
     class="catalog-card {{ 'is-excluded' if not included else '' }}"
+    data-item-id="{{ item.id }}"
     data-search="{{ item.name|lower }} {{ (item.occasion or '')|lower }} {{ (item.interest_tags or '')|lower }}"
     data-status="{{ 'included' if included else 'excluded' }}"
     data-price="{{ item.price_cents // 100 }}"
