@@ -119,12 +119,7 @@ def _wrap_email(body_html, preheader=""):
         <table role="presentation" width="100%" style="max-width:480px;" cellpadding="0" cellspacing="0">
           <tr>
             <td align="center" style="padding-bottom:24px;">
-              <!-- SVG in email has spotty support (notably Outlook
-                   desktop, which uses Word's rendering engine and
-                   doesn't display SVG at all) -- if the logo turns up
-                   missing there, that's the known cause; a PNG/JPEG
-                   fallback would be the fix. -->
-              <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg"
+              <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.png"
                    alt="&amp;Gifts" width="120" height="36" style="display:block; width:120px; height:36px;">
             </td>
           </tr>
