@@ -30,6 +30,14 @@ class Order(db.Model):
     # name/price changes later, or the item itself is deleted.
     gift_name_snapshot = db.Column(db.String(255), nullable=False)
     gift_price_cents = db.Column(db.Integer, nullable=False)
+    # Same snapshot rationale as gift_name_snapshot/gift_price_cents above,
+    # for the catalog bookkeeping fields WDF's fulfillment notice needs.
+    # Nullable because a manually-placed item without these fields set (or
+    # an order with no gift_catalog_item_id at all) simply has nothing to
+    # snapshot.
+    sku_snapshot = db.Column(db.String(50), nullable=True)
+    occasion_snapshot = db.Column(db.String(100), nullable=True)
+    recipe_id_snapshot = db.Column(db.String(20), nullable=True)
 
     # The note to go along with the gift, if any -- either a fixed
     # message the flow's builder wrote, or one the LLM generated (see

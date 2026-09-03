@@ -289,6 +289,9 @@ def catalog_new():
         interest_tags=tags_from_form(request.form.get("interest_tags")),
         image_url=request.form.get("image_url", "").strip() or None,
         lead_time_days=lead_time_days,
+        sku=request.form.get("sku", "").strip() or None,
+        occasion=request.form.get("occasion", "").strip() or None,
+        recipe_id=request.form.get("recipe_id", "").strip() or None,
         is_active=True,
     )
     db.session.add(item)
@@ -327,6 +330,9 @@ def catalog_edit(item_id):
     item.interest_tags = tags_from_form(request.form.get("interest_tags"))
     item.image_url = request.form.get("image_url", "").strip() or None
     item.lead_time_days = lead_time_days
+    item.sku = request.form.get("sku", "").strip() or None
+    item.occasion = request.form.get("occasion", "").strip() or None
+    item.recipe_id = request.form.get("recipe_id", "").strip() or None
     db.session.commit()
     flash(f"Updated {item.name}.", "success")
     return redirect(url_for("app_admin.catalog_list"))

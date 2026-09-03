@@ -23,6 +23,7 @@
         <div>
           <strong>{{ item.name }}</strong>
           <span class="subdued"> — ${{ '%.2f'|format(item.price_cents / 100) }}</span>
+          {% if item.sku %}<span class="subdued"> · {{ item.sku }}</span>{% endif %}
           {% if not item.is_active %}<span class="status-pill pill-do-not-contact">Inactive</span>{% endif %}
         </div>
       </div>

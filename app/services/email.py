@@ -365,7 +365,11 @@ def send_wdf_fulfillment_notice(order):
       <table role="presentation" style="width:100%; border-collapse: collapse; margin: 0 0 16px;">
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Order ID</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.id}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Product ID</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.gift_catalog_item_id or 'Not in catalog'}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">SKU</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.sku_snapshot or '—'}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Gift</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.gift_name_snapshot}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Occasion / Collection</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.occasion_snapshot or '—'}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Recipe ID</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.recipe_id_snapshot or '—'}</td></tr>
+        <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Price</td><td style="text-align:right; font-size:14px; color:#2A1A45;">${order.gift_price_cents / 100:.2f}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Contact</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.contact.household_name}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Agency</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{order.contact.org.name}</td></tr>
         <tr><td style="padding:6px 0; color:#6B6459; font-size:14px;">Note</td><td style="text-align:right; font-size:14px; color:#2A1A45;">{'True' if has_note else 'False'}</td></tr>

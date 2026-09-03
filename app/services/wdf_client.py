@@ -16,7 +16,8 @@ import requests
 
 
 def send_wdf_webhook(item_type, external_id, contact, agent, item_description,
-                      price_cents, note_text=None, target_date=None, product_id=None):
+                      price_cents, note_text=None, target_date=None, product_id=None,
+                      sku=None, occasion=None, recipe_id=None):
     """POSTs one fulfillment item to the WDF tool's webhook endpoint.
 
     item_type: "gift" or "handwritten_note".
@@ -35,6 +36,11 @@ def send_wdf_webhook(item_type, external_id, contact, agent, item_description,
       item_description alone (which drifts if the item's name is
       later edited). None for a handwritten note, which isn't a
       catalog item.
+    sku/occasion/recipe_id: the same catalog bookkeeping fields sent in
+      the jtippets@outlook.com email notice (see GiftCatalogItem and
+      the snapshot fields on Order) -- included here too so the
+      structured payload carries the same detail once WDF's tool is
+      actually consuming it. All None for a handwritten note.
 
     Returns True/False for whether the POST succeeded -- callers
     should treat this as informational only (log/flash at most) and
@@ -54,6 +60,9 @@ def send_wdf_webhook(item_type, external_id, contact, agent, item_description,
         "type": item_type,
         "external_id": external_id,
         "product_id": product_id,
+        "sku": sku,
+        "occasion": occasion,
+        "recipe_id": recipe_id,
         "agency_name": contact.org.name if contact.org else None,
         "agent_name": agent.full_name if agent else None,
         "recipient_name": contact.household_name,

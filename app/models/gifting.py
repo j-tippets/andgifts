@@ -19,6 +19,22 @@ class GiftCatalogItem(db.Model):
     price_cents = db.Column(db.Integer, nullable=False)
     image_url = db.Column(db.String(500), nullable=True)
 
+    # Catalog bookkeeping fields, mirroring the external planning
+    # spreadsheet (andgifts_v1_catalog.xlsx) so WDF's fulfillment notice
+    # can carry the same identifiers used there. Nullable since existing
+    # rows predate these fields and not every item has been assigned one
+    # yet -- WDF notices for those just show a blank rather than erroring.
+    sku = db.Column(db.String(50), nullable=True)
+    # Free-text occasion/collection label (e.g. "Thank You", "Sympathy /
+    # Condolence") -- matches the "Occasion / Collection" column on the
+    # Products tab of the planning spreadsheet, not a formal join table.
+    occasion = db.Column(db.String(100), nullable=True)
+    # Internal fulfillment recipe id (e.g. "R09") from the Recipes tab of
+    # the same spreadsheet. Not a foreign key -- recipes aren't modeled in
+    # this app, they live in the spreadsheet and in WDF's own tooling; this
+    # is just the identifier WDF cross-references there.
+    recipe_id = db.Column(db.String(20), nullable=True)
+
     # "product" = a physical, shippable item (the common case today).
     # "service" = something redeemed/booked rather than shipped (e.g. a
     # gift card, an experience). No fulfillment automation differs yet --
