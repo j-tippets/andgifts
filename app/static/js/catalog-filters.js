@@ -13,6 +13,7 @@
   var activeFilter = 'all';
 
   var themeSelect = document.getElementById('filter-theme');
+  var occasionSelect = document.getElementById('filter-occasion');
   var priceRange = document.getElementById('filter-price');
   var priceLabel = document.getElementById('filter-price-label');
   var leadRange = document.getElementById('filter-lead');
@@ -22,6 +23,7 @@
   function apply() {
     var q = (input && input.value.trim().toLowerCase()) || '';
     var theme = (themeSelect && themeSelect.value) || '';
+    var occasion = (occasionSelect && occasionSelect.value) || '';
     var maxPrice = priceRange ? parseInt(priceRange.value, 10) : null;
     var maxLead = leadRange ? parseInt(leadRange.value, 10) : null;
     var visibleCount = 0;
@@ -30,9 +32,10 @@
       var matchesSearch = !q || card.dataset.search.indexOf(q) !== -1;
       var matchesFilter = activeFilter === 'all' || card.dataset.status === activeFilter;
       var matchesTheme = !theme || card.dataset.tags.split('|').indexOf(theme) !== -1;
+      var matchesOccasion = !occasion || card.dataset.occasion === occasion;
       var matchesPrice = maxPrice === null || parseInt(card.dataset.price, 10) <= maxPrice;
       var matchesLead = maxLead === null || parseInt(card.dataset.lead, 10) <= maxLead;
-      var visible = matchesSearch && matchesFilter && matchesTheme && matchesPrice && matchesLead;
+      var visible = matchesSearch && matchesFilter && matchesTheme && matchesOccasion && matchesPrice && matchesLead;
       card.style.display = visible ? '' : 'none';
       if (visible) visibleCount++;
     });
@@ -41,6 +44,7 @@
 
   if (input) input.addEventListener('input', apply);
   if (themeSelect) themeSelect.addEventListener('change', apply);
+  if (occasionSelect) occasionSelect.addEventListener('change', apply);
   if (priceRange) {
     priceRange.addEventListener('input', function () {
       if (priceLabel) priceLabel.textContent = '$' + priceRange.value;
@@ -57,6 +61,7 @@
     clearBtn.addEventListener('click', function () {
       if (input) input.value = '';
       if (themeSelect) themeSelect.value = '';
+      if (occasionSelect) occasionSelect.value = '';
       if (priceRange) {
         priceRange.value = priceRange.max;
         if (priceLabel) priceLabel.textContent = '$' + priceRange.max;

@@ -1,16 +1,28 @@
 {# Shared by catalog/list.html (org-wide Gift Catalog) and
    orders/browse.html (per-contact "Send a gift") so both offer the
-   same search/theme/price/lead-time filtering instead of one quietly
-   having less than the other. Pairs with static/js/catalog-filters.js,
-   which reads the same element ids/classes these macros render. #}
+   same search/occasion/theme/price/lead-time filtering instead of one
+   quietly having less than the other. Pairs with
+   static/js/catalog-filters.js, which reads the same element
+   ids/classes these macros render. #}
 
-{% macro search_and_filters(all_themes, min_price, max_price, min_lead, max_lead) %}
+{% macro search_and_filters(all_occasions, all_themes, min_price, max_price, min_lead, max_lead) %}
   <form method="get" class="search-wrap" onsubmit="return false;" id="catalog-search-form">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="text" id="catalog-search" placeholder="Search by name or tag&hellip;">
   </form>
 
   <div class="catalog-filters">
+    {% if all_occasions %}
+      <div class="catalog-filter">
+        <label for="filter-occasion">Occasion</label>
+        <select id="filter-occasion">
+          <option value="">Any occasion</option>
+          {% for occasion in all_occasions %}
+            <option value="{{ occasion|lower }}">{{ occasion }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
     <div class="catalog-filter">
       <label for="filter-theme">Theme</label>
       <select id="filter-theme">
@@ -39,10 +51,11 @@
 {% macro gift_card(item, order_url, included=true) %}
   <div
     class="catalog-card {{ 'is-excluded' if not included else '' }}"
-    data-search="{{ item.name|lower }} {{ (item.interest_tags or '')|lower }}"
+    data-search="{{ item.name|lower }} {{ (item.occasion or '')|lower }} {{ (item.interest_tags or '')|lower }}"
     data-status="{{ 'included' if included else 'excluded' }}"
     data-price="{{ item.price_cents // 100 }}"
     data-lead="{{ item.lead_time_days }}"
+    data-occasion="{{ (item.occasion or '')|lower }}"
     data-tags="{{ item.tag_list()|map('lower')|join('|') }}"
   >
     <div class="catalog-card-media">
@@ -53,6 +66,7 @@
       {% endif %}
     </div>
     <div class="catalog-card-body">
+      {% if item.occasion %}<span class="tag-chip catalog-card-occasion">{{ item.occasion }}</span>{% endif %}
       <h4>{{ item.name }}</h4>
       <p class="price">${{ '%.2f'|format(item.price_cents / 100) }}</p>
 

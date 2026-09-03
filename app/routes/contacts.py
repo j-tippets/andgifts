@@ -398,17 +398,18 @@ def update_contact_preferences(contact_id):
 def browse_gifts(contact_id):
     """Catalog browse scoped to a single contact, for placing a one-off
     gift order right now instead of waiting on the automated suggestion
-    engine. Offers the same search/theme/price/lead-time filtering as
-    the org-wide Gift Catalog page (see catalog.list_catalog) -- see
-    catalog/_macros.html, shared by both templates."""
+    engine. Offers the same search/occasion/theme/price/lead-time
+    filtering as the org-wide Gift Catalog page (see catalog.list_catalog)
+    -- see catalog/_macros.html, shared by both templates."""
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
     items = current_user.org.available_catalog_items()
-    all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
+    all_occasions, all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
     return render_template(
         "orders/browse.html",
         contact=contact,
         items=items,
+        all_occasions=all_occasions,
         all_themes=all_themes,
         min_price=min_price,
         max_price=max_price,

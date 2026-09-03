@@ -654,6 +654,15 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   margin: 2px 4px 2px 0;
 }
 
+.catalog-card-occasion {
+  display: block;
+  width: fit-content;
+  background: #2A1A45;
+  color: #FFFFFF;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+
 /* ---- Page head (Today, Contacts, etc.) ---- */
 .page-head { margin-bottom: 20px; }
 .page-head.with-action { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

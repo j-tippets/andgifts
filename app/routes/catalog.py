@@ -19,13 +19,14 @@ def list_catalog():
         .all()
     )
     selected_ids = org.selected_item_ids() if org.catalog_curated else {i.id for i in items}
-    all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
+    all_occasions, all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
 
     return render_template(
         "catalog/list.html",
         items=items,
         selected_ids=selected_ids,
         catalog_curated=org.catalog_curated,
+        all_occasions=all_occasions,
         all_themes=all_themes,
         min_price=min_price,
         max_price=max_price,
