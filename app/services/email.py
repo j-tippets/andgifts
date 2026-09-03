@@ -5,6 +5,8 @@ webhook confirming an order), so every public function catches and logs
 rather than raises. Follows the same "degrade gracefully if the API key
 isn't configured" pattern as app/services/llm.py.
 """
+from datetime import date
+
 from flask import current_app
 
 
@@ -87,7 +89,7 @@ def _button(url, label):
 
 def _wrap_email(body_html, preheader=""):
     """Wraps templated inner content in the shared &Gifts branded shell:
-    header wordmark, cream card on a soft page background, standard
+    header logo, cream card on a soft page background, standard
     footer. Every send_*_email function below builds its content and
     passes it through here, so brand styling lives in exactly one place.
 
@@ -117,9 +119,13 @@ def _wrap_email(body_html, preheader=""):
         <table role="presentation" width="100%" style="max-width:480px;" cellpadding="0" cellspacing="0">
           <tr>
             <td align="center" style="padding-bottom:24px;">
-              <span style="font-family:'Baloo 2', Arial, sans-serif; font-size:28px; font-weight:700;">
-                <span style="color:#F77055;">&amp;</span><span style="color:#2A1A45;">Gifts</span>
-              </span>
+              <!-- SVG in email has spotty support (notably Outlook
+                   desktop, which uses Word's rendering engine and
+                   doesn't display SVG at all) -- if the logo turns up
+                   missing there, that's the known cause; a PNG/JPEG
+                   fallback would be the fix. -->
+              <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.svg"
+                   alt="&amp;Gifts" width="120" height="36" style="display:block; width:120px; height:36px;">
             </td>
           </tr>
           <tr>
@@ -129,9 +135,8 @@ def _wrap_email(body_html, preheader=""):
           </tr>
           <tr>
             <td align="center" style="padding:24px 16px 0; font-family:'Inter', Arial, sans-serif; font-size:12px; color:#6B6459; line-height:1.6;">
-              &amp;Gifts &middot; a Wyld Totems LLC product<br>
-              <!-- TODO(jeremiah): add a mailing address here -- most spam filters and CAN-SPAM
-                   both expect a physical postal address in the footer of commercial email. -->
+              &copy; {date.today().year} &amp;Gifts<br>
+              1096 E 50 S, American Fork, UT 84003
             </td>
           </tr>
         </table>
