@@ -12,7 +12,7 @@ from app.models import (
 )
 from app.decorators import admin_required
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
-from app.services.catalog_helpers import filter_facets
+from app.services.catalog_helpers import filter_facets, ai_search_matches
 from app.services import llm
 from app.services.analytics import queue_event
 
@@ -440,19 +440,11 @@ def ai_search_gifts(contact_id):
         return jsonify(error="Describe the situation first."), 400
 
     candidates = current_user.org.available_catalog_items()
-    matches, used_ai = llm.find_matching_gifts(description, candidates)
-
-    return jsonify(
-        used_ai=used_ai,
-        matches=[
-            {
-                "item_id": m["item"].id,
-                "reasoning": m["reasoning"],
-                "order_url": url_for("contacts.new_order", contact_id=contact.id, item_id=m["item"].id),
-            }
-            for m in matches
-        ],
+    used_ai, matches = ai_search_matches(
+        description, candidates,
+        order_url_for=lambda item: url_for("contacts.new_order", contact_id=contact.id, item_id=item.id),
     )
+    return jsonify(used_ai=used_ai, matches=matches)
 
 
 @contacts_bp.route("/<contact_id>/order/<item_id>", methods=["GET", "POST"])

@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import GiftCatalogItem, OrgCatalogSelection, Contact
 from app.decorators import admin_required
-from app.services.catalog_helpers import filter_facets
+from app.services.catalog_helpers import filter_facets, ai_search_matches
 
 catalog_bp = Blueprint("catalog", __name__, url_prefix="/catalog")
 
@@ -33,6 +33,30 @@ def list_catalog():
         min_lead=min_lead,
         max_lead=max_lead,
     )
+
+
+@catalog_bp.route("/ai-search", methods=["POST"])
+@login_required
+@limiter.limit("20 per hour")
+def ai_search():
+    """AJAX endpoint backing the "Ask AI for a gift idea" popup on the
+    org-wide Gift Catalog page (see catalog/list.html + ai-gift-search.js)
+    -- the org-wide counterpart to contacts.ai_search_gifts. Not tied to
+    a specific contact yet, so candidates are this org's available+active
+    catalog (the same set list_catalog already shows a regular agent as
+    "included") and each match links to pick_contact_for_order instead
+    of a specific contact's order form.
+    """
+    description = request.form.get("description", "").strip()
+    if not description:
+        return jsonify(error="Describe the situation first."), 400
+
+    candidates = current_user.org.available_catalog_items()
+    used_ai, matches = ai_search_matches(
+        description, candidates,
+        order_url_for=lambda item: url_for("catalog.pick_contact_for_order", item_id=item.id),
+    )
+    return jsonify(used_ai=used_ai, matches=matches)
 
 
 @catalog_bp.route("/<item_id>/order")

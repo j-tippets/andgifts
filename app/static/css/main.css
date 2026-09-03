@@ -685,6 +685,23 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
   border-radius: 3px; background: var(--gold);
 }
 
+#ai-gift-search-dialog textarea {
+  width: 100%; font-family: var(--font-body); font-size: 14.5px; padding: 11px 14px;
+  border-radius: 10px; border: 1.5px solid var(--line); background: #fff; color: var(--ink);
+  outline: none; resize: vertical; transition: border-color .2s; margin-top: 8px;
+}
+#ai-gift-search-dialog textarea:focus { border-color: var(--coral); }
+#ai-gift-search-dialog #ai-gift-search-message { margin: 0 0 10px; }
+
+.ai-match-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: var(--paper-raised); border: 1.5px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 10px;
+}
+.ai-match-row-title { font-family: var(--font-rounded); font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+.ai-match-row .ai-match-note { margin: 0; padding: 0; background: transparent; }
+.ai-match-row .ai-match-note::before { display: none; }
+
 /* ---- Page head (Today, Contacts, etc.) ---- */
 .page-head { margin-bottom: 20px; }
 .page-head.with-action { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

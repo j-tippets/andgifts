@@ -33,6 +33,30 @@ def lead_time_from_form(raw, default=7):
     return days if days > 0 else None
 
 
+def ai_search_matches(description, candidates, order_url_for):
+    """Runs the free-form "explain the situation" gift search against
+    `candidates` and shapes the result for either AI-search endpoint
+    (per-contact in routes/contacts.py, org-wide in routes/catalog.py) --
+    the only difference between the two is what `order_url_for(item)`
+    points at (a specific contact's order form vs. pick-a-contact-first).
+    Returns (used_ai, matches) where matches is a list of
+    {"item_id", "name", "price_cents", "reasoning", "order_url"} dicts,
+    ready to pass straight to jsonify()."""
+    from app.services import llm
+
+    matches, used_ai = llm.find_matching_gifts(description, candidates)
+    return used_ai, [
+        {
+            "item_id": m["item"].id,
+            "name": m["item"].name,
+            "price_cents": m["item"].price_cents,
+            "reasoning": m["reasoning"],
+            "order_url": order_url_for(m["item"]),
+        }
+        for m in matches
+    ]
+
+
 def filter_facets(items):
     """The occasion/theme/price/lead-time ranges the catalog search-and-filter
     bar (see catalog/_macros.html) needs to build its controls --

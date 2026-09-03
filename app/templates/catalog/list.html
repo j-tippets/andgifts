@@ -2,9 +2,28 @@
 {% from "catalog/_macros.html" import search_and_filters, gift_card %}
 {% block title %}Gift Catalog — Ag{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
   <h1>Gift Catalog</h1>
+  <button type="button" class="btn btn-ghost btn-small" id="ai-gift-search-trigger">✨ Ask AI for a gift idea</button>
 </div>
+
+<dialog id="ai-gift-search-dialog" class="confirm-dialog action-dialog">
+  <h2>Not sure what to get?</h2>
+  <p class="subdued">Describe the situation in your own words and I'll look through your available catalog for a fit.</p>
+  <form id="ai-gift-search-form" data-action="{{ url_for('catalog.ai_search') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="description" id="ai-gift-search-input" rows="2" placeholder="e.g. My friend just lost her mom -- what's an appropriate gift for a good friend, but not a close friend?"></textarea>
+    <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+      <button type="submit" class="btn btn-primary btn-small" id="ai-gift-search-btn">Find a gift</button>
+      <span id="ai-gift-search-status" class="subdued" style="display:none;"><small>Looking through the catalog&hellip;</small></span>
+      <button type="button" class="btn btn-ghost btn-small" id="ai-gift-search-close" style="margin-left:auto;">Close</button>
+    </div>
+  </form>
+  <div id="ai-gift-search-results" style="display:none; margin-top:14px;">
+    <p id="ai-gift-search-message" class="subdued"></p>
+    <div id="ai-gift-search-list"></div>
+  </div>
+</dialog>
 
 {% if catalog_curated %}
   <div class="flash" style="background:#EDEAE3; color:#6B6459; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -57,4 +76,5 @@
 </div>
 
 <script src="{{ versioned_static('js/catalog-filters.js') }}" defer></script>
+<script src="{{ versioned_static('js/ai-gift-search-dialog.js') }}" defer></script>
 {% endblock %}
