@@ -892,3 +892,87 @@ def expire_stale_suggestions(org, today=None):
 
     db.session.commit()
     return stale
+
+
+def reconcile_stuck_processing_actions(stale_after_minutes=10):
+    """
+    Backstop for the residual gap in dashboard.approve_action's
+    claim/charge/approve sequence: _claim_action_for_processing flips a
+    row from "pending" to "processing" as a lock against double-
+    approval, then charges the card, then (on success) flips to
+    "approved" -- or, on a clean failure, _release_action_claim reverts
+    it back to "pending" so the agent can retry.
+
+    A hard process crash between those two points (an OOM kill, a
+    deploy restart landing mid-request) skips both of those clean
+    endings and leaves the row stuck at "processing" forever -- nothing
+    else ever transitions it away from that state. Worse than just
+    "stuck": SuggestedAction.visible_to and the dashboard's own pending
+    query both filter on status == "pending", so a stuck row simply
+    vanishes from the agent's dashboard rather than showing an error,
+    which reads as "handled" when nothing was ever actually approved
+    or charged.
+
+    Recovery is a plain revert to "pending", exactly like
+    _release_action_claim -- deliberately NOT a query against Stripe
+    first, because none is needed: every charge in this flow is made
+    with a deterministic idempotency key derived from the action's own
+    id (see dashboard._charge_for_approval), so if the crash happened
+    AFTER Stripe actually processed the charge, the next real approval
+    attempt (whoever/whatever retries it) reuses that same key and
+    Stripe returns the original PaymentIntent instead of charging
+    again -- see charge_saved_card's docstring. Reverting to "pending"
+    is what makes that retry possible at all; it doesn't create any
+    double-charge risk itself.
+
+    stale_after_minutes is deliberately generous relative to a normal
+    claim's lifetime (comfortably under a second, bounded by Stripe API
+    latency) -- this must never fire on a claim that's merely a little
+    slow, only one that's actually abandoned. Scoped globally (not
+    per-org) since this is an infra-level safety net, not a business
+    feature -- there is no reasonable number of orgs for which this
+    should ever find more than a handful of rows.
+
+    Returns a list of small dicts describing what was released (id,
+    org_id, contact_id, action_type, and how long each was stuck) for
+    the job script's log output -- snapshotted before the update rather
+    than returning the live ORM rows, since committing the reconciling
+    update expires them and re-reading afterward would show the
+    just-reset "pending"/None values instead of what was actually
+    found.
+    """
+    cutoff = datetime.utcnow() - timedelta(minutes=stale_after_minutes)
+
+    stuck = (
+        SuggestedAction.query
+        .filter(
+            SuggestedAction.status == "processing",
+            SuggestedAction.processing_started_at.isnot(None),
+            SuggestedAction.processing_started_at < cutoff,
+        )
+        .all()
+    )
+
+    released = [
+        {
+            "id": action.id,
+            "org_id": action.org_id,
+            "contact_id": action.contact_id,
+            "action_type": action.action_type,
+            "processing_started_at": action.processing_started_at,
+        }
+        for action in stuck
+    ]
+
+    for action in stuck:
+        db.session.execute(
+            db.update(SuggestedAction)
+            .where(
+                SuggestedAction.id == action.id,
+                SuggestedAction.status == "processing",
+            )
+            .values(status="pending", processing_started_at=None)
+        )
+
+    db.session.commit()
+    return released

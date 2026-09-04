@@ -90,7 +90,10 @@ class SuggestedAction(db.Model):
     # two browser tabs can't both pass a plain status check and both
     # charge. Reverts to "pending" if the charge fails, or moves on to
     # "approved" once it succeeds -- a row should never be visibly stuck
-    # here outside of that brief window.
+    # here outside of that brief window, and
+    # jobs/reconcile_stuck_processing_actions.py is the backstop for the
+    # rare case where a process crash mid-charge leaves one stranded
+    # anyway (see processing_started_at below).
     status = db.Column(
         db.Enum(
             "pending", "processing", "approved", "skipped", "sent", "deleted", "expired",
@@ -99,9 +102,20 @@ class SuggestedAction(db.Model):
         default="pending",
         index=True,
     )
+    # When the current "processing" claim was taken (see
+    # dashboard._claim_action_for_processing) -- NULL outside of that
+    # window. Exists so jobs/reconcile_stuck_processing_actions.py can
+    # tell a normal, currently-in-flight claim (a few hundred ms to a
+    # couple seconds, waiting on Stripe) apart from one that's actually
+    # stuck (the process that held it crashed -- OOM kill, a deploy
+    # restart mid-request -- before it could release the claim or
+    # finish approving). Cleared (set back to NULL) whenever a row
+    # leaves "processing" by any path, so a stale value never lingers
+    # on a row that's since moved on.
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     resolved_at = db.Column(db.DateTime, nullable=True)  # when approved/skipped
+    processing_started_at = db.Column(db.DateTime, nullable=True)
 
     contact = db.relationship("Contact")
     triggering_event = db.relationship("TimelineEvent")

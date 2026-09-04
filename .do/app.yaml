@@ -112,3 +112,38 @@ jobs:
         value: ${andgifts-db.PORT}
       - key: DB_NAME
         value: ${andgifts-db.DATABASE}
+
+  # Backstop for the rare process-crash-mid-charge gap in
+  # dashboard.approve_action -- see reconcile_stuck_processing_actions's
+  # docstring in app/services/suggestion_engine.py for why a plain
+  # revert-to-pending is safe here (Stripe idempotency keys, not a
+  # separate Stripe lookup, are what actually prevent a double charge
+  # on the next retry). Runs every 15 minutes -- DO App Platform's
+  # minimum cron interval -- since a suggestion stuck at "processing"
+  # is invisible on the agent's dashboard the whole time it's stuck,
+  # unlike the once-daily jobs above where a day's delay is fine.
+  - name: reconcile-stuck-actions
+    github:
+      repo: YOUR_GITHUB_USERNAME/andgifts
+      branch: main
+    source_dir: /
+    build_command: pip install -r requirements.txt
+    run_command: python jobs/reconcile_stuck_actions.py
+    kind: SCHEDULED
+    schedule:
+      cron: "*/15 * * * *"
+    instance_size_slug: basic-xxs
+    envs:
+      - key: FLASK_ENV
+        value: production
+      - key: DB_USER
+        value: ${andgifts-db.USERNAME}
+      - key: DB_PASSWORD
+        type: SECRET
+        value: ${andgifts-db.PASSWORD}
+      - key: DB_HOST
+        value: ${andgifts-db.HOSTNAME}
+      - key: DB_PORT
+        value: ${andgifts-db.PORT}
+      - key: DB_NAME
+        value: ${andgifts-db.DATABASE}

@@ -60,7 +60,7 @@ def _claim_action_for_processing(action_id, org_id):
             SuggestedAction.org_id == org_id,
             SuggestedAction.status == "pending",
         )
-        .values(status="processing")
+        .values(status="processing", processing_started_at=datetime.utcnow())
     )
     db.session.commit()
     return result.rowcount == 1
@@ -80,7 +80,7 @@ def _release_action_claim(action_id, org_id):
             SuggestedAction.org_id == org_id,
             SuggestedAction.status == "processing",
         )
-        .values(status="pending")
+        .values(status="pending", processing_started_at=None)
     )
     db.session.commit()
 
@@ -546,6 +546,7 @@ def approve_action(action_id):
 
     action.status = "approved"
     action.resolved_at = datetime.utcnow()
+    action.processing_started_at = None
 
     # "email", "gift", and "handwritten_note" are the action types wired
     # up to an actual automated send/charge (text is still hidden/manual
