@@ -15,6 +15,7 @@ from app.services.storage import upload_contact_photo, delete_contact_photo, Sto
 from app.services.catalog_helpers import filter_facets, ai_search_matches
 from app.services import llm
 from app.services.analytics import queue_event
+from app.services.http_safety import is_safe_redirect_target
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -97,6 +98,15 @@ def _search_contact_ids(search_term):
 )
 def new_contact():
     org = current_user.org
+    # Lets "Add contact" links from a specific task (e.g. the "Who's this
+    # for?" gift-order picker) send the agent back to that task with the
+    # new contact instead of always landing on the generic contact page.
+    # Validated with is_safe_redirect_target the same way settings.py's
+    # payment-method flow validates its `next` -- this value round-trips
+    # through a GET query param and a hidden form field, both user-
+    # controlled, so it can't be trusted as a redirect target as-is.
+    next_url = request.values.get("next", "")
+    next_url = next_url if is_safe_redirect_target(next_url) else None
 
     if request.method == "GET":
         if not org.can_add_contact():
@@ -110,6 +120,7 @@ def new_contact():
             "contacts/new.html",
             custom_fields=_visible_custom_fields(),
             custom_values={},
+            next_url=next_url,
         )
 
     if not org.can_add_contact():
@@ -186,7 +197,7 @@ def new_contact():
             "success",
         )
 
-    return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+    return redirect(next_url or url_for("contacts.view_contact", contact_id=contact.id))
 
 
 def _log_contact_activity(contact, action, summary):

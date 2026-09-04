@@ -10,7 +10,7 @@
   <input type="text" id="pick-contact-search" placeholder="Search contacts…">
 </div>
 
-<div id="pick-contact-list" style="max-width:420px; margin-top:12px;">
+<div id="pick-contact-list" style="max-width:420px; margin-top:12px;" data-search-url="{{ url_for('catalog.search_contacts_for_order', item_id=item.id) }}">
   {% for contact in contacts %}
     <a href="{{ url_for('contacts.new_order', contact_id=contact.id, item_id=item.id) }}"
        class="contact-card-row" data-search="{{ contact.household_name|lower }}">
@@ -23,16 +23,72 @@
     <p class="subdued">No contacts yet.</p>
   {% endfor %}
 </div>
+{% if total_count > shown_limit %}
+  <p class="subdued" id="pick-contact-truncated-note" style="max-width:420px; margin-top:8px;">
+    <small>Showing {{ shown_limit }} of {{ total_count }} contacts &mdash; keep typing to search all of them.</small>
+  </p>
+{% endif %}
+
+<p style="max-width:420px; margin-top:14px;">
+  <a href="{{ url_for('contacts.new_contact', next=url_for('catalog.pick_contact_for_order', item_id=item.id)) }}" class="btn btn-ghost btn-small">+ Add a new contact</a>
+</p>
 
 <script>
   (function () {
     var input = document.getElementById('pick-contact-search');
+    var listEl = document.getElementById('pick-contact-list');
     var rows = Array.prototype.slice.call(document.querySelectorAll('#pick-contact-list [data-search]'));
+    var searchUrl = listEl.dataset.searchUrl;
+    var orderUrlBase = "{{ url_for('contacts.new_order', contact_id='__ID__', item_id=item.id) }}";
+    var debounceTimer = null;
+
+    function renderServerResults(contacts) {
+      listEl.innerHTML = '';
+      if (!contacts.length) {
+        var empty = document.createElement('p');
+        empty.className = 'subdued';
+        empty.textContent = 'No contacts match that search.';
+        listEl.appendChild(empty);
+        return;
+      }
+      contacts.forEach(function (c) {
+        var a = document.createElement('a');
+        a.href = orderUrlBase.replace('__ID__', c.id);
+        a.className = 'contact-card-row';
+        var info = document.createElement('div');
+        info.className = 'info';
+        var h4 = document.createElement('h4');
+        h4.textContent = c.household_name;
+        info.appendChild(h4);
+        a.appendChild(info);
+        listEl.appendChild(a);
+      });
+    }
+
     input.addEventListener('input', function () {
       var term = input.value.trim().toLowerCase();
-      rows.forEach(function (row) {
-        row.style.display = row.dataset.search.indexOf(term) !== -1 ? '' : 'none';
-      });
+
+      // Short queries just filter the contacts already on the page --
+      // no need to round-trip to the server for one or two characters.
+      if (term.length < 2) {
+        listEl.innerHTML = '';
+        rows.forEach(function (row) { listEl.appendChild(row); row.style.display = ''; });
+        return;
+      }
+
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function () {
+        fetch(searchUrl + '?q=' + encodeURIComponent(term), { credentials: 'same-origin' })
+          .then(function (res) { return res.json(); })
+          .then(function (data) { renderServerResults(data.contacts || []); })
+          .catch(function () {
+            // Fall back to filtering the initial page if the search
+            // endpoint is unreachable, rather than showing nothing.
+            rows.forEach(function (row) {
+              row.style.display = row.dataset.search.indexOf(term) !== -1 ? '' : 'none';
+            });
+          });
+      }, 200);
     });
   })();
 </script>

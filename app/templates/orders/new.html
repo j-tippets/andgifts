@@ -8,24 +8,29 @@
 </div>
 
 <div class="contact-card" style="max-width:480px;">
-  <div style="display:flex; gap:14px; align-items:center; margin-bottom:20px;">
-    <div class="catalog-card-media" style="width:70px; height:70px; border-radius:14px; flex-shrink:0;">
-      {% if item.image_url %}
-        <img src="{{ item.image_url }}" alt="">
-      {% else %}
-        <div class="avatar avatar-placeholder">🎁</div>
-      {% endif %}
-    </div>
-    <div>
-      <strong>{{ item.name }}</strong>
-      <div class="subdued">${{ '%.2f'|format(item.price_cents / 100) }}</div>
+  <div class="contact-card-section">
+    <div style="display:flex; gap:14px; align-items:center;">
+      <div class="catalog-card-media" style="width:70px; height:70px; border-radius:14px; flex-shrink:0;">
+        {% if item.image_url %}
+          <img src="{{ item.image_url }}" alt="">
+        {% else %}
+          <div class="avatar avatar-placeholder">🎁</div>
+        {% endif %}
+      </div>
+      <div>
+        <strong>{{ item.name }}</strong>
+        <div class="subdued">${{ '%.2f'|format(item.price_cents / 100) }}</div>
+        <div class="subdued catalog-card-lead-time{{ ' catalog-card-lead-time-long' if item.lead_time_days > 5 else '' }}">
+          <small>{{ 'Ships same-week' if item.lead_time_days <= 2 else 'Ships in ' ~ item.lead_time_days ~ ' days' }} (not delivery time)</small>
+        </div>
+      </div>
     </div>
   </div>
 
   <form method="post" id="order-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <fieldset>
-      <legend>How should this get to them?</legend>
+    <div class="contact-card-section">
+      <h2>How should this get to them?</h2>
 
       <label class="checkbox-chip" style="margin-bottom:10px;">
         <input type="radio" name="fulfillment_method" value="shipping" checked
@@ -45,15 +50,15 @@
         We'll drop it off at your office &mdash; free, no shipping charge
       </label>
       {% endif %}
-    </fieldset>
 
-    <div class="field" id="pickup-field" style="display:none;">
-      <span class="subdued">Pickup location</span>
-      <p style="margin:4px 0 0;">1096 E 50 S, American Fork, UT</p>
+      <div class="field" id="pickup-field" style="display:none; margin-top:12px; margin-bottom:0;">
+        <span class="subdued">Pickup location</span>
+        <p style="margin:4px 0 0;">1096 E 50 S, American Fork, UT</p>
+      </div>
     </div>
 
-    <fieldset style="margin-top:20px;">
-      <legend>Add a note?</legend>
+    <div class="contact-card-section">
+      <h2>Add a note?</h2>
 
       <label class="checkbox-chip" style="margin-bottom:10px;">
         <input type="radio" name="note_option" value="none" checked
@@ -70,20 +75,22 @@
                onchange="agToggleNoteFields('llm');">
         Let AI write one
       </label>
-    </fieldset>
 
-    <div class="field" id="note-custom-field" style="display:none;">
-      <label for="note_text">Note</label>
-      <textarea name="note_text" id="note_text" rows="3" maxlength="500" placeholder="e.g. Congratulations on the new home!"></textarea>
+      <div class="field" id="note-custom-field" style="display:none; margin-top:12px; margin-bottom:0;">
+        <label for="note_text">Note</label>
+        <textarea name="note_text" id="note_text" rows="3" maxlength="500" placeholder="e.g. Congratulations on the new home!"></textarea>
+      </div>
+
+      <div class="field" id="note-llm-field" style="display:none; margin-top:12px; margin-bottom:0;">
+        <label for="note_hint">Anything the note should mention? <span class="subdued">(optional)</span></label>
+        <input type="text" name="note_hint" id="note_hint" maxlength="200" placeholder="e.g. their recent closing on Maple St">
+      </div>
     </div>
 
-    <div class="field" id="note-llm-field" style="display:none;">
-      <label for="note_hint">Anything the note should mention? <span class="subdued">(optional)</span></label>
-      <input type="text" name="note_hint" id="note_hint" maxlength="200" placeholder="e.g. their recent closing on Maple St">
+    <div class="contact-card-section" style="display:flex; gap:10px;">
+      <button type="submit" class="btn btn-primary">Continue to payment</button>
+      <a href="{{ url_for('contacts.browse_gifts', contact_id=contact.id) }}" class="btn btn-ghost">Cancel</a>
     </div>
-
-    <button type="submit" class="btn btn-primary" style="margin-top:16px;">Continue to payment</button>
-    <a href="{{ url_for('contacts.browse_gifts', contact_id=contact.id) }}" class="btn btn-ghost">Cancel</a>
   </form>
 </div>
 

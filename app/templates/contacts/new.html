@@ -5,6 +5,7 @@
 
 <form method="POST" enctype="multipart/form-data" id="contacts-new-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
   <fieldset>
     <legend>Photo</legend>
     <div style="display:flex; align-items:center; gap:20px;">

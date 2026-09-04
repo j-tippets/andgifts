@@ -11,6 +11,14 @@
   <table role="presentation" style="width:100%; border-collapse: collapse; margin-bottom:16px;">
     <tr><td style="padding:6px 0; color:#6B6459;">Contact</td><td style="text-align:right;">{{ order.contact.household_name }}</td></tr>
     <tr><td style="padding:6px 0; color:#6B6459;">Gift</td><td style="text-align:right;">{{ order.gift_name_snapshot }}</td></tr>
+    {% if order.gift_catalog_item %}
+      <tr><td style="padding:6px 0; color:#6B6459;">Ships</td>
+        <td style="text-align:right;">
+          in {{ order.gift_catalog_item.lead_time_days }} day{{ 's' if order.gift_catalog_item.lead_time_days != 1 else '' }}
+          <span class="subdued" style="display:block;"><small>from order approval, not delivery time</small></span>
+        </td>
+      </tr>
+    {% endif %}
     {% if order.note_text %}
       <tr><td style="padding:6px 0; color:#6B6459; vertical-align:top;">Note</td><td style="text-align:right; white-space:pre-line;">{{ order.note_text }}</td></tr>
     {% endif %}

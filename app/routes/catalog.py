@@ -5,8 +5,14 @@ from app.extensions import db, limiter
 from app.models import GiftCatalogItem, OrgCatalogSelection, Contact
 from app.decorators import admin_required
 from app.services.catalog_helpers import filter_facets, ai_search_matches
+from app.routes.contacts import _search_contact_ids
 
 catalog_bp = Blueprint("catalog", __name__, url_prefix="/catalog")
+
+# How many contacts the "Who's this for?" picker shows before the agent
+# needs to search -- an org with a big book of business shouldn't have
+# to render every contact into the DOM up front.
+PICK_CONTACT_LIMIT = 50
 
 
 @catalog_bp.route("/")
@@ -65,11 +71,51 @@ def pick_contact_for_order(item_id):
     """Entry point from the org-wide Gift Catalog page: 'Order this gift'
     there doesn't already know which contact it's for, so pick one first,
     then hand off to the same per-contact order form used from a
-    contact's own page."""
+    contact's own page.
+
+    Do Not Contact contacts are excluded entirely -- see new_order /
+    browse_gifts for the corresponding server-side hard block.
+
+    Caps the initial render at PICK_CONTACT_LIMIT and lets
+    contacts-search (AJAX) look up the rest by name as the agent types,
+    rather than rendering every contact in the org up front.
+    """
     item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
     query = Contact.query.filter_by(org_id=current_user.org_id).filter(Contact.do_not_contact.is_(False))
-    contacts = Contact.visible_to(query, current_user).order_by(Contact.household_name).all()
-    return render_template("orders/pick_contact.html", item=item, contacts=contacts)
+    visible_query = Contact.visible_to(query, current_user).order_by(Contact.household_name)
+    total_count = visible_query.count()
+    contacts = visible_query.limit(PICK_CONTACT_LIMIT).all()
+    return render_template(
+        "orders/pick_contact.html",
+        item=item,
+        contacts=contacts,
+        total_count=total_count,
+        shown_limit=PICK_CONTACT_LIMIT,
+    )
+
+
+@catalog_bp.route("/<item_id>/order/contacts-search")
+@login_required
+def search_contacts_for_order(item_id):
+    """AJAX backing the "Who's this for?" search box once the agent
+    types past what pick_contact_for_order rendered up front -- looks
+    across the whole org (not just the first page), same DNC exclusion
+    and visibility rules as the initial render."""
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return jsonify(contacts=[])
+
+    matching_ids = _search_contact_ids(q)
+    query = Contact.query.filter(
+        Contact.id.in_(matching_ids),
+        Contact.org_id == current_user.org_id,
+        Contact.do_not_contact.is_(False),
+    )
+    contacts = Contact.visible_to(query, current_user).order_by(Contact.household_name).limit(PICK_CONTACT_LIMIT).all()
+    return jsonify(contacts=[
+        {"id": c.id, "household_name": c.household_name}
+        for c in contacts
+    ])
 
 
 @catalog_bp.route("/toggle/<item_id>", methods=["POST"])

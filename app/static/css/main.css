@@ -1091,6 +1091,21 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
 
+/* Small animated sparkle shown next to "Looking through the catalog..."
+   while the Ask AI gift search is running (both the org-wide dialog and
+   the per-contact browse page use the same #ai-gift-search-status markup). */
+.ai-search-sparkle {
+  display: inline-block;
+  animation: ai-sparkle-pulse 1.1s ease-in-out infinite;
+}
+@keyframes ai-sparkle-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.35) rotate(12deg); opacity: 0.65; }
+}
+
+.catalog-card-lead-time { margin: 2px 0 0; }
+.catalog-card-lead-time-long { color: var(--gold-ink); font-weight: 600; }
+
 .empty-state { text-align: center; padding: 60px 20px; color: rgba(42,26,69,.5); border:1px solid black; border-radius:10px;}
 .empty-state h3 { color: var(--ink); margin-bottom: 8px; }
 

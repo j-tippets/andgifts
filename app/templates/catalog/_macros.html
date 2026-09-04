@@ -47,6 +47,14 @@
       </div>
     {% endif %}
     <button type="button" id="filters-clear" class="catalog-filters-clear">Clear filters</button>
+    <div class="catalog-filter">
+      <label for="filter-sort">Sort by</label>
+      <select id="filter-sort">
+        <option value="price-asc">Price: low to high</option>
+        <option value="price-desc">Price: high to low</option>
+        <option value="name-asc">Name: A to Z</option>
+      </select>
+    </div>
   </div>
 {% endmacro %}
 
@@ -58,6 +66,7 @@
     data-status="{{ 'included' if included else 'excluded' }}"
     data-price="{{ item.price_cents // 100 }}"
     data-lead="{{ item.lead_time_days }}"
+    data-name="{{ item.name|lower }}"
     data-occasion="{{ (item.occasion or '')|lower }}"
     data-tags="{{ item.tag_list()|map('lower')|join('|') }}"
   >
@@ -72,6 +81,9 @@
       {% if item.occasion %}<span class="tag-chip catalog-card-occasion">{{ item.occasion }}</span>{% endif %}
       <h4>{{ item.name }}</h4>
       <p class="price">${{ '%.2f'|format(item.price_cents / 100) }}</p>
+      <p class="subdued catalog-card-lead-time{{ ' catalog-card-lead-time-long' if item.lead_time_days > 5 else '' }}">
+        <small>{{ 'Ships same-week' if item.lead_time_days <= 2 else 'Ships in ' ~ item.lead_time_days ~ ' days' }} (not delivery time)</small>
+      </p>
 
       {% if item.description or item.tag_list() %}
         <details>

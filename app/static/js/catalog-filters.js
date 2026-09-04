@@ -19,6 +19,24 @@
   var leadRange = document.getElementById('filter-lead');
   var leadLabel = document.getElementById('filter-lead-label');
   var clearBtn = document.getElementById('filters-clear');
+  var sortSelect = document.getElementById('filter-sort');
+  var cardsContainer = cards.length ? cards[0].parentElement : null;
+
+  function applySort() {
+    if (!sortSelect || !cardsContainer) return;
+    var sorted = cards.slice().sort(function (a, b) {
+      switch (sortSelect.value) {
+        case 'price-desc':
+          return parseInt(b.dataset.price, 10) - parseInt(a.dataset.price, 10);
+        case 'name-asc':
+          return a.dataset.name < b.dataset.name ? -1 : a.dataset.name > b.dataset.name ? 1 : 0;
+        case 'price-asc':
+        default:
+          return parseInt(a.dataset.price, 10) - parseInt(b.dataset.price, 10);
+      }
+    });
+    sorted.forEach(function (card) { cardsContainer.appendChild(card); });
+  }
 
   function apply() {
     var q = (input && input.value.trim().toLowerCase()) || '';
@@ -70,9 +88,15 @@
         leadRange.value = leadRange.max;
         if (leadLabel) leadLabel.textContent = leadRange.max + ' days';
       }
+      if (sortSelect) {
+        sortSelect.value = 'price-asc';
+        applySort();
+      }
       apply();
     });
   }
+
+  if (sortSelect) sortSelect.addEventListener('change', applySort);
 
   chips.forEach(function (chip) {
     chip.addEventListener('click', function (e) {
@@ -85,4 +109,5 @@
   });
 
   apply();
+  applySort();
 })();
