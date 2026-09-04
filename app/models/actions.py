@@ -194,6 +194,8 @@ class SuggestedAction(db.Model):
         the current page at all) and again server-side in
         approve_action itself as the actual enforcement; the card-side
         check is UX only and isn't trusted on its own."""
+        if self.contact.do_not_contact:
+            return f"{self.contact.household_name} is marked Do Not Contact."
         if self.action_type == "email" and not self.contact.primary_email():
             return "This contact doesn't have an email address on file yet."
         if self.action_type in ("gift", "handwritten_note") and not self.contact.has_shipping_address:
