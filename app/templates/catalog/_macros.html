@@ -34,6 +34,14 @@
       </select>
     </div>
     {% endif %}
+    <div class="catalog-filter">
+      <label for="filter-sort">Sort by</label>
+      <select id="filter-sort">
+        <option value="price-asc">Price: low to high</option>
+        <option value="price-desc">Price: high to low</option>
+        <option value="name-asc">Name: A to Z</option>
+      </select>
+    </div>
     {% if max_price > min_price %}
       <div class="catalog-filter">
         <label for="filter-price">Max price: <span id="filter-price-label">${{ max_price }}</span></label>
@@ -46,15 +54,6 @@
         <input type="range" id="filter-lead" min="{{ min_lead }}" max="{{ max_lead }}" value="{{ max_lead }}" step="1">
       </div>
     {% endif %}
-    <button type="button" id="filters-clear" class="catalog-filters-clear">Clear filters</button>
-    <div class="catalog-filter">
-      <label for="filter-sort">Sort by</label>
-      <select id="filter-sort">
-        <option value="price-asc">Price: low to high</option>
-        <option value="price-desc">Price: high to low</option>
-        <option value="name-asc">Name: A to Z</option>
-      </select>
-    </div>
   </div>
 {% endmacro %}
 

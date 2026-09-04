@@ -40,6 +40,7 @@
       row.className = 'ai-match-row';
 
       var info = document.createElement('div');
+      info.className = 'ai-match-row-info';
       var title = document.createElement('div');
       title.className = 'ai-match-row-title';
       title.textContent = m.name + ' \u2014 $' + (m.price_cents / 100).toFixed(2);

@@ -18,7 +18,6 @@
   var priceLabel = document.getElementById('filter-price-label');
   var leadRange = document.getElementById('filter-lead');
   var leadLabel = document.getElementById('filter-lead-label');
-  var clearBtn = document.getElementById('filters-clear');
   var sortSelect = document.getElementById('filter-sort');
   var cardsContainer = cards.length ? cards[0].parentElement : null;
 
@@ -72,26 +71,6 @@
   if (leadRange) {
     leadRange.addEventListener('input', function () {
       if (leadLabel) leadLabel.textContent = leadRange.value + ' days';
-      apply();
-    });
-  }
-  if (clearBtn) {
-    clearBtn.addEventListener('click', function () {
-      if (input) input.value = '';
-      if (themeSelect) themeSelect.value = '';
-      if (occasionSelect) occasionSelect.value = '';
-      if (priceRange) {
-        priceRange.value = priceRange.max;
-        if (priceLabel) priceLabel.textContent = '$' + priceRange.max;
-      }
-      if (leadRange) {
-        leadRange.value = leadRange.max;
-        if (leadLabel) leadLabel.textContent = leadRange.max + ' days';
-      }
-      if (sortSelect) {
-        sortSelect.value = 'price-asc';
-        applySort();
-      }
       apply();
     });
   }

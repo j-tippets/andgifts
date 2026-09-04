@@ -110,6 +110,7 @@ def resend_verification():
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute;50 per hour")
 def login():
+    show_resend_link = False
     if request.method == "POST":
         email = request.form["email"].strip().lower()
         user = User.query.filter_by(email=email).first()
@@ -120,6 +121,7 @@ def login():
             # Password was correct but the account can't log in yet --
             # give a specific reason instead of a generic error.
             if not user.email_verified:
+                show_resend_link = True
                 flash(
                     "Please verify your email before signing in. "
                     "Didn't get the link? Use the resend option below.",
@@ -134,7 +136,7 @@ def login():
         else:
             flash("Invalid email or password.", "error")
 
-    return render_template("auth/login.html")
+    return render_template("auth/login.html", show_resend_link=show_resend_link)
 
 
 @auth_bp.route("/forgot-password", methods=["GET", "POST"])

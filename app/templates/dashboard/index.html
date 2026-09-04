@@ -7,7 +7,12 @@
   <div>
     <h1 style="margin-bottom:0;">Today</h1>
     {% if not ai_enabled %}
-      <p class="subdued" style="margin-bottom:0;">Upgrade to a paid plan to unlock daily AI-suggested gifts and outreach.</p>
+      <div class="trial-banner" style="margin-bottom:0; margin-top:8px;">
+        <span>Upgrade to a paid plan to unlock daily AI-suggested gifts and outreach.</span>
+        {% if current_user.is_admin %}
+          <a href="{{ url_for('settings.billing') }}" class="trial-banner__cta">Upgrade</a>
+        {% endif %}
+      </div>
     {% endif %}
     {% if current_user.is_admin %}
       <form method="GET" class="agent-filter-form" id="agentFilterForm">
