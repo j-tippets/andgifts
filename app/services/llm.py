@@ -192,6 +192,9 @@ def _heuristic_find_gifts(description, items, max_results):
         }
         for item, count, hits in scored[:max_results]
     ]
+
+
+def generate_gift_note(contact, event, gift_item, prompt_hint=None):
     """Returns a short note to go with a gift suggestion -- something the
     agent can attach to a physical gift or, later, send along with an
     e-gift-card delivery -- explaining what it's for. Same fallback
