@@ -458,7 +458,7 @@ def ai_search_gifts(contact_id):
     if not description:
         return jsonify(error="Describe the situation first."), 400
 
-    candidates = current_user.org.available_catalog_items()
+    candidates = [i for i in current_user.org.available_catalog_items() if i.is_in_stock]
     used_ai, matches = ai_search_matches(
         description, candidates,
         order_url_for=lambda item: url_for("contacts.new_order", contact_id=contact.id, item_id=item.id),
@@ -475,6 +475,9 @@ def new_order(contact_id, item_id):
         flash(f"{contact.household_name} is marked Do Not Contact — gifts can't be ordered for them.", "error")
         return redirect(url_for("contacts.view_contact", contact_id=contact.id))
     item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
+    if not item.is_in_stock:
+        flash(f"{item.name} is temporarily unavailable — it's out of stock.", "error")
+        return redirect(url_for("contacts.browse_gifts", contact_id=contact.id))
     flat_rate = current_app.config.get("FLAT_RATE_SHIPPING_CENTS", 595)
 
     if request.method == "POST":

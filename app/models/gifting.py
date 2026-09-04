@@ -58,7 +58,20 @@ class GiftCatalogItem(db.Model):
     # approval", never as an arrival date.
     lead_time_days = db.Column(db.Integer, nullable=False, default=7)
 
+    # NULL = not tracked (unlimited/always orderable -- the behavior
+    # every existing item keeps until someone opts it in). Once set to
+    # a number, WDF's per-item finished-goods count for this SKU;
+    # decremented by 1 each time an order for this item is paid (see
+    # services.catalog_helpers.decrement_stock_on_payment, called from
+    # every place an Order transitions to status="paid"). Floors at 0
+    # rather than going negative if two orders race past a low count.
+    stock_quantity = db.Column(db.Integer, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def is_in_stock(self):
+        return self.stock_quantity is None or self.stock_quantity > 0
 
     def tag_list(self):
         return [t.strip() for t in (self.interest_tags or "").split(",") if t.strip()]

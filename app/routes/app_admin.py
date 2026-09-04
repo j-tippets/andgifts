@@ -4,7 +4,9 @@ from app.extensions import db
 from app.models import GiftCatalogItem, GiftTrigger, Org, CampaignRecipe, Badge, OrgEventLog, PracticeType, PracticeTypeMilestone
 from app.models.timeline import slugify_event_key
 from app.decorators import platform_admin_required
-from app.services.catalog_helpers import dollars_to_cents, cents_to_dollars_str, tags_from_form, lead_time_from_form
+from app.services.catalog_helpers import (
+    dollars_to_cents, cents_to_dollars_str, tags_from_form, lead_time_from_form, stock_quantity_from_form,
+)
 from app.services.practice_types import seed_org_milestones
 
 app_admin_bp = Blueprint("app_admin", __name__, url_prefix="/app-admin")
@@ -273,11 +275,15 @@ def catalog_new():
 
     price_cents = dollars_to_cents(request.form.get("price"))
     lead_time_days = lead_time_from_form(request.form.get("lead_time_days"))
+    stock_ok, stock_quantity = stock_quantity_from_form(request.form.get("stock_quantity"))
     if not request.form.get("name", "").strip() or price_cents is None:
         flash("Name and a valid price are required.", "error")
         return render_template("app_admin/catalog_new.html")
     if lead_time_days is None:
         flash("Lead time must be a whole number of days greater than 0.", "error")
+        return render_template("app_admin/catalog_new.html")
+    if not stock_ok:
+        flash("Stock on hand must be blank (not tracked) or a whole number of 0 or more.", "error")
         return render_template("app_admin/catalog_new.html")
 
     item = GiftCatalogItem(
@@ -289,6 +295,7 @@ def catalog_new():
         interest_tags=tags_from_form(request.form.get("interest_tags")),
         image_url=request.form.get("image_url", "").strip() or None,
         lead_time_days=lead_time_days,
+        stock_quantity=stock_quantity,
         sku=request.form.get("sku", "").strip() or None,
         occasion=request.form.get("occasion", "").strip() or None,
         recipe_id=request.form.get("recipe_id", "").strip() or None,
@@ -316,11 +323,15 @@ def catalog_edit(item_id):
 
     price_cents = dollars_to_cents(request.form.get("price"))
     lead_time_days = lead_time_from_form(request.form.get("lead_time_days"))
+    stock_ok, stock_quantity = stock_quantity_from_form(request.form.get("stock_quantity"))
     if not request.form.get("name", "").strip() or price_cents is None:
         flash("Name and a valid price are required.", "error")
         return redirect(url_for("app_admin.catalog_edit", item_id=item.id))
     if lead_time_days is None:
         flash("Lead time must be a whole number of days greater than 0.", "error")
+        return redirect(url_for("app_admin.catalog_edit", item_id=item.id))
+    if not stock_ok:
+        flash("Stock on hand must be blank (not tracked) or a whole number of 0 or more.", "error")
         return redirect(url_for("app_admin.catalog_edit", item_id=item.id))
 
     item.name = request.form["name"].strip()
@@ -330,6 +341,7 @@ def catalog_edit(item_id):
     item.interest_tags = tags_from_form(request.form.get("interest_tags"))
     item.image_url = request.form.get("image_url", "").strip() or None
     item.lead_time_days = lead_time_days
+    item.stock_quantity = stock_quantity
     item.sku = request.form.get("sku", "").strip() or None
     item.occasion = request.form.get("occasion", "").strip() or None
     item.recipe_id = request.form.get("recipe_id", "").strip() or None

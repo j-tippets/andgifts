@@ -79,6 +79,7 @@
     </div>
     <div class="catalog-card-body">
       {% if item.occasion %}<span class="tag-chip catalog-card-occasion">{{ item.occasion }}</span>{% endif %}
+      {% if not item.is_in_stock %}<span class="tag-chip catalog-card-out-of-stock">Temporarily unavailable</span>{% endif %}
       <h4>{{ item.name }}</h4>
       <p class="price">${{ '%.2f'|format(item.price_cents / 100) }}</p>
       <p class="subdued catalog-card-lead-time{{ ' catalog-card-lead-time-long' if item.lead_time_days > 5 else '' }}">
@@ -106,9 +107,15 @@
       {% endif %}
 
       <div class="catalog-card-actions">
+        {% if item.is_in_stock %}
         <a href="{{ order_url }}" class="btn btn-primary btn-small">
           Order this gift
         </a>
+        {% else %}
+        <span class="btn btn-primary btn-small" style="opacity:0.5; cursor:not-allowed; pointer-events:none;" title="Out of stock">
+          Temporarily unavailable
+        </span>
+        {% endif %}
       </div>
     </div>
   </div>

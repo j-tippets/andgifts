@@ -33,6 +33,11 @@
       <input type="text" name="lead_time_days" value="7" required>
       <p class="subdued" style="margin-top:4px;"><small>Order-to-ship time, not a delivery promise -- how many days it takes to assemble and hand this off to the carrier once a team member approves it.</small></p>
     </div>
+    <div class="field">
+      <label>Stock on hand</label>
+      <input type="text" name="stock_quantity" placeholder="Leave blank for unlimited / not tracked">
+      <p class="subdued" style="margin-top:4px;"><small>WDF's count of this item, fully assembled and ready to ship. Leave blank to not track stock (always orderable, the default). Once set, it drops by 1 each time an order for this item is paid, and the item shows "Temporarily unavailable" and can't be ordered once it hits 0.</small></p>
+    </div>
     <div class="field-row">
       <div class="field">
         <label>SKU</label>

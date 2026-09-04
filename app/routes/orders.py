@@ -11,6 +11,7 @@ from app.services.email import send_order_confirmation, send_wdf_fulfillment_not
 from app.services.org_events import record_org_event
 from app.services.analytics import queue_event
 from app.services import org_billing
+from app.services.catalog_helpers import decrement_stock_on_payment
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -117,6 +118,7 @@ def confirm_order(order_id):
         order.stripe_payment_intent_id = intent_id
         if order.fulfillment_method == "shipping":
             order.shipping_address_snapshot = order.contact.formatted_shipping_address()
+        decrement_stock_on_payment(order)
 
         db.session.add(ActionLog(
             org_id=order.org_id,
@@ -267,6 +269,7 @@ def stripe_webhook():
             order.status = "paid"
             order.paid_at = datetime.utcnow()
             order.stripe_payment_intent_id = session.get("payment_intent")
+            decrement_stock_on_payment(order)
 
             shipping_details = session.get("shipping_details")
             if shipping_details:

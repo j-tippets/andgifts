@@ -1105,6 +1105,7 @@ details[open] > summary .catalog-caret { transform: rotate(90deg); }
 
 .catalog-card-lead-time { margin: 2px 0 0; }
 .catalog-card-lead-time-long { color: var(--gold-ink); font-weight: 600; }
+.catalog-card-out-of-stock { background: var(--danger); color: #fff; }
 
 .empty-state { text-align: center; padding: 60px 20px; color: rgba(42,26,69,.5); border:1px solid black; border-radius:10px;}
 .empty-state h3 { color: var(--ink); margin-bottom: 8px; }

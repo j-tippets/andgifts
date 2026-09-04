@@ -57,7 +57,7 @@ def ai_search():
     if not description:
         return jsonify(error="Describe the situation first."), 400
 
-    candidates = current_user.org.available_catalog_items()
+    candidates = [i for i in current_user.org.available_catalog_items() if i.is_in_stock]
     used_ai, matches = ai_search_matches(
         description, candidates,
         order_url_for=lambda item: url_for("catalog.pick_contact_for_order", item_id=item.id),
@@ -81,6 +81,9 @@ def pick_contact_for_order(item_id):
     rather than rendering every contact in the org up front.
     """
     item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
+    if not item.is_in_stock:
+        flash(f"{item.name} is temporarily unavailable — it's out of stock.", "error")
+        return redirect(url_for("catalog.list_catalog"))
     query = Contact.query.filter_by(org_id=current_user.org_id).filter(Contact.do_not_contact.is_(False))
     visible_query = Contact.visible_to(query, current_user).order_by(Contact.household_name)
     total_count = visible_query.count()

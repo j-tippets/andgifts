@@ -198,6 +198,8 @@ class SuggestedAction(db.Model):
             return "This contact doesn't have an email address on file yet."
         if self.action_type in ("gift", "handwritten_note") and not self.contact.has_shipping_address:
             return "This contact doesn't have a shipping address on file yet."
+        if self.action_type == "gift" and self.suggested_gift and not self.suggested_gift.is_in_stock:
+            return f"{self.suggested_gift.name} is temporarily unavailable — it's out of stock."
         return None
 
     @property

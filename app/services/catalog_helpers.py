@@ -33,6 +33,24 @@ def lead_time_from_form(raw, default=7):
     return days if days > 0 else None
 
 
+def stock_quantity_from_form(raw):
+    """Parse the stock-on-hand admin field. Blank means "not tracked"
+    (None -- the item stays always-orderable, same as every item today).
+    Unlike lead_time_from_form, None is itself a valid parsed value here,
+    so this returns (ok, value) instead of using None to mean "invalid" --
+    ok=False for anything non-blank that isn't a whole number >= 0, so
+    the caller can reject the submission the same way it does for price
+    and lead time."""
+    raw = (raw or "").strip()
+    if not raw:
+        return True, None
+    try:
+        qty = int(raw)
+    except ValueError:
+        return False, None
+    return (True, qty) if qty >= 0 else (False, None)
+
+
 def ai_search_matches(description, candidates, order_url_for):
     """Runs the free-form "explain the situation" gift search against
     `candidates` and shapes the result for either AI-search endpoint
@@ -77,3 +95,29 @@ def filter_facets(items):
     all_occasions = sorted({i.occasion for i in items if i.occasion}, key=str.lower)
     all_themes = sorted({tag for i in items for tag in i.tag_list()}, key=str.lower)
     return all_occasions, all_themes, min_price, max_price, min_lead, max_lead
+
+
+def decrement_stock_on_payment(order):
+    """Called from every place an Order transitions to status="paid" --
+    routes.orders.confirm_order (synchronous card charge),
+    routes.orders.stripe_webhook (async checkout.session.completed),
+    and routes.dashboard.approve_action (automated flow/campaign gift
+    approval) -- so stock moves at the same moment money does,
+    regardless of which of those three paths the order came through.
+
+    A no-op for an item with stock_quantity=None (not tracked) or an
+    order with no gift_catalog_item at all (deleted since, or never
+    set). Floors at 0 instead of going negative -- two orders racing
+    past the last unit both still succeed at the payment layer (no
+    reservation system yet), so this just stops the displayed count
+    from reading -1, -2, etc.
+
+    Does not commit -- the caller is expected to already be inside a
+    single commit for the rest of the payment-success writes (ActionLog,
+    ContactAuditLog, etc.), so this only touches the object in the
+    session and lets that existing commit cover it too.
+    """
+    item = order.gift_catalog_item
+    if item is None or item.stock_quantity is None:
+        return
+    item.stock_quantity = max(0, item.stock_quantity - 1)

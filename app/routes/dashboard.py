@@ -16,6 +16,7 @@ from app.services.email import send_flow_action_email, send_wdf_fulfillment_noti
 from app.services.payments import charge_saved_card
 from app.services.wdf_client import send_wdf_webhook
 from app.services.analytics import queue_event, pop_pending_events
+from app.services.catalog_helpers import decrement_stock_on_payment
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
@@ -472,6 +473,7 @@ def approve_action(action_id):
         )
         db.session.add(order)
         db.session.flush()  # order.id, for the notice and for linking ActionLog below
+        decrement_stock_on_payment(order)
         queue_event("gift_approved", action_type="gift", gift_price_tier=action.suggested_gift.price_cents / 100)
         queue_event(
             "purchase",
