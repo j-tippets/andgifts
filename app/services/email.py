@@ -120,7 +120,7 @@ def _wrap_email(body_html, preheader=""):
           <tr>
             <td align="center" style="padding-bottom:24px;">
               <img src="https://andgiftscdn.nyc3.cdn.digitaloceanspaces.com/ag_logo_badge.png"
-                   alt="&amp;Gifts" width="120" height="36" style="display:block; width:120px; height:36px;">
+                   alt="&amp;Gifts" width="63" height="36" style="display:block; width:63px; height:36px;">
             </td>
           </tr>
           <tr>

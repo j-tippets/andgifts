@@ -23,6 +23,7 @@
         </select>
       </div>
     {% endif %}
+    {% if all_themes %}
     <div class="catalog-filter">
       <label for="filter-theme">Theme</label>
       <select id="filter-theme">
@@ -32,6 +33,7 @@
         {% endfor %}
       </select>
     </div>
+    {% endif %}
     {% if max_price > min_price %}
       <div class="catalog-filter">
         <label for="filter-price">Max price: <span id="filter-price-label">${{ max_price }}</span></label>

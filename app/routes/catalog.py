@@ -67,7 +67,7 @@ def pick_contact_for_order(item_id):
     then hand off to the same per-contact order form used from a
     contact's own page."""
     item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
-    query = Contact.query.filter_by(org_id=current_user.org_id)
+    query = Contact.query.filter_by(org_id=current_user.org_id).filter(Contact.do_not_contact.is_(False))
     contacts = Contact.visible_to(query, current_user).order_by(Contact.household_name).all()
     return render_template("orders/pick_contact.html", item=item, contacts=contacts)
 

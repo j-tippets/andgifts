@@ -408,6 +408,9 @@ def browse_gifts(contact_id):
     -- see catalog/_macros.html, shared by both templates."""
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
+    if contact.do_not_contact:
+        flash(f"{contact.household_name} is marked Do Not Contact — gifts can't be ordered for them.", "error")
+        return redirect(url_for("contacts.view_contact", contact_id=contact.id))
     items = current_user.org.available_catalog_items()
     all_occasions, all_themes, min_price, max_price, min_lead, max_lead = filter_facets(items)
     return render_template(
@@ -457,6 +460,9 @@ def ai_search_gifts(contact_id):
 def new_order(contact_id, item_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()
+    if contact.do_not_contact:
+        flash(f"{contact.household_name} is marked Do Not Contact — gifts can't be ordered for them.", "error")
+        return redirect(url_for("contacts.view_contact", contact_id=contact.id))
     item = GiftCatalogItem.query.filter_by(id=item_id, is_active=True).first_or_404()
     flat_rate = current_app.config.get("FLAT_RATE_SHIPPING_CENTS", 595)
 

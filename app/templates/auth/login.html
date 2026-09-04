@@ -20,5 +20,6 @@
     <button class="btn btn-primary" type="submit" style="width:100%;">Sign in</button>
   </form>
   <p class="subdued" style="margin-top:16px;">New to &amp;Gifts? <a href="{{ url_for('onboarding.start') }}">Create an account</a>.</p>
+  <p class="subdued" style="margin-top:4px;">Didn't get a verification email? <a href="{{ url_for('auth.resend_verification') }}">Resend it</a>.</p>
 </div>
 {% endblock %}

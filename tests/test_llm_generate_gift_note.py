@@ -23,12 +23,13 @@ from types import SimpleNamespace
 from app.services import llm
 
 
-def make_contact(name="Jane Doe"):
+def make_contact(name="Jane Doe", head_first="Jane", head_last="Doe"):
     # A lightweight stand-in, not a real Contact model -- generate_gift_note
-    # (and _practice_type_label, which it calls) only ever touch
-    # .household_name and .org, and getattr(..., "org", None) tolerates
-    # org being absent entirely.
-    return SimpleNamespace(household_name=name, org=None)
+    # (and _practice_type_label, which it calls) touch .household_name,
+    # .org, and .primary_person() (for the head-of-household's name --
+    # see the regression this guards against below).
+    head = SimpleNamespace(first_name=head_first, last_name=head_last)
+    return SimpleNamespace(household_name=name, org=None, primary_person=lambda: head)
 
 
 def make_event(label="birthday"):
@@ -68,3 +69,15 @@ def test_generate_gift_note_appends_prompt_hint(app):
             make_contact("Jane Doe"), None, make_gift_item(), prompt_hint="Enjoy!"
         )
         assert "Enjoy!" in note
+
+
+def test_generate_gift_note_uses_head_of_household_name_not_title(app):
+    """Regression: the note used to address contact.household_name (the
+    household title, e.g. "The Starks") instead of the actual head of
+    household's name (e.g. "Jason Stark"). It should reference the
+    person, not the household title."""
+    with app.app_context():
+        contact = make_contact("The Starks", head_first="Jason", head_last="Stark")
+        note = llm.generate_gift_note(contact, None, make_gift_item())
+        assert "Jason Stark" in note
+        assert "The Starks" not in note

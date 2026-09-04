@@ -139,7 +139,7 @@
   </fieldset>
   {% endif %}
 
-  {% if current_user.is_admin %}
+  {% if current_user.is_admin and org_members|length > 1 %}
   <fieldset>
     <legend>Assignment</legend>
     <div class="field">
@@ -152,7 +152,7 @@
       </select>
     </div>
   </fieldset>
-  {% else %}
+  {% elif not current_user.is_admin %}
 
   <fieldset>
     <legend>Contact preferences</legend>

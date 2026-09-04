@@ -79,8 +79,8 @@
       <input type="password" name="current_password" autocomplete="current-password">
     </div>
     <div class="field-row">
-      <div class="field"><label>New password</label><input type="password" name="new_password" autocomplete="new-password"></div>
-      <div class="field"><label>Confirm new password</label><input type="password" name="confirm_password" autocomplete="new-password"></div>
+      <div class="field"><label>New password</label><input type="password" name="new_password" id="profile-new-password" autocomplete="new-password" data-password-field data-min-length="{{ config.MIN_PASSWORD_LENGTH }}"></div>
+      <div class="field"><label>Confirm new password</label><input type="password" name="confirm_password" autocomplete="new-password" data-password-confirm-of="profile-new-password"></div>
     </div>
   </fieldset>
 
@@ -125,4 +125,5 @@
     </div>
   </form>
 </dialog>
+<script src="{{ versioned_static('js/password-requirements.js') }}" defer></script>
 {% endblock %}
