@@ -90,6 +90,11 @@ def _search_contact_ids(search_term):
 
 @contacts_bp.route("/new", methods=["GET", "POST"])
 @login_required
+@limiter.limit(
+    "20 per hour",
+    methods=["POST"],
+    exempt_when=lambda: not request.files.get("photo"),
+)
 def new_contact():
     org = current_user.org
 
@@ -528,6 +533,11 @@ def new_order(contact_id, item_id):
 
 @contacts_bp.route("/<contact_id>/edit", methods=["GET", "POST"])
 @login_required
+@limiter.limit(
+    "20 per hour",
+    methods=["POST"],
+    exempt_when=lambda: not request.files.get("photo"),
+)
 def edit_contact(contact_id):
     query = Contact.query.filter_by(id=contact_id, org_id=current_user.org_id)
     contact = Contact.visible_to(query, current_user).first_or_404()

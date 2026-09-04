@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user, logout_user
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import User, Contact, ContactAuditLog
 from app.services.storage import upload_avatar, delete_avatar, StorageError
 from app.services.account_deletion import delete_org_completely
@@ -12,6 +12,11 @@ profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
 @profile_bp.route("/", methods=["GET", "POST"])
 @login_required
+@limiter.limit(
+    "20 per hour",
+    methods=["POST"],
+    exempt_when=lambda: not request.files.get("photo"),
+)
 def edit_profile():
     """
     Self-service profile editing: name, email, photo, password.

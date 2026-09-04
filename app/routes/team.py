@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import current_user, login_user
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import User, ContactAuditLog
 from app.models.contact import Contact
 from app.decorators import admin_required
@@ -191,6 +191,11 @@ def resend_invite(user_id):
 
 @team_bp.route("/<user_id>/edit", methods=["GET", "POST"])
 @admin_required
+@limiter.limit(
+    "20 per hour",
+    methods=["POST"],
+    exempt_when=lambda: not request.files.get("photo"),
+)
 def edit_member(user_id):
     member = User.query.filter_by(id=user_id, org_id=current_user.org_id).first_or_404()
     owned_contacts_count = Contact.query.filter_by(
