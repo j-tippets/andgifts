@@ -27,13 +27,14 @@ Apple.
 The org shape built below is not an edge case -- it is the single most
 common real shape of a Solo org: one user who has added a card.
 
-These tests are marked xfail(strict=True) deliberately. They document
-a known-broken behaviour without turning the suite red today, and the
-moment the deletion sequence is fixed they will XPASS, which strict
-mode reports as a failure telling you to delete the marker. They are
-the acceptance criteria for that fix, not a permanent fixture.
+These began as xfail(strict=True) reproductions of a live bug. The
+deletion sequence has since been fixed (payment_methods,
+flow_recommendations, filler_action_states, milestone_priorities and
+contact_interests are deleted; org_event_log.org_id is nulled), the
+markers are gone, and these are now ordinary regression tests. Any
+future table with an FK into users or orgs has to be added to
+delete_org_completely or the second test here fails.
 """
-import pytest
 from sqlalchemy import text
 
 from app.models import (
@@ -83,24 +84,12 @@ def _build_fully_populated_solo_org(db):
     return org, user, contact
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="DB-2: delete_org_completely omits payment_methods, "
-           "flow_recommendations, filler_action_states, milestone_priorities "
-           "and org_event_log. Remove this marker once the sequence is fixed.",
-)
 def test_delete_org_completely_succeeds_for_a_solo_org_with_a_saved_card(app, db):
     org, _user, _contact = _build_fully_populated_solo_org(db)
 
     delete_org_completely(org)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="DB-2: blocked by the same missing tables as the test above. "
-           "This is the assertion that actually matters -- deletion must "
-           "leave nothing behind, not merely not raise.",
-)
 def test_account_deletion_leaves_no_orphaned_rows(app, db):
     """The real deliverable. A deletion that runs without raising but
     strands a chargeable card or a user row is a worse outcome than a

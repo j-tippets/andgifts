@@ -1,14 +1,14 @@
 from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.extensions import db, limiter
 from app.models import (
     Contact, ContactPerson, ContactMethod,
     TimelineEvent, CUSTOM_MILESTONE_KEY, CustomEventType, slugify_event_key, MilestonePriority,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
-    GiftCatalogItem, Order, Badge,
+    GiftCatalogItem, Order, Badge, contact_interests,
 )
 from app.decorators import admin_required
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
@@ -733,6 +733,29 @@ def delete_contact(contact_id):
 
     name = contact.household_name
     photo_url_to_delete = contact.photo_url
+
+    # Orders are financial records and outlive the contact -- see
+    # migration b7f4d02e9c31. Snapshot the name onto any order that
+    # doesn't already carry one, then clear the FK. Deleting them
+    # instead would let any agent erase org-wide spend and tax history
+    # with one button.
+    Order.query.filter_by(contact_id=contact.id).update(
+        {
+            # COALESCE so an order that already captured the name at
+            # order time keeps that value rather than being overwritten
+            # with whatever the household happens to be called now.
+            "contact_name_snapshot": func.coalesce(Order.contact_name_snapshot, name),
+            "contact_id": None,
+        },
+        synchronize_session=False,
+    )
+
+    # Plain join table, FK to contacts with no cascade -- missed
+    # entirely, so any contact with a tagged interest blocked the delete.
+    db.session.execute(
+        contact_interests.delete().where(contact_interests.c.contact_id == contact.id)
+    )
+
     _log_contact_activity(contact, "deleted", f"Deleted by {current_user.full_name}.")
     db.session.flush()
     # Preserve the audit trail (via the denormalized name/actor snapshots) but

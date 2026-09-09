@@ -6,6 +6,7 @@ from app.models import User, Contact, ContactAuditLog
 from app.services.storage import upload_avatar, delete_avatar, StorageError
 from app.services.account_deletion import delete_org_completely
 from app.services.org_billing import cancel_org_subscription
+from app.services.user_deletion import detach_and_delete_user
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -163,15 +164,20 @@ def delete_account():
             org_id=current_user.org_id, owner_user_id=current_user.id
         ).update({"owner_user_id": None})
 
-    User.query.filter_by(invited_by_user_id=current_user.id).update({"invited_by_user_id": None})
-    ContactAuditLog.query.filter_by(actor_user_id=current_user.id).update({"actor_user_id": None})
-
-    if current_user.photo_url:
-        delete_avatar(current_user.photo_url)
-
-    user_id = current_user.id
+    # Shared with team.delete_member -- see services/user_deletion for
+    # the full reference list and the keep-vs-delete rationale.
+    #
+    # The old code here used User.query.filter_by(id=...).delete(), a
+    # bulk delete, which bypasses SQLAlchemy's relationship cascades
+    # entirely: even the cascade="all, delete-orphan" on
+    # User.payment_methods never fired, so a closed account left a
+    # chargeable card behind. detach_and_delete_user uses an ORM delete.
+    #
+    # Resolve the user off the session before logout_user(), which
+    # clears current_user.
+    user = current_user._get_current_object()
     logout_user()
-    User.query.filter_by(id=user_id).delete()
+    detach_and_delete_user(user)
     db.session.commit()
     flash("Your account has been permanently deleted.", "success")
     return redirect(url_for("auth.login"))

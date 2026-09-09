@@ -22,7 +22,17 @@ class Order(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
-    contact_id = db.Column(db.String(36), db.ForeignKey("contacts.id"), nullable=False, index=True)
+    # Nullable, and NULL is meaningful: the contact this order was sent
+    # to has since been deleted. Orders are financial records and
+    # deliberately outlive the contact (see migration b7f4d02e9c31) --
+    # an agent removing a client from the CRM must not erase the spend
+    # and tax history for money that was actually charged.
+    contact_id = db.Column(db.String(36), db.ForeignKey("contacts.id"), nullable=True, index=True)
+    # Who this order was for, captured at order time. Same snapshot
+    # rationale as gift_name_snapshot below, and the same pattern as
+    # ContactAuditLog.contact_name_snapshot: it is the only thing left
+    # identifying the recipient once contact_id goes NULL.
+    contact_name_snapshot = db.Column(db.String(255), nullable=True)
     ordered_by_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
 
     gift_catalog_item_id = db.Column(db.String(36), db.ForeignKey("gift_catalog_items.id"), nullable=True)

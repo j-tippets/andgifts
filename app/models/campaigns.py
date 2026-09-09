@@ -210,7 +210,17 @@ class Campaign(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=gen_uuid)
     org_id = db.Column(db.String(36), db.ForeignKey("orgs.id"), nullable=False, index=True)
     owner_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
-    source_recipe_id = db.Column(db.String(36), db.ForeignKey("campaign_recipes.id"), nullable=True)
+    # ondelete="SET NULL" mirrors what migration a1c8e2f4b9d0 actually
+    # applied to the production schema when Flow Library deletion was
+    # built. It was never reflected here, so db.create_all() (which the
+    # test suite uses) produced a stricter RESTRICT than production has
+    # -- meaning deleting a forked recipe raised IntegrityError in tests
+    # while working fine in production. Drift in this direction produces
+    # phantom bugs; the opposite direction produces missed ones. See
+    # tests/test_schema_matches_migrations.py.
+    source_recipe_id = db.Column(
+        db.String(36), db.ForeignKey("campaign_recipes.id", ondelete="SET NULL"), nullable=True
+    )
     # Set when this personal copy was forked from a team-wide (agency) flow --
     # i.e. an agent clicked "Add to my profile" on a Campaign with
     # owner_user_id IS NULL. NULL for team-wide flows themselves, for

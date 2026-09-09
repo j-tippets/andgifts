@@ -122,15 +122,39 @@ def delete_org_completely(org):
     )
 
     # --- 7. Contacts (now childless) ---
+    # contact_interests is a plain join table with FKs to both contacts
+    # and interests and no cascade -- it was missed entirely, so any
+    # contact with a tagged interest blocked this delete.
+    _in("DELETE FROM contact_interests WHERE contact_id IN :cids", cids=contact_ids)
     _in("DELETE FROM contacts WHERE org_id = :org_id", org_id=org_id)
 
-    # --- 8. Users: null the self-referential invite pointer first so a
+    # --- 8. Per-user state, before the users it belongs to ---
+    # These four were missed in the original sequence, which is why
+    # deleting a sole-user org with a saved card -- the single most
+    # common real shape of a Solo account -- failed at step 9 with an
+    # IntegrityError, after cancel_org_subscription had already
+    # succeeded. See services/user_deletion for the same delete-vs-null
+    # reasoning applied to a single user.
+    _in("DELETE FROM payment_methods WHERE user_id IN :uids", uids=user_ids)
+    _in("DELETE FROM flow_recommendations WHERE org_id = :org_id", org_id=org_id)
+    _in("DELETE FROM filler_action_states WHERE org_id = :org_id", org_id=org_id)
+    _in("DELETE FROM milestone_priorities WHERE user_id IN :uids", uids=user_ids)
+
+    # --- 9. Users: null the self-referential invite pointer first so a
     # multi-row delete doesn't hit a row still pointing at another row
     # in the same batch that hasn't been removed yet. ---
     _in("UPDATE users SET invited_by_user_id = NULL WHERE org_id = :org_id", org_id=org_id)
     _in("DELETE FROM users WHERE org_id = :org_id", org_id=org_id)
 
-    # --- 9. The org itself ---
+    # --- 10. Org lifecycle history: detach, don't delete. org_event_log
+    # carries org_name_snapshot precisely so the platform-admin activity
+    # record survives the org it describes (same convention as
+    # SupportRequest). Its org_id is nullable, but a *populated*
+    # nullable FK still blocks the parent delete, which is why this has
+    # to happen here rather than being left alone. ---
+    _in("UPDATE org_event_log SET org_id = NULL WHERE org_id = :org_id", org_id=org_id)
+
+    # --- 11. The org itself ---
     _in("DELETE FROM orgs WHERE id = :org_id", org_id=org_id)
 
     db.session.commit()

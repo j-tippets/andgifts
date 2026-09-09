@@ -50,16 +50,26 @@ def upgrade():
         ))
         batch_op.add_column(sa.Column("amount_cents", sa.Integer(), nullable=True))
 
-    # MySQL enums are altered in place via a raw MODIFY COLUMN -- there's
-    # no data to migrate since "currency" is a brand-new option, so this
-    # is safe to run directly rather than the create-new/copy/drop-old
-    # dance a batch_alter_table would otherwise do for SQLite.
-    op.alter_column(
-        "custom_field_definitions", "field_type",
-        existing_type=sa.Enum(*OLD_CUSTOM_FIELD_TYPES, name="custom_field_type"),
-        type_=sa.Enum(*NEW_CUSTOM_FIELD_TYPES, name="custom_field_type"),
-        existing_nullable=False,
-    )
+    # Widening an Enum needs batch mode. On MySQL this still compiles to
+    # the same plain ALTER TABLE ... MODIFY COLUMN it always did, so
+    # nothing changes for production. On SQLite a bare op.alter_column
+    # emits "ALTER TABLE ... ALTER COLUMN ... TYPE ...", which SQLite has
+    # never supported -- batch mode recreates the table instead.
+    #
+    # This originally ran unbatched with a comment reasoning only about
+    # MySQL, which was true but incomplete: it made the migration chain
+    # unrunnable on SQLite, and therefore made it impossible to build the
+    # real migrated schema anywhere except production. That's what
+    # tests/test_schema_matches_migrations.py needs to do, so this is
+    # batched now. Migration 7256d2597501 already handles the identical
+    # situation this way.
+    with op.batch_alter_table("custom_field_definitions", schema=None) as batch_op:
+        batch_op.alter_column(
+            "field_type",
+            existing_type=sa.Enum(*OLD_CUSTOM_FIELD_TYPES, name="custom_field_type"),
+            type_=sa.Enum(*NEW_CUSTOM_FIELD_TYPES, name="custom_field_type"),
+            existing_nullable=False,
+        )
 
 
 def downgrade():
@@ -67,12 +77,13 @@ def downgrade():
     # the narrowed enum -- downgrade only makes sense if none exist,
     # same assumption every other enum-narrowing migration in this repo
     # makes.
-    op.alter_column(
-        "custom_field_definitions", "field_type",
-        existing_type=sa.Enum(*NEW_CUSTOM_FIELD_TYPES, name="custom_field_type"),
-        type_=sa.Enum(*OLD_CUSTOM_FIELD_TYPES, name="custom_field_type"),
-        existing_nullable=False,
-    )
+    with op.batch_alter_table("custom_field_definitions", schema=None) as batch_op:
+        batch_op.alter_column(
+            "field_type",
+            existing_type=sa.Enum(*NEW_CUSTOM_FIELD_TYPES, name="custom_field_type"),
+            type_=sa.Enum(*OLD_CUSTOM_FIELD_TYPES, name="custom_field_type"),
+            existing_nullable=False,
+        )
 
     with op.batch_alter_table("timeline_events", schema=None) as batch_op:
         batch_op.drop_column("amount_cents")

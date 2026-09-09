@@ -12,6 +12,7 @@ from app.services.storage import upload_avatar, delete_avatar, StorageError
 from app.services.email import send_team_invite_email, send_account_created_email
 from app.services import org_billing
 from app.services.analytics import queue_event
+from app.services.user_deletion import detach_and_delete_user
 
 team_bp = Blueprint("team", __name__, url_prefix="/team")
 
@@ -265,18 +266,13 @@ def delete_member(user_id):
             {"owner_user_id": None}
         )
 
-    # Clear self-referential invite attribution so the FK doesn't block delete.
-    User.query.filter_by(invited_by_user_id=member.id).update({"invited_by_user_id": None})
-
-    # Same for the contact audit trail -- keep the history (via actor_name_snapshot)
-    # but detach it from this user's id so the FK doesn't block delete.
-    ContactAuditLog.query.filter_by(actor_user_id=member.id).update({"actor_user_id": None})
-
-    if member.photo_url:
-        delete_avatar(member.photo_url)
-
+    # Every remaining reference (cards, per-user state, financial and
+    # audit history, invite attribution) is handled in one place -- see
+    # services/user_deletion. This route and profile.delete_account each
+    # used to do their own partial version of this cleanup, and both
+    # missed the same seven tables.
     name = member.full_name
-    db.session.delete(member)
+    detach_and_delete_user(member)
     db.session.commit()
     flash(f"{name}'s profile has been permanently deleted.", "success")
     return redirect(url_for("team.list_members"))
