@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Import contacts — Ag{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:8px;">Import contacts</h1>
+<p class="subdued" style="margin-bottom:24px;">
+  Bring your contacts across from Follow Up Boss, kvCORE, Sierra, or any
+  spreadsheet. You'll see exactly what will happen before anything is added.
+</p>
+
+<form method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <fieldset>
+    <legend>Your file</legend>
+    <label class="btn btn-ghost file-input-label" for="csv-input">Choose CSV file</label>
+    <input type="file" id="csv-input" name="csv_file" accept=".csv,text/csv" class="file-input-hidden">
+    <span class="file-input-name" id="csv-input-name">No file chosen</span>
+    <div class="subdued" style="margin-top:8px;">
+      <small>CSV export, up to 5MB. Export from your current CRM and upload it as-is —
+      you don't need to rename or reorder the columns.</small>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Who are these contacts for?</legend>
+    <label style="display:block; margin-bottom:10px;">
+      <input type="radio" name="assign_to_uploader" value="">
+      Shared with the whole agency
+    </label>
+    <label style="display:block;">
+      <input type="radio" name="assign_to_uploader" value="1" checked>
+      Just mine — only I can see them
+    </label>
+    <div class="subdued" style="margin-top:8px;">
+      <small>You can change this per contact later.</small>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>What we'll look for</legend>
+    <p class="subdued" style="margin:0 0 8px;"><small>
+      Names, email addresses, phone numbers, mailing addresses, and birthdays
+      or closing dates. Columns we don't recognise are listed on the next
+      screen so you know what didn't come across — nothing is thrown away
+      silently.
+    </small></p>
+    <p class="subdued" style="margin:0;"><small>
+      Contacts already in your list are skipped, so it's safe to re-upload
+      the same file.
+    </small></p>
+  </fieldset>
+
+  <div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
+    <button type="submit" class="btn btn-primary">Preview import</button>
+    <a href="{{ url_for('contacts.list_contacts') }}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+
+<script>
+  document.getElementById('csv-input').addEventListener('change', function (event) {
+    var file = event.target.files[0];
+    document.getElementById('csv-input-name').textContent = file ? file.name : 'No file chosen';
+  });
+</script>
+{% endblock %}

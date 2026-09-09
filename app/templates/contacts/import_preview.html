@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Review import — Ag{% endblock %}
+{% block content %}
+{% set summary = report.summary() %}
+
+<h1 style="margin-bottom:8px;">Review your import</h1>
+<p class="subdued" style="margin-bottom:24px;">
+  From <strong>{{ job.filename }}</strong>. Nothing has been added yet.
+</p>
+
+<div class="card" style="margin-bottom:24px;">
+  <h2 style="margin:0 0 12px; font-size:20px;">
+    {{ summary.created }} contact{{ 's' if summary.created != 1 }} ready to import
+  </h2>
+  <ul style="margin:0; padding-left:20px;">
+    {% if summary.duplicates %}
+      <li>{{ summary.duplicates }} already in your contacts — these will be skipped.</li>
+    {% endif %}
+    {% if summary.errors %}
+      <li>{{ summary.errors }} row{{ 's' if summary.errors != 1 }} couldn't be read. Listed below.</li>
+    {% endif %}
+    {% if summary.over_limit %}
+      <li>{{ summary.over_limit }} won't fit your plan's contact limit.</li>
+    {% endif %}
+    {% if not summary.duplicates and not summary.errors and not summary.over_limit %}
+      <li>Every row looks good.</li>
+    {% endif %}
+  </ul>
+</div>
+
+<fieldset>
+  <legend>Columns we matched</legend>
+  <table style="width:100%; border-collapse:collapse;">
+    <tbody>
+      {% for field, header in report.mapping.items() | sort %}
+        <tr>
+          <td style="padding:4px 0;"><code>{{ header }}</code></td>
+          <td style="padding:4px 0; text-align:right;" class="subdued">
+            {{ field.replace('_', ' ') }}
+          </td>
+        </tr>
+      {% endfor %}
+      {% for event_key, header in report.date_mapping.items() | sort %}
+        <tr>
+          <td style="padding:4px 0;"><code>{{ header }}</code></td>
+          <td style="padding:4px 0; text-align:right;" class="subdued">
+            {{ event_key.replace('_', ' ') }} (important date)
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</fieldset>
+
+{% if report.unmapped_headers %}
+  <fieldset>
+    <legend>Columns we're skipping</legend>
+    <p class="subdued" style="margin:0 0 8px;"><small>
+      There's nowhere in &amp;Gifts to put these, so they won't come across.
+      Everything else in the file will.
+    </small></p>
+    <p style="margin:0;">
+      {% for header in report.unmapped_headers %}
+        <code>{{ header }}</code>{{ ', ' if not loop.last }}
+      {% endfor %}
+    </p>
+  </fieldset>
+{% endif %}
+
+{% set problems = report.rows | selectattr('status', 'in', ['error', 'over_limit']) | list %}
+{% if problems %}
+  <fieldset>
+    <legend>Rows we can't import</legend>
+    <p class="subdued" style="margin:0 0 12px;"><small>
+      These will be left out — everything else still imports. Fix them in your
+      spreadsheet and upload it again if you want them; contacts imported now
+      won't be duplicated.
+    </small></p>
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:4px 0;">Row</th>
+          <th style="text-align:left; padding:4px 0;">Contact</th>
+          <th style="text-align:left; padding:4px 0;">Problem</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in problems[:50] %}
+          <tr>
+            <td style="padding:4px 8px 4px 0;">{{ row.line_number }}</td>
+            <td style="padding:4px 8px 4px 0;">{{ row.household_name or '—' }}</td>
+            <td style="padding:4px 0;" class="subdued">{{ row.reason }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if problems | length > 50 %}
+      <p class="subdued" style="margin:12px 0 0;">
+        <small>…and {{ problems | length - 50 }} more.</small>
+      </p>
+    {% endif %}
+  </fieldset>
+{% endif %}
+
+{% set previews = report.rows | selectattr('status', 'equalto', 'created') | list %}
+{% if previews %}
+  <fieldset>
+    <legend>A few of the contacts we'll add</legend>
+    <p style="margin:0;">
+      {% for row in previews[:12] %}
+        {{ row.household_name }}{{ ', ' if not loop.last }}
+      {% endfor %}
+      {% if previews | length > 12 %}
+        <span class="subdued">…and {{ previews | length - 12 }} more.</span>
+      {% endif %}
+    </p>
+  </fieldset>
+{% endif %}
+
+<div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
+  {% if summary.created %}
+    <form method="POST" action="{{ url_for('contacts.import_contacts_confirm', job_id=job.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary">
+        Import {{ summary.created }} contact{{ 's' if summary.created != 1 }}
+      </button>
+    </form>
+  {% else %}
+    <p class="subdued" style="margin:0;">
+      There's nothing to import from this file. Try a different export.
+    </p>
+  {% endif %}
+  <form method="POST" action="{{ url_for('contacts.import_contacts_cancel', job_id=job.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-ghost">Cancel</button>
+  </form>
+</div>
+{% endblock %}

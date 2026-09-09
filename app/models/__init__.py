@@ -14,6 +14,7 @@ from app.models.orders import Order
 from app.models.support import SupportRequest
 from app.models.org_events import OrgEventLog, EVENT_TYPES
 from app.models.payments import PaymentMethod
+from app.models.contact_import import ContactImportJob
 
 __all__ = [
     "Org", "User",
@@ -30,4 +31,5 @@ __all__ = [
     "SupportRequest",
     "OrgEventLog", "EVENT_TYPES",
     "PaymentMethod",
+    "ContactImportJob",
 ]

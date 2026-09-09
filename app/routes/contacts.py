@@ -8,7 +8,7 @@ from app.models import (
     TimelineEvent, CUSTOM_MILESTONE_KEY, CustomEventType, slugify_event_key, MilestonePriority,
     CustomFieldDefinition, CustomFieldValue, CUSTOM_FIELD_TYPES,
     SuggestedAction, ActionLog, User, ContactAuditLog,
-    GiftCatalogItem, Order, Badge, contact_interests,
+    GiftCatalogItem, Order, Badge, contact_interests, ContactImportJob,
 )
 from app.decorators import admin_required
 from app.services.storage import upload_contact_photo, delete_contact_photo, StorageError
@@ -16,6 +16,7 @@ from app.services.catalog_helpers import filter_facets, ai_search_matches
 from app.services import llm
 from app.services.analytics import queue_event
 from app.services.http_safety import is_safe_redirect_target
+from app.services.contact_import import import_contacts
 
 contacts_bp = Blueprint("contacts", __name__, url_prefix="/contacts")
 
@@ -1260,3 +1261,149 @@ def delete_timeline_event(contact_id, event_id):
     db.session.commit()
     flash("Timeline event deleted.", "success")
     return redirect(url_for("contacts.view_contact", contact_id=contact.id))
+
+
+# --- CSV import -------------------------------------------------------
+#
+# Three steps on purpose: upload, review what will happen, then commit.
+# An agent bringing 400 contacts across from another CRM cannot undo a
+# bad import, and there is no bulk delete to rescue them with -- so the
+# review step is the safety mechanism, not a nicety.
+#
+# All the parsing, mapping, validation and dedupe lives in
+# services/contact_import; these routes only handle the HTTP and the
+# staged file. The CLI (`flask import-contacts`) drives the same service,
+# so the two can't diverge.
+
+MAX_IMPORT_BYTES = 5 * 1024 * 1024
+
+
+def _own_import_job(job_id):
+    """A staged import belonging to this org.
+
+    Scoped to org rather than to the uploading user: an admin finishing
+    an import a colleague started is reasonable, an agent at another
+    agency reading the file is not. The uploaded CSV is client PII, so
+    this scoping is the thing standing between orgs.
+    """
+    return ContactImportJob.query.filter_by(
+        id=job_id, org_id=current_user.org_id
+    ).first_or_404()
+
+
+@contacts_bp.route("/import", methods=["GET", "POST"])
+@login_required
+def import_contacts_upload():
+    org = current_user.org
+
+    if request.method == "GET":
+        return render_template("contacts/import_upload.html")
+
+    upload = request.files.get("csv_file")
+    if not upload or not upload.filename:
+        flash("Choose a CSV file to upload.", "error")
+        return redirect(url_for("contacts.import_contacts_upload"))
+
+    if not upload.filename.lower().endswith((".csv", ".txt")):
+        flash("That doesn't look like a CSV. Export your contacts as CSV and try again.", "error")
+        return redirect(url_for("contacts.import_contacts_upload"))
+
+    raw = upload.read(MAX_IMPORT_BYTES + 1)
+    if len(raw) > MAX_IMPORT_BYTES:
+        flash("That file is larger than 5MB. Split it into a few smaller exports.", "error")
+        return redirect(url_for("contacts.import_contacts_upload"))
+    if not raw.strip():
+        flash("That file is empty.", "error")
+        return redirect(url_for("contacts.import_contacts_upload"))
+
+    # utf-8-sig strips the BOM Excel writes, which would otherwise become
+    # part of the first header name and stop it matching anything.
+    # latin-1 as a fallback never raises, so a file with one odd byte
+    # still imports instead of being rejected wholesale.
+    try:
+        csv_text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        csv_text = raw.decode("latin-1")
+
+    job = ContactImportJob(
+        org_id=org.id,
+        created_by_user_id=current_user.id,
+        filename=upload.filename[:255],
+        csv_text=csv_text,
+        assign_to_uploader=bool(request.form.get("assign_to_uploader")),
+    )
+    db.session.add(job)
+    db.session.commit()
+
+    return redirect(url_for("contacts.import_contacts_preview", job_id=job.id))
+
+
+@contacts_bp.route("/import/<job_id>")
+@login_required
+def import_contacts_preview(job_id):
+    """Shows exactly what committing would do.
+
+    The preview runs the real import inside a savepoint and rolls it
+    back (see services/contact_import.import_contacts), so this is not
+    an approximation of the result -- it is the result, discarded.
+    """
+    job = _own_import_job(job_id)
+
+    try:
+        report = import_contacts(
+            job.csv_text, current_user.org, current_user,
+            owner_user=current_user if job.assign_to_uploader else None,
+            dry_run=True,
+        )
+    except ValueError as exc:
+        db.session.delete(job)
+        db.session.commit()
+        flash(str(exc), "error")
+        return redirect(url_for("contacts.import_contacts_upload"))
+
+    return render_template("contacts/import_preview.html", job=job, report=report)
+
+
+@contacts_bp.route("/import/<job_id>/confirm", methods=["POST"])
+@login_required
+def import_contacts_confirm(job_id):
+    job = _own_import_job(job_id)
+
+    try:
+        report = import_contacts(
+            job.csv_text, current_user.org, current_user,
+            owner_user=current_user if job.assign_to_uploader else None,
+            dry_run=False,
+        )
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("contacts.import_contacts_preview", job_id=job.id))
+
+    # The staged file is client PII and has served its purpose -- it
+    # doesn't linger past the import that needed it.
+    db.session.delete(job)
+    db.session.commit()
+
+    queue_event("contact_added", creation_method="csv_import")
+
+    summary = report.summary()
+    message = f"Imported {summary['created']} contact{'s' if summary['created'] != 1 else ''}."
+    if summary["duplicates"]:
+        message += f" Skipped {summary['duplicates']} already in your contacts."
+    if summary["errors"]:
+        message += f" {summary['errors']} row(s) couldn't be read and were left out."
+    if summary["over_limit"]:
+        message += f" {summary['over_limit']} didn't fit your plan's contact limit."
+    flash(message, "success")
+
+    return redirect(url_for("contacts.list_contacts"))
+
+
+@contacts_bp.route("/import/<job_id>/cancel", methods=["POST"])
+@login_required
+def import_contacts_cancel(job_id):
+    job = _own_import_job(job_id)
+    db.session.delete(job)
+    db.session.commit()
+    flash("Import cancelled. Nothing was added.", "success")
+    return redirect(url_for("contacts.list_contacts"))

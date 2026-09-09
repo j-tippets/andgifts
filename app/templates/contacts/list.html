@@ -6,6 +6,7 @@
     <h1>Contacts</h1>
   </div>
   <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('contacts.import_contacts_upload') }}" class="btn btn-ghost">Import CSV</a>
     <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Contact
@@ -62,8 +63,12 @@
       <p>Try a different name, email, phone number, or field value.</p>
     {% else %}
       <h3>No contacts yet</h3>
-      <p>Add your first client to start building their timeline.</p>
-      <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+      <p>Add your first client to start building their timeline &mdash; or bring
+         your whole list across from another CRM.</p>
+      <div style="display:flex; gap:8px; justify-content:center;">
+        <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">+ Add contact</a>
+        <a href="{{ url_for('contacts.import_contacts_upload') }}" class="btn btn-ghost">Import from CSV</a>
+      </div>
     {% endif %}
   </div>
 {% endif %}

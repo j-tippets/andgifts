@@ -24,6 +24,7 @@ from app import create_app
 from app.services.suggestion_engine import (
     reconcile_stuck_processing_actions,
     reconcile_stuck_processing_orders,
+    purge_stale_contact_imports,
 )
 
 
@@ -56,6 +57,18 @@ def main():
                 )
         else:
             print("No stuck 'processing' orders found.")
+
+        # Staged CSV uploads hold client PII and exist only between the
+        # import preview and the confirm button. An abandoned tab
+        # shouldn't leave one in the database forever.
+        purged = purge_stale_contact_imports()
+        if purged:
+            print(f"Purged {len(purged)} abandoned contact import(s):")
+            for row in purged:
+                print(f"  - {row['id']} (org {row['org_id']}, {row['filename']}, "
+                      f"uploaded {row['created_at']})")
+        else:
+            print("No abandoned contact imports found.")
 
 
 if __name__ == "__main__":

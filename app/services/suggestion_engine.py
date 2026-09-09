@@ -29,6 +29,7 @@ from app.extensions import db
 from app.models import (
     SuggestedAction, GiftTrigger, GiftCatalogItem, Contact,
     Campaign, User, ContactAuditLog, EXPIRATION_GRACE_DAYS, Order,
+    ContactImportJob,
 )
 from app.services import llm
 from app.services import campaign_rules
@@ -1051,3 +1052,32 @@ def reconcile_stuck_processing_orders(stale_after_minutes=10):
 
     db.session.commit()
     return released
+
+
+def purge_stale_contact_imports(stale_after_hours=24):
+    """Deletes staged CSV uploads nobody confirmed or cancelled.
+
+    A ContactImportJob holds the raw uploaded file -- client names,
+    home addresses, phone numbers, birthdays. It exists only to carry
+    that file from the preview screen to the confirm button, and the
+    routes delete it on both paths. An agent who uploads a file and
+    closes the tab leaves one behind, and there is no reason for a
+    spreadsheet of someone else's clients to sit in the database
+    indefinitely because of a closed tab.
+
+    Runs in the same 15-minute job as the other reconcilers. The window
+    is generous relative to a review that takes a minute, so this can
+    never delete a file someone is still looking at.
+    """
+    cutoff = datetime.utcnow() - timedelta(hours=stale_after_hours)
+
+    stale = ContactImportJob.query.filter(ContactImportJob.created_at < cutoff).all()
+    purged = [
+        {"id": job.id, "org_id": job.org_id, "filename": job.filename,
+         "created_at": job.created_at}
+        for job in stale
+    ]
+    for job in stale:
+        db.session.delete(job)
+    db.session.commit()
+    return purged
