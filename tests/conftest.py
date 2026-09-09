@@ -1,4 +1,5 @@
 import sqlite3
+import uuid
 
 import pytest
 from sqlalchemy import event
@@ -55,18 +56,27 @@ def db(app):
     return _db
 
 
-def make_org_and_user(db, tier="free", onboarding_step="plan", **org_kwargs):
+def make_org_and_user(db, tier="free", onboarding_step="plan", email=None,
+                     org_name="Test Agency", **org_kwargs):
     """Builds an Org + its owner User the way onboarding.start() does,
     skipping the HTTP hop so tests can drop straight into whichever
-    wizard step they're exercising."""
-    org = Org(name="Test Agency", tier=tier, onboarding_step=onboarding_step, **org_kwargs)
+    wizard step they're exercising.
+
+    `email` defaults to a unique address per call rather than a fixed
+    one, so a single test can build two orgs -- users.email is UNIQUE, so
+    the previous hardcoded value made the second call raise
+    IntegrityError. Any test that needs a predictable login can still
+    pass an explicit address; the default only has to be distinct.
+    Cross-org isolation is exactly the property most worth testing in a
+    multi-tenant app, and it was awkward to test at all."""
+    org = Org(name=org_name, tier=tier, onboarding_step=onboarding_step, **org_kwargs)
     db.session.add(org)
     db.session.flush()
     org.sender_local_part = Org.generate_sender_local_part(org.name)
 
     user = User(
         org_id=org.id,
-        email="owner@example.com",
+        email=email or f"owner-{uuid.uuid4().hex[:8]}@example.com",
         first_name="Owner",
         last_name="Test",
         role="admin",

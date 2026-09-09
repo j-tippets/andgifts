@@ -124,7 +124,8 @@ def remove_payment_method(user, payment_method_id):
     return True, None
 
 
-def charge_saved_card(user, amount_cents, description, metadata=None, idempotency_key=None):
+def charge_saved_card(user, amount_cents, description, metadata=None, idempotency_key=None,
+                      payment_method=None):
     """Charges `user`'s default saved card off-session -- there's no
     live card form in either caller (the in-app order confirm screen
     is just a "Charge $X" button, and an automated flow approval has
@@ -151,20 +152,40 @@ def charge_saved_card(user, amount_cents, description, metadata=None, idempotenc
     what "blocked" means for their own flow (see routes/dashboard.approve_action
     and routes/orders, both of which stay pending/unconfirmed on failure
     rather than silently proceeding)."""
+    # `payment_method` is the card the caller explicitly wants charged.
+    # The in-app order flow has one: the agent picks a card at
+    # routes/orders.choose_payment and it is stored on the order. That
+    # selection used to be written and never read -- this function
+    # always charged user.default_payment_method, so an agent who chose
+    # their business card and had a personal card set as default was
+    # charged the personal one, with the confirmation screen showing the
+    # card they picked. Silent, and wrong in the direction that is
+    # hardest to notice.
+    #
+    # Automated flow approvals genuinely have no chosen card (no
+    # customer is present), so they pass nothing and the default is
+    # still correct for them.
+    charge_pm = payment_method or user.default_payment_method
+    if not charge_pm:
+        return False, None, "No card on file -- add one in Settings first."
+    if charge_pm.user_id != user.id:
+        # Defensive: a card belonging to someone else must never be
+        # chargeable, whatever the caller passed.
+        return False, None, "That payment method isn't available on this account."
+
+    # Deliberately after the checks above: a card belonging to another
+    # user is a caller bug and should be reported as such whether or not
+    # Stripe happens to be configured in this environment.
     stripe = get_stripe()
     if not stripe:
         return False, None, "Payments aren't configured yet."
-
-    default_pm = user.default_payment_method
-    if not default_pm:
-        return False, None, "No card on file -- add one in Settings first."
 
     try:
         intent = stripe.PaymentIntent.create(
             amount=amount_cents,
             currency="usd",
             customer=user.stripe_customer_id,
-            payment_method=default_pm.stripe_payment_method_id,
+            payment_method=charge_pm.stripe_payment_method_id,
             off_session=True,
             confirm=True,
             description=description,

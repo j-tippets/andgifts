@@ -71,10 +71,23 @@ class Order(db.Model):
     # build a custom address form since Stripe Checkout collects it for us.
     shipping_address_snapshot = db.Column(db.Text, nullable=True)
 
+    # "processing" is a transient claim state, not a business state: it
+    # means a charge has been started and its outcome isn't known yet.
+    # confirm_order takes it with an atomic UPDATE ... WHERE
+    # status='pending' before calling Stripe, so two concurrent requests
+    # for the same order can't both proceed to charge. Every clean path
+    # leaves it within one Stripe round trip -- to "paid" on success, or
+    # back to "pending" on failure. See migration c8a3f61d0e57 and the
+    # identical pattern on SuggestedAction.
     status = db.Column(
-        db.Enum("pending", "paid", "fulfilled", "cancelled", name="order_status"),
+        db.Enum("pending", "processing", "paid", "fulfilled", "cancelled", name="order_status"),
         default="pending", nullable=False, index=True,
     )
+    # When the claim above was taken. Only meaningful while status is
+    # "processing", and only read by the reconciler, which uses it to
+    # distinguish a claim abandoned by a crash from one that is merely
+    # slow (see suggestion_engine.reconcile_stuck_processing_orders).
+    processing_started_at = db.Column(db.DateTime, nullable=True)
 
     stripe_checkout_session_id = db.Column(db.String(255), nullable=True, index=True)
     stripe_payment_intent_id = db.Column(db.String(255), nullable=True)

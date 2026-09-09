@@ -82,6 +82,45 @@ def choose_payment(order_id):
     )
 
 
+def _claim_order_for_processing(order_id, org_id):
+    """Atomically transitions a pending Order to "processing", returning
+    True only if THIS call performed that transition.
+
+    Same reasoning as dashboard._claim_action_for_processing, which this
+    deliberately mirrors. The read-then-write it replaces -- fetch the
+    order, check `order.status != "pending"` in Python, then charge --
+    is not safe against two near-simultaneous confirm_order requests for
+    the same order. A double-click on "Charge $X", a client retry after
+    a slow Stripe response, or two open tabs will all have both requests
+    read status == "pending" before either commits, and neither
+    re-checks status at write time. Both then charge the card.
+
+    An UPDATE ... WHERE status = 'pending' has no such gap: only one of
+    two concurrent transactions can match the WHERE clause and flip the
+    row. The loser affects zero rows and knows it lost before touching
+    Stripe.
+    """
+    result = db.session.execute(
+        db.update(Order)
+        .where(Order.id == order_id, Order.org_id == org_id, Order.status == "pending")
+        .values(status="processing", processing_started_at=datetime.utcnow())
+    )
+    db.session.commit()
+    return result.rowcount == 1
+
+
+def _release_order_claim(order_id, org_id):
+    """Reverts a "processing" claim to "pending" after a failed charge,
+    so the agent can fix the problem (a declined card, no card on file)
+    and retry rather than the order being permanently unchargeable."""
+    db.session.execute(
+        db.update(Order)
+        .where(Order.id == order_id, Order.org_id == org_id, Order.status == "processing")
+        .values(status="pending", processing_started_at=None)
+    )
+    db.session.commit()
+
+
 @orders_bp.route("/orders/<order_id>/confirm", methods=["GET", "POST"])
 @login_required
 def confirm_order(order_id):
@@ -89,7 +128,22 @@ def confirm_order(order_id):
     submit. A failed charge (see services.payments.charge_saved_card)
     leaves the order pending with the decline reason shown -- per
     Jeremiah's call, a failed charge blocks the approval/order rather
-    than going through with an unpaid gift WDF would ship for free."""
+    than going through with an unpaid gift WDF would ship for free.
+
+    The charge is protected two ways, matching the automated approval
+    path in dashboard._charge_for_approval:
+
+      1. An atomic claim (_claim_order_for_processing) so only one
+         request can ever reach Stripe for a given order.
+      2. A deterministic Stripe idempotency key derived from the order
+         id, so if the claim succeeds but the process dies before
+         recording the result, the retry reuses the original
+         PaymentIntent instead of creating a second charge.
+
+    Both are needed. The claim alone still loses money to a crash
+    between charging and committing; the key alone still allows two
+    genuinely concurrent charges of different amounts if the order were
+    edited in between."""
     order = _own_pending_order(order_id)
     if order.status != "pending":
         return redirect(url_for("orders.order_success", order_id=order.id))
@@ -103,18 +157,49 @@ def confirm_order(order_id):
                      "price": order.gift_price_cents / 100}],
             value=order.total_cents / 100,
         )
+
+        if not _claim_order_for_processing(order.id, order.org_id):
+            # Another request got here first. It is either mid-charge or
+            # already finished; either way this request must not charge.
+            # Re-read rather than assume, so the agent is told something
+            # accurate.
+            db.session.refresh(order)
+            if order.status in ("paid", "fulfilled"):
+                flash("This order has already been paid.", "success")
+                return redirect(url_for("orders.order_success", order_id=order.id))
+            if order.status == "processing":
+                flash("This order is already being charged -- give it a moment.", "error")
+                return redirect(url_for("orders.confirm_order", order_id=order.id))
+            flash("This order is no longer available to charge.", "error")
+            return redirect(url_for("orders.order_cancelled", order_id=order.id))
+
         success, intent_id, error = charge_saved_card(
             current_user, order.total_cents,
             description=f"{order.gift_name_snapshot} for {order.contact.household_name}",
             metadata={"order_id": order.id},
+            # The card the agent actually selected at step 3, not
+            # whatever happens to be their default.
+            payment_method=order.payment_method,
+            # Deterministic and derived from the order's own id, so a
+            # retry of this exact intended charge -- by a crashed
+            # request coming back, or by the reconciler releasing the
+            # claim and the agent pressing the button again -- returns
+            # the original PaymentIntent from Stripe rather than
+            # charging a second time. The total is part of the key so
+            # that a genuinely different amount is treated as a
+            # different charge rather than silently returning the old
+            # intent for the old price.
+            idempotency_key=f"order-{order.id}-{order.total_cents}",
         )
         if not success:
+            _release_order_claim(order.id, order.org_id)
             queue_event("gift_order_failed", failure_reason=error)
             flash(f"Payment failed: {error}", "error")
             return redirect(url_for("orders.confirm_order", order_id=order.id))
 
         order.status = "paid"
         order.paid_at = datetime.utcnow()
+        order.processing_started_at = None
         order.stripe_payment_intent_id = intent_id
         if order.fulfillment_method == "shipping":
             order.shipping_address_snapshot = order.contact.formatted_shipping_address()

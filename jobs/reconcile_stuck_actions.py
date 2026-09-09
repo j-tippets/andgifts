@@ -21,7 +21,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
-from app.services.suggestion_engine import reconcile_stuck_processing_actions
+from app.services.suggestion_engine import (
+    reconcile_stuck_processing_actions,
+    reconcile_stuck_processing_orders,
+)
 
 
 def main():
@@ -37,6 +40,22 @@ def main():
                 )
         else:
             print("No stuck 'processing' suggestions found.")
+
+        # One-off orders take the same claim/charge/record path (see
+        # routes/orders.confirm_order) and so have the same
+        # crash-mid-charge gap. Swept in the same job rather than a
+        # fourth scheduled component: identical cadence, identical
+        # recovery, and one place to look when something is stuck.
+        released_orders = reconcile_stuck_processing_orders()
+        if released_orders:
+            print(f"Released {len(released_orders)} order(s) stuck in 'processing':")
+            for row in released_orders:
+                print(
+                    f"  - {row['id']} (org {row['org_id']}, contact {row['contact_id']}, "
+                    f"${row['total_cents'] / 100:.2f}, stuck since {row['processing_started_at']})"
+                )
+        else:
+            print("No stuck 'processing' orders found.")
 
 
 if __name__ == "__main__":

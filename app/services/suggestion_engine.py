@@ -28,7 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import (
     SuggestedAction, GiftTrigger, GiftCatalogItem, Contact,
-    Campaign, User, ContactAuditLog, EXPIRATION_GRACE_DAYS,
+    Campaign, User, ContactAuditLog, EXPIRATION_GRACE_DAYS, Order,
 )
 from app.services import llm
 from app.services import campaign_rules
@@ -971,6 +971,81 @@ def reconcile_stuck_processing_actions(stale_after_minutes=10):
                 SuggestedAction.id == action.id,
                 SuggestedAction.status == "processing",
             )
+            .values(status="pending", processing_started_at=None)
+        )
+
+    db.session.commit()
+    return released
+
+
+def reconcile_stuck_processing_orders(stale_after_minutes=10):
+    """The one-off order equivalent of
+    reconcile_stuck_processing_actions, covering the same residual gap
+    in routes/orders.confirm_order's claim/charge/record sequence.
+
+    confirm_order claims a pending Order as "processing" before calling
+    Stripe, then flips it to "paid" on success or releases it back to
+    "pending" on a clean failure. A hard process crash between those
+    points (OOM kill, a deploy restart landing mid-request) skips both
+    endings and leaves the row stuck at "processing", where nothing else
+    will ever transition it.
+
+    Stuck is worse than merely stuck here, for the same reason as the
+    action version: confirm_order's own guard redirects any status that
+    isn't "pending" to the success page, so an agent revisiting a stuck
+    order is shown a confirmation for a gift that was possibly never
+    charged and definitely never sent to WDF.
+
+    Recovery is a plain revert to "pending", with no Stripe lookup, and
+    that is safe for exactly one reason: the charge carries a
+    deterministic idempotency key derived from the order id and total
+    (see confirm_order). If the crash happened after Stripe processed
+    the charge, the retry reuses that key and Stripe returns the
+    original PaymentIntent rather than charging again. Reverting is what
+    makes the retry possible; it introduces no double-charge risk of its
+    own.
+
+    NOTE the asymmetry worth knowing about: a released order that was in
+    fact already charged will, on retry, get its original PaymentIntent
+    back and proceed to "paid" -- correct. But the ActionLog and WDF
+    notice are only written on that successful retry, so until someone
+    retries, a charged-but-crashed order is money taken with no
+    fulfillment record. That is a real (small) exposure and the reason
+    this runs every 15 minutes rather than nightly.
+
+    Same generous staleness window and global (not per-org) scope as the
+    action version -- this is infra plumbing, not a business feature.
+    """
+    cutoff = datetime.utcnow() - timedelta(minutes=stale_after_minutes)
+
+    stuck = (
+        Order.query
+        .filter(
+            Order.status == "processing",
+            Order.processing_started_at.isnot(None),
+            Order.processing_started_at < cutoff,
+        )
+        .all()
+    )
+
+    # Snapshot before updating -- committing expires the ORM rows, so
+    # reading afterward would report the reset values rather than what
+    # was actually found.
+    released = [
+        {
+            "id": order.id,
+            "org_id": order.org_id,
+            "contact_id": order.contact_id,
+            "total_cents": order.total_cents,
+            "processing_started_at": order.processing_started_at,
+        }
+        for order in stuck
+    ]
+
+    for order in stuck:
+        db.session.execute(
+            db.update(Order)
+            .where(Order.id == order.id, Order.status == "processing")
             .values(status="pending", processing_started_at=None)
         )
 
