@@ -211,6 +211,13 @@ def confirm_order(order_id):
             action_type="gift",
             detail=f"{order.gift_name_snapshot} (one-off order, {order.fulfillment_method})",
             cost_cents=order.total_cents,
+            # Was never set here, only in dashboard.approve_action --
+            # so one-off orders were invisible in the agent-activity
+            # report's "who did what" column, and would have been
+            # invisible to the per-agent spend guard in
+            # services/payments too.
+            approved_by_user_id=order.ordered_by_user_id,
+            stripe_payment_intent_id=intent_id,
         ))
         db.session.add(ContactAuditLog(
             org_id=order.org_id,
@@ -375,6 +382,7 @@ def stripe_webhook():
                 action_type="gift",
                 detail=f"{order.gift_name_snapshot} (one-off order, {order.fulfillment_method})",
                 cost_cents=order.total_cents,
+                approved_by_user_id=order.ordered_by_user_id,
             ))
 
             db.session.add(ContactAuditLog(

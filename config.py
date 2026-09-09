@@ -131,6 +131,29 @@ class Config:
     SENDGRID_SENDING_DOMAIN = os.environ.get("SENDGRID_SENDING_DOMAIN", "mail.andgifts.app")
     # Inbox that receives Support form submissions (see routes/support.py).
     SUPPORT_INBOX_EMAIL = os.environ.get("SUPPORT_INBOX_EMAIL", "support@andgifts.app")
+
+    # --- Fulfillment ---
+    # Where WDF order and handwritten-note notices are sent. Previously
+    # hardcoded to a personal inbox in services/email.py; fulfillment
+    # for every customer depends on someone reading this, and the money
+    # is already collected by the time the notice goes out. Falls back
+    # to SUPPORT_INBOX_EMAIL rather than to a person, so a missing
+    # setting degrades to a monitored mailbox instead of a private one.
+    WDF_FULFILLMENT_EMAIL = os.environ.get("WDF_FULFILLMENT_EMAIL", "")
+
+    # --- Spend guardrails ---
+    # A blunt backstop between a misconfigured flow and a five-figure
+    # card statement. Not a substitute for the real per-agent monthly
+    # budget feature -- these are hard ceilings that should never be
+    # reached in normal use, deliberately set well above the largest
+    # legitimate charge (gift tiers top out at $500, plus shipping).
+    # Enforced centrally in services/payments.charge_saved_card, which
+    # every charge in the app goes through.
+    MAX_SINGLE_CHARGE_CENTS = int(os.environ.get("MAX_SINGLE_CHARGE_CENTS", "60000"))
+    # Rolling 24 hours, per agent, measured from the ActionLog spend
+    # ledger. A runaway flow charges repeatedly rather than once, so a
+    # per-charge ceiling alone would not stop it.
+    MAX_AGENT_DAILY_CHARGE_CENTS = int(os.environ.get("MAX_AGENT_DAILY_CHARGE_CENTS", "150000"))
     TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
     ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")

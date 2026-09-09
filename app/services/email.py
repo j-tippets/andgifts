@@ -5,9 +5,12 @@ webhook confirming an order), so every public function catches and logs
 rather than raises. Follows the same "degrade gracefully if the API key
 isn't configured" pattern as app/services/llm.py.
 """
+import logging
 from datetime import date
 
 from flask import current_app
+
+logger = logging.getLogger(__name__)
 
 
 def _client():
@@ -342,11 +345,79 @@ def send_order_confirmation(order):
     )
 
 
+def _wdf_recipient():
+    """Where WDF fulfillment notices go.
+
+    Was a hardcoded personal inbox. Fulfillment for every customer
+    depends on someone reading these, and by the time one is sent the
+    card has already been charged -- so a notice going to an unread
+    address is money taken for a gift nobody is building.
+
+    Falls back to SUPPORT_INBOX_EMAIL rather than to a person: an
+    unset WDF_FULFILLMENT_EMAIL should degrade to a monitored mailbox,
+    not a private one. If neither is configured the caller is told, so
+    a missing address surfaces as a failure rather than silently
+    dropping the order on the floor.
+    """
+    return (
+        current_app.config.get("WDF_FULFILLMENT_EMAIL")
+        or current_app.config.get("SUPPORT_INBOX_EMAIL")
+        or None
+    )
+
+
+def _send_wdf_notice(subject, html, context):
+    """Sends a WDF notice and makes any failure loud.
+
+    Every caller reaches this AFTER a successful charge, so a silent
+    failure here is the worst shape of bug in the app: the customer has
+    paid, no one is building the gift, and nothing anywhere records
+    that. The return value has never been checked by any caller, so
+    this reports the problem itself rather than relying on that
+    changing.
+    """
+    recipient = _wdf_recipient()
+    if not recipient:
+        _report_fulfillment_failure(
+            "No WDF fulfillment address configured -- set WDF_FULFILLMENT_EMAIL. "
+            "The card was charged and fulfillment was NOT notified.",
+            context,
+        )
+        return False
+
+    sent = send_email(recipient, subject, html)
+    if not sent:
+        _report_fulfillment_failure(
+            f"WDF fulfillment notice failed to send to {recipient}. "
+            "The card was charged and fulfillment was NOT notified.",
+            context,
+        )
+    return sent
+
+
+def _report_fulfillment_failure(message, context):
+    """Logs, and raises the alarm in Sentry if it's configured. Never
+    raises -- a reporting failure must not roll back a completed
+    charge."""
+    logger.error("%s context=%s", message, context)
+    try:
+        import sentry_sdk
+
+        with sentry_sdk.push_scope() as scope:
+            for key, value in context.items():
+                scope.set_tag(key, value)
+            scope.set_level("error")
+            sentry_sdk.capture_message(message)
+    except Exception:
+        pass
+
+
 def send_wdf_fulfillment_notice(order):
     """Notifies Wild Dog Fulfillment that a paid order needs to be
     built/shipped. Placeholder implementation per Jeremiah: WDF doesn't
     have a real intake system yet, so this just emails the order info
-    to jtippets@outlook.com -- same "email for now, real feedback loop
+    to the configured WDF address (see _wdf_recipient) -- same
+    "email for now, real feedback loop
     eventually" pattern as everything else fulfillment-related. Only
     called for orders that actually need physical fulfillment (skip for
     pickup/dropoff, which don't involve WDF)."""
@@ -380,10 +451,10 @@ def send_wdf_fulfillment_notice(order):
     """
     html = _wrap_email(body, preheader=f"New order to fulfill: {order.gift_name_snapshot}")
 
-    return send_email(
-        "jtippets@outlook.com",
+    return _send_wdf_notice(
         f"WDF fulfillment: {order.gift_name_snapshot} for {order.contact.household_name}",
         html,
+        {"order_id": order.id, "org_id": order.org_id, "kind": "gift"},
     )
 
 
@@ -391,7 +462,7 @@ def send_wdf_handwritten_note_notice(action, billing_agent):
     """Notifies Wild Dog Fulfillment that a paid handwritten note needs
     to be written/mailed. Same placeholder pattern as
     send_wdf_fulfillment_notice above -- WDF has no real intake system
-    yet, so this just emails the details to jtippets@outlook.com.
+    yet, so this just emails the details to the configured WDF address.
     Called only after the agent's card has been successfully charged
     (see dashboard.approve_action); a failed charge never reaches
     here, so WDF never sees a note nobody's paid for."""
@@ -410,8 +481,8 @@ def send_wdf_handwritten_note_notice(action, billing_agent):
     """
     html = _wrap_email(body, preheader=f"New handwritten note to fulfill for {action.contact.household_name}")
 
-    return send_email(
-        "jtippets@outlook.com",
+    return _send_wdf_notice(
         f"WDF handwritten note: {action.contact.household_name}",
         html,
+        {"suggested_action_id": action.id, "org_id": action.org_id, "kind": "handwritten_note"},
     )

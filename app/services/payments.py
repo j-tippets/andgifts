@@ -6,9 +6,17 @@ PaymentMethod model), separate from Org.stripe_customer_id
 automated flow-triggered approvals -- both ultimately call
 charge_saved_card() the same way.
 """
+import logging
+from datetime import datetime, timedelta
+
+from flask import current_app
+from sqlalchemy import func
+
 from app.extensions import db
-from app.models import PaymentMethod
+from app.models import ActionLog, PaymentMethod
 from app.services.stripe_client import get_stripe
+
+logger = logging.getLogger(__name__)
 
 
 def get_or_create_stripe_customer(user):
@@ -124,6 +132,64 @@ def remove_payment_method(user, payment_method_id):
     return True, None
 
 
+def _spend_guard_error(user, amount_cents):
+    """Hard ceilings on what a single charge, and one agent's charges in
+    a rolling 24 hours, are allowed to total. Returns an agent-facing
+    error string if this charge should be refused, else None.
+
+    Deliberately blunt. This is not the per-agent monthly budget feature
+    a brokerage will eventually want -- it's the backstop that stands
+    between a misconfigured flow and a five-figure card statement.
+    Right now nothing does: a flow with a bad rule can approve
+    repeatedly, and each approval charges a real card with no aggregate
+    limit anywhere in the system.
+
+    Both limits are needed. A per-charge ceiling alone doesn't stop a
+    runaway flow, which charges many normal-sized amounts rather than
+    one huge one; a daily total alone doesn't stop a single absurd
+    charge from a bad price field.
+
+    Thresholds are set well above any legitimate use (gift tiers top out
+    at $500) and are env-tunable, so hitting one means something is
+    wrong rather than that a customer is busy. Enforced here because
+    charge_saved_card is the one function every charge in the app --
+    manual order and automated approval alike -- passes through.
+    """
+    max_single = current_app.config.get("MAX_SINGLE_CHARGE_CENTS")
+    if max_single and amount_cents > max_single:
+        return (
+            f"This charge (${amount_cents / 100:,.2f}) is above the "
+            f"${max_single / 100:,.2f} single-charge limit. Contact support if "
+            "this is a legitimate order."
+        )
+
+    max_daily = current_app.config.get("MAX_AGENT_DAILY_CHARGE_CENTS")
+    if not max_daily:
+        return None
+
+    # ActionLog is the shared spend ledger -- both the manual order flow
+    # and automated approvals write a row with cost_cents after a
+    # successful charge, so summing it counts real money actually taken.
+    # The current charge isn't in it yet, which is why it's added below
+    # rather than compared on its own.
+    since = datetime.utcnow() - timedelta(hours=24)
+    spent_cents = (
+        db.session.query(func.coalesce(func.sum(ActionLog.cost_cents), 0))
+        .filter(
+            ActionLog.approved_by_user_id == user.id,
+            ActionLog.sent_at >= since,
+        )
+        .scalar()
+    ) or 0
+
+    if spent_cents + amount_cents > max_daily:
+        return (
+            f"This would put {user.full_name} over the ${max_daily / 100:,.2f} "
+            "daily spend limit. Contact support if this is expected."
+        )
+    return None
+
+
 def charge_saved_card(user, amount_cents, description, metadata=None, idempotency_key=None,
                       payment_method=None):
     """Charges `user`'s default saved card off-session -- there's no
@@ -173,6 +239,13 @@ def charge_saved_card(user, amount_cents, description, metadata=None, idempotenc
         # chargeable, whatever the caller passed.
         return False, None, "That payment method isn't available on this account."
 
+    # Before Stripe, so a refused charge costs nothing and leaves no
+    # PaymentIntent behind.
+    spend_error = _spend_guard_error(user, amount_cents)
+    if spend_error:
+        _report_spend_block(user, amount_cents, spend_error)
+        return False, None, spend_error
+
     # Deliberately after the checks above: a card belonging to another
     # user is a caller bug and should be reported as such whether or not
     # Stripe happens to be configured in this environment.
@@ -197,3 +270,24 @@ def charge_saved_card(user, amount_cents, description, metadata=None, idempotenc
         return False, None, (e.user_message or "Card was declined.")
     except Exception as e:
         return False, None, str(e)
+
+
+def _report_spend_block(user, amount_cents, reason):
+    """A tripped ceiling is never routine -- it means either a
+    misconfigured flow or a genuine customer being wrongly blocked, and
+    both need a human. Logged and sent to Sentry; never raises."""
+    logger.warning(
+        "Spend guard blocked a charge: user=%s org=%s amount_cents=%s reason=%s",
+        user.id, user.org_id, amount_cents, reason,
+    )
+    try:
+        import sentry_sdk
+
+        with sentry_sdk.push_scope() as scope:
+            scope.set_tag("user_id", user.id)
+            scope.set_tag("org_id", user.org_id)
+            scope.set_extra("amount_cents", amount_cents)
+            scope.set_level("warning")
+            sentry_sdk.capture_message(f"Spend guard blocked a charge: {reason}")
+    except Exception:
+        pass
