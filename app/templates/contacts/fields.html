@@ -1,5 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Custom fields — Ag{% endblock %}
+{% block title %}Custom fields — Ag<script>
+  // Surfaces the milestone-vs-custom-field distinction at the moment
+  // it's actually being decided, rather than leaving it to be
+  // discovered later when nothing fires.
+  document.querySelectorAll('.js-field-type').forEach(function (select) {
+    var form = select.closest('form') || document;
+    select.addEventListener('change', function () {
+      form.querySelectorAll('.js-date-field-note').forEach(function (note) {
+        note.style.display = select.value === 'date' ? '' : 'none';
+      });
+    });
+  });
+</script>
+{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
   <div>
@@ -92,7 +105,7 @@
     </div>
     <div class="field">
       <label>Type</label>
-      <select name="field_type">
+      <select name="field_type" class="js-field-type">
         {% for t in field_types %}<option value="{{ t }}">{{ t|capitalize }}</option>{% endfor %}
       </select>
     </div>
@@ -100,7 +113,28 @@
       <label>Options (for "Select" fields only)</label>
       <input type="text" name="options" placeholder="Comma-separated, e.g. Zillow, Referral, Open House">
     </div>
+      <p class="subdued js-date-field-note" style="display:none; margin:8px 0 0;">
+        <small>
+          Dates saved here are just information on the contact record &mdash; they
+          won't trigger gifts, flows, or reminders. If you want that, add it as a
+          <a href="{{ url_for('contacts.manage_event_types') }}">Milestone</a> instead.
+          (You can have both: a CSV import will fill in either or both.)
+        </small>
+      </p>
     <button type="submit" class="btn btn-primary">Add field</button>
   </form>
 </dialog>
+<script>
+  // Surfaces the milestone-vs-custom-field distinction at the moment
+  // it's actually being decided, rather than leaving it to be
+  // discovered later when nothing fires.
+  document.querySelectorAll('.js-field-type').forEach(function (select) {
+    var form = select.closest('form') || document;
+    select.addEventListener('change', function () {
+      form.querySelectorAll('.js-date-field-note').forEach(function (note) {
+        note.style.display = select.value === 'date' ? '' : 'none';
+      });
+    });
+  });
+</script>
 {% endblock %}

@@ -42,6 +42,8 @@ from app.models import (
     ContactMethod,
     ContactPerson,
     CustomEventType,
+    CustomFieldDefinition,
+    CustomFieldValue,
     TimelineEvent,
 )
 
@@ -233,6 +235,7 @@ class ImportReport:
         self.rows = []
         self.mapping = {}
         self.date_mapping = {}
+        self.custom_field_mapping = {}
         self.unmapped_headers = []
         self.dry_run = True
 
@@ -308,6 +311,74 @@ def _resolve_event_types(org_id, date_mapping):
     return {k: v for k, v in date_mapping.items() if k in existing}
 
 
+def _resolve_custom_fields(org, acting_user, headers, claimed):
+    """Matches leftover CSV headers to this org's custom fields by label.
+
+    Deliberately allowed to overlap with the milestone columns. A
+    "Birthday" header can legitimately be both: a Milestone, which is
+    what flows and gift suggestions trigger on, and a Custom Field,
+    which is what shows on the contact record as plain data. An agency
+    may have set up either, both, or neither, and a column that matches
+    both should populate both rather than the import silently picking
+    one. `claimed` therefore only excludes headers already taken by core
+    fields (name, email, address), never by date_mapping.
+
+    Scoped with CustomFieldDefinition.visible_to, so an agent's personal
+    fields work for their own import without becoming visible to the
+    rest of the agency.
+    """
+    query = CustomFieldDefinition.query.filter_by(org_id=org.id)
+    fields = CustomFieldDefinition.visible_to(query, acting_user).all()
+    by_label = {_normalize_header(f.label): f for f in fields}
+
+    matched = {}
+    for header in headers:
+        if not header or header in claimed:
+            continue
+        field = by_label.get(_normalize_header(header))
+        if field:
+            matched[header] = field
+    return matched
+
+
+def _coerce_custom_value(field, raw):
+    """Turns a CSV cell into the string the rest of the app expects.
+
+    Stored formats have to match what routes/contacts._save_custom_field_values
+    writes, or an imported value would display or edit differently from
+    a hand-entered one -- checkbox as "1"/"0", date as ISO, select as
+    one of the defined options.
+
+    Returns None when there is nothing usable, which means "don't write
+    a value" rather than "write an empty one".
+    """
+    value = (raw or "").strip()
+    if not value:
+        return None
+
+    if field.field_type == "checkbox":
+        return "1" if value.lower() in ("1", "true", "yes", "y", "x", "t") else "0"
+
+    if field.field_type == "date":
+        parsed, _year_known = parse_date(value)
+        return parsed.isoformat() if parsed else None
+
+    if field.field_type in ("number", "currency"):
+        cleaned = re.sub(r"[^0-9.\-]", "", value)
+        return cleaned or None
+
+    if field.field_type == "select":
+        # Only a defined option, matched case-insensitively. Storing
+        # anything else would produce a value the edit dropdown can't
+        # represent, so the agent couldn't see or fix it.
+        for option in field.option_list():
+            if option.lower() == value.lower():
+                return option
+        return None
+
+    return value[:5000]
+
+
 def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
     """Imports contacts from CSV text into `org`.
 
@@ -342,8 +413,15 @@ def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
         if key not in usable_dates:
             unmapped.append(header)
 
+    # Custom fields are matched against everything the core mapping
+    # didn't take -- including headers already used as milestones, so a
+    # "Birthday" column can feed both.
+    custom_fields = _resolve_custom_fields(org, acting_user, headers, set(mapping.values()))
+    unmapped = [h for h in unmapped if h not in custom_fields]
+
     report.mapping = mapping
     report.date_mapping = usable_dates
+    report.custom_field_mapping = {h: f.label for h, f in custom_fields.items()}
     report.unmapped_headers = unmapped
 
     if "head_first_name" not in mapping and "household_name" not in mapping:
@@ -403,7 +481,9 @@ def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
                                      reason=f"Would exceed the plan's {limit}-contact limit."))
                 continue
 
-            _create_contact_from_row(row, raw_row, usable_dates, org, acting_user, owner_user)
+            _create_contact_from_row(
+                row, raw_row, usable_dates, custom_fields, org, acting_user, owner_user,
+            )
 
             seen_in_file.add(duplicate_key)
             if head_email:
@@ -424,7 +504,7 @@ def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
     return report
 
 
-def _create_contact_from_row(row, raw_row, usable_dates, org, acting_user, owner_user):
+def _create_contact_from_row(row, raw_row, usable_dates, custom_fields, org, acting_user, owner_user):
     """Builds one Contact and its people/methods/events.
 
     Mirrors routes/contacts.new_contact deliberately, including the
@@ -493,6 +573,14 @@ def _create_contact_from_row(row, raw_row, usable_dates, org, acting_user, owner
         ))
         if event_key == "birthday" and year_known:
             head.birthday = event_date
+
+    for header, field in custom_fields.items():
+        value = _coerce_custom_value(field, raw_row.get(header))
+        if value is None:
+            continue
+        db.session.add(CustomFieldValue(
+            contact_id=contact.id, field_definition_id=field.id, value=value,
+        ))
 
     db.session.add(TimelineEvent(
         contact_id=contact.id,

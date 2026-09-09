@@ -8,7 +8,16 @@ than what gets created.
 """
 import pytest
 
-from app.models import Contact, ContactMethod, ContactPerson, CustomEventType, TimelineEvent
+from app.models import (
+    Contact,
+    ContactMethod,
+    ContactPerson,
+    CustomEventType,
+    CustomFieldDefinition,
+    CustomFieldValue,
+    TimelineEvent,
+    User,
+)
 from app.services.contact_import import (
     detect_columns,
     import_contacts,
@@ -21,6 +30,13 @@ FOLLOW_UP_BOSS = (
     "First Name,Last Name,Email,Phone,Address,City,State,Zip,Birthday\n"
     "Jane,Rivera,jane@example.com,555-0100,1 Main St,American Fork,ut,84003,1985-04-12\n"
     "Sam,Okonkwo,sam@example.com,555-0101,2 Oak Ave,Provo,UT,84601,03/09\n"
+)
+
+
+FOLLOW_UP_BOSS_WITH_SOURCE = (
+    "First Name,Last Name,Email,Lead Source\n"
+    "Jane,Rivera,jane@example.com,Zillow\n"
+    "Sam,Okonkwo,sam@example.com,Referral\n"
 )
 
 
@@ -329,3 +345,126 @@ class TestPlanLimits:
 
         blocked = [r for r in report.rows if r.status == "over_limit"]
         assert blocked[0].household_name == "The Okonkwos"
+
+
+class TestCustomFields:
+    """A CSV column can match a Milestone, a Custom Field, or both.
+
+    The distinction is real and easy to get wrong: a Milestone is what
+    gift suggestions and flows trigger on; a Custom Field is inert data
+    on the record. An agency may have set up either, both, or neither
+    for the same concept, so a column matching both must populate both
+    rather than the import quietly choosing one.
+    """
+
+    def _field(self, db, org, label, field_type="text", options=None, owner=None):
+        field = CustomFieldDefinition(
+            org_id=org.id, label=label, field_type=field_type, options=options,
+            scope="personal" if owner else "org",
+            owner_user_id=owner.id if owner else None,
+        )
+        db.session.add(field)
+        db.session.commit()
+        return field
+
+    def _value(self, db, contact, field):
+        return CustomFieldValue.query.filter_by(
+            contact_id=contact.id, field_definition_id=field.id
+        ).one_or_none()
+
+    def test_a_column_matching_a_custom_field_is_imported(self, app, db):
+        org, user = make_org_and_user(db)
+        field = self._field(db, org, "Lead Source")
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS_WITH_SOURCE, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert self._value(db, contact, field).value == "Zillow"
+        assert "Lead Source" not in report.unmapped_headers
+
+    def test_one_column_can_feed_both_a_milestone_and_a_custom_field(self, app, db):
+        """The case that prompted this: an agency had added Birthday as
+        a custom field, so the milestone path silently did nothing."""
+        org, user = make_org_and_user(db)
+        db.session.add(CustomEventType(org_id=org.id, key="birthday", label="Birthday", scope="org"))
+        field = self._field(db, org, "Birthday", field_type="date")
+        db.session.commit()
+
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert TimelineEvent.query.filter_by(
+            contact_id=contact.id, event_type="birthday"
+        ).count() == 1, "should still create the milestone"
+        assert self._value(db, contact, field).value == "1985-04-12", "and the custom field"
+
+    def test_a_custom_field_alone_still_works(self, app, db):
+        """No milestone configured -- the column should stop being
+        reported as skipped and land on the record instead."""
+        org, user = make_org_and_user(db)
+        field = self._field(db, org, "Birthday", field_type="date")
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert self._value(db, contact, field).value == "1985-04-12"
+        assert "Birthday" not in report.unmapped_headers
+
+    def test_matching_ignores_case_and_punctuation(self, app, db):
+        org, user = make_org_and_user(db)
+        field = self._field(db, org, "lead source")
+
+        _import(db, org, user, FOLLOW_UP_BOSS_WITH_SOURCE, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert self._value(db, contact, field) is not None
+
+    def test_another_agents_personal_field_is_not_used(self, app, db):
+        """Personal fields are private. An import run by one agent must
+        not write into another agent's field."""
+        org, user = make_org_and_user(db)
+        other = User(org_id=org.id, email="other@example.com", first_name="Other",
+                     last_name="Agent", role="agent", email_verified=True)
+        other.set_password("correct horse battery staple")
+        db.session.add(other)
+        db.session.commit()
+        field = self._field(db, org, "Lead Source", owner=other)
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS_WITH_SOURCE, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert self._value(db, contact, field) is None
+        assert "Lead Source" in report.unmapped_headers
+
+    def test_a_select_value_outside_the_options_is_not_stored(self, app, db):
+        """Storing a value the edit dropdown can't represent would leave
+        the agent unable to see or fix it."""
+        org, user = make_org_and_user(db)
+        field = self._field(db, org, "Lead Source", field_type="select", options="Referral,Open House")
+
+        _import(db, org, user, FOLLOW_UP_BOSS_WITH_SOURCE, dry_run=False)
+
+        rivera = Contact.query.filter_by(household_name="The Riveras").one()   # Zillow
+        okonkwo = Contact.query.filter_by(household_name="The Okonkwos").one() # Referral
+        assert self._value(db, rivera, field) is None
+        assert self._value(db, okonkwo, field).value == "Referral"
+
+    def test_currency_values_are_stripped_of_formatting(self, app, db):
+        org, user = make_org_and_user(db)
+        field = self._field(db, org, "Income", field_type="currency")
+        csv_text = "First Name,Last Name,Email,Income\nJane,Rivera,jane@example.com,\"$125,000\"\n"
+
+        _import(db, org, user, csv_text, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert self._value(db, contact, field).value == "125000"
+
+    def test_an_empty_cell_writes_no_value(self, app, db):
+        org, user = make_org_and_user(db)
+        field = self._field(db, org, "Lead Source")
+        csv_text = "First Name,Last Name,Email,Lead Source\nJane,Rivera,jane@example.com,\n"
+
+        _import(db, org, user, csv_text, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert self._value(db, contact, field) is None

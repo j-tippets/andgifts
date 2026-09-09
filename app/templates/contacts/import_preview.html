@@ -44,7 +44,15 @@
         <tr>
           <td style="padding:4px 0;"><code>{{ header }}</code></td>
           <td style="padding:4px 0; text-align:right;" class="subdued">
-            {{ event_key.replace('_', ' ') }} (important date)
+            {{ event_key.replace('_', ' ') }} &mdash; milestone
+          </td>
+        </tr>
+      {% endfor %}
+      {% for header, label in report.custom_field_mapping.items() | sort %}
+        <tr>
+          <td style="padding:4px 0;"><code>{{ header }}</code></td>
+          <td style="padding:4px 0; text-align:right;" class="subdued">
+            {{ label }} &mdash; custom field
           </td>
         </tr>
       {% endfor %}
@@ -127,7 +135,13 @@
     </form>
   {% else %}
     <p class="subdued" style="margin:0;">
-      There's nothing to import from this file. Try a different export.
+      {% if summary.duplicates and not summary.errors %}
+        These contacts are already in your list &mdash; nothing to do.
+      {% elif summary.duplicates %}
+        Everything importable from this file is already in your list.
+      {% else %}
+        There's nothing to import from this file. Try a different export.
+      {% endif %}
     </p>
   {% endif %}
   <form method="POST" action="{{ url_for('contacts.import_contacts_cancel', job_id=job.id) }}">

@@ -7,6 +7,9 @@
     <p class="subdued">
       Every milestone you can currently use. Drag to reorder: when a contact qualifies for more than one on the same day, whichever is higher here wins.
       This order is just yours &mdash; other team members can order theirs differently.
+      Milestones are the only dates that gift suggestions and flows can trigger on &mdash;
+      a date saved as a <a href="{{ url_for('contacts.manage_fields') }}">custom field</a>
+      is information only.
       {% if not has_custom_priority %}Everything below is currently unranked and tied.{% endif %}
     </p>
   </div>
