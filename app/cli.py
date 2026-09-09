@@ -55,6 +55,97 @@ def register_cli(app):
                        "verified (Single Sender Verification) or its domain isn't "
                        "authenticated in SendGrid yet.")
 
+    @app.cli.command("import-contacts")
+    @click.argument("org_id")
+    @click.argument("csv_path", type=click.Path(exists=True, dir_okay=False))
+    @click.option("--owner-email", default=None,
+                  help="Make every imported contact private to this agent. "
+                       "Omit to share them org-wide.")
+    @click.option("--commit", is_flag=True, default=False,
+                  help="Actually write. Without this the import is a preview "
+                       "that rolls back.")
+    @click.option("--show-errors", default=20, show_default=True,
+                  help="How many problem rows to print.")
+    def import_contacts_command(org_id, csv_path, owner_email, commit, show_errors):
+        """Import contacts from a CSV export into an org.
+
+        Previews by default -- run it, read the report, then re-run with
+        --commit. Preview and commit run identical code (the preview
+        rolls back at the end), so what you see is what you get.
+
+            flask import-contacts <org-id> ./followupboss.csv
+            flask import-contacts <org-id> ./followupboss.csv --commit
+
+        Built for onboarding beta customers by hand. The parsing,
+        mapping and dedupe all live in services/contact_import, so the
+        eventual in-app upload page is a thin wrapper over this same
+        code rather than a second implementation.
+        """
+        from app.models import Org, User
+        from app.services.contact_import import import_contacts
+
+        org = Org.query.get(org_id)
+        if not org:
+            raise click.ClickException(f"No org with id {org_id}.")
+
+        owner = None
+        if owner_email:
+            owner = User.query.filter_by(email=owner_email.lower(), org_id=org.id).first()
+            if not owner:
+                raise click.ClickException(
+                    f"No user {owner_email} in {org.name}. Contacts would have been "
+                    "shared org-wide instead, which is a different decision -- "
+                    "stopping so you can make it deliberately."
+                )
+
+        acting_user = owner or User.query.filter_by(org_id=org.id, role="admin").first()
+        if not acting_user:
+            raise click.ClickException(f"{org.name} has no admin user to attribute the import to.")
+
+        with open(csv_path, newline="", encoding="utf-8-sig") as handle:
+            csv_text = handle.read()
+
+        try:
+            report = import_contacts(
+                csv_text, org, acting_user, owner_user=owner, dry_run=not commit,
+            )
+        except ValueError as exc:
+            raise click.ClickException(str(exc))
+
+        click.echo(f"\nOrg:      {org.name}")
+        click.echo(f"Owner:    {owner.full_name + ' (private)' if owner else 'shared org-wide'}")
+        click.echo(f"Mode:     {'COMMIT' if commit else 'preview (nothing written)'}")
+
+        click.echo("\nColumns mapped:")
+        for field, header in sorted(report.mapping.items()):
+            click.echo(f"  {field:<26} <- {header}")
+        for event_key, header in sorted(report.date_mapping.items()):
+            click.echo(f"  {event_key:<26} <- {header}  (milestone)")
+        if report.unmapped_headers:
+            click.echo("\nColumns IGNORED (nothing in &Gifts to put them in):")
+            for header in report.unmapped_headers:
+                click.echo(f"  {header}")
+
+        summary = report.summary()
+        click.echo(
+            f"\n{summary['created']} to create, {summary['duplicates']} duplicate(s) skipped, "
+            f"{summary['errors']} error(s), {summary['over_limit']} blocked by plan limit."
+        )
+
+        problems = [r for r in report.rows if r.status in ("error", "over_limit")]
+        if problems:
+            click.echo(f"\nProblem rows (first {show_errors}):")
+            for result in problems[:show_errors]:
+                name = result.household_name or "(no name)"
+                click.echo(f"  line {result.line_number}: {name} -- {result.reason}")
+            if len(problems) > show_errors:
+                click.echo(f"  ... and {len(problems) - show_errors} more")
+
+        if not commit:
+            click.echo("\nNothing was written. Re-run with --commit when the above looks right.")
+        else:
+            click.echo(f"\nDone. {summary['created']} contact(s) added to {org.name}.")
+
     @app.cli.command("wipe-all-tenant-data")
     @click.option("--yes", "confirm_phrase", default="",
                   help='Must be exactly "DELETE EVERYTHING" to actually run -- otherwise this is a dry run.')
