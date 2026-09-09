@@ -206,9 +206,37 @@ class SuggestedAction(db.Model):
             return "This contact doesn't have an email address on file yet."
         if self.action_type in ("gift", "handwritten_note") and not self.contact.has_shipping_address:
             return "This contact doesn't have a shipping address on file yet."
+        if self.action_type == "gift" and not self.suggested_gift:
+            # The silent-failure case. approve_action's entire
+            # charge/order/notify block is gated on `action.suggested_gift`
+            # being present; with no catalog item resolved, execution
+            # falls through to the plain `else` branch and the action is
+            # marked "approved" having charged nothing, created no Order,
+            # and notified no one. The agent is told the gift is on its
+            # way and nothing whatsoever happens.
+            #
+            # This is recoverable rather than terminal -- the agent can
+            # pick a gift on the card and approve in the same request
+            # (see needs_gift_selection, which keeps the picker visible,
+            # and approve_action, which evaluates readiness after
+            # applying the selection).
+            return "No gift has been chosen for this suggestion yet."
         if self.action_type == "gift" and self.suggested_gift and not self.suggested_gift.is_in_stock:
             return f"{self.suggested_gift.name} is temporarily unavailable — it's out of stock."
         return None
+
+    @property
+    def needs_gift_selection(self):
+        """True when the ONLY thing standing between this action and
+        approval is that no catalog item has been picked yet.
+
+        Exists because the dashboard hides the gift picker whenever
+        readiness_blocked_reason is set -- reasonable for the other
+        reasons (an agent can't add a shipping address from the card),
+        but for this one it would hide the exact control that resolves
+        the block, leaving the suggestion permanently unapprovable.
+        """
+        return self.action_type == "gift" and not self.suggested_gift
 
     @property
     def expires_on(self):

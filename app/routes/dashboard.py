@@ -378,19 +378,6 @@ def approve_action(action_id):
     action = _get_visible_action(action_id)
     org = current_user.org
 
-    # Server-side enforcement of the same check the dashboard card
-    # already shows/disables Approve for -- the card-side check is UX
-    # only (and is bypassed entirely by a raw POST or a stale page), so
-    # this is what actually stops an email flow from trying to send to
-    # no address, or a gift from charging a card for something that
-    # has nowhere to ship.
-    blocked_reason = action.readiness_blocked_reason
-    if blocked_reason:
-        if _is_ajax_request():
-            return "", 400
-        flash(f"Can't approve — {blocked_reason} Add it on the contact's page, then try again.", "error")
-        return redirect(request.referrer or url_for("dashboard.index"))
-
     # Gift suggestions can be swapped for a different catalog item right from
     # the dashboard before approving -- only trust an id that's actually
     # available to this org (respects catalog curation).
@@ -400,6 +387,26 @@ def approve_action(action_id):
             available_ids = {g.id for g in current_user.org.available_catalog_items()}
             if chosen_gift_id in available_ids:
                 action.suggested_gift_id = chosen_gift_id
+
+    # Server-side enforcement of the same check the dashboard card
+    # already shows/disables Approve for -- the card-side check is UX
+    # only (and is bypassed entirely by a raw POST or a stale page), so
+    # this is what actually stops an email flow from trying to send to
+    # no address, or a gift from charging a card for something that
+    # has nowhere to ship.
+    #
+    # Deliberately evaluated AFTER the gift selection above, not before:
+    # "no gift chosen" is now a blocking reason, and an agent picking a
+    # gift on the card submits that choice with the approval. Checking
+    # first would reject the request for a condition this very request
+    # resolves. Nothing has been committed at this point, so an action
+    # still blocked here leaves no trace of the attempted selection.
+    blocked_reason = action.readiness_blocked_reason
+    if blocked_reason:
+        if _is_ajax_request():
+            return "", 400
+        flash(f"Can't approve — {blocked_reason} Add it on the contact's page, then try again.", "error")
+        return redirect(request.referrer or url_for("dashboard.index"))
 
     gift_payment_intent_id = None
     note_payment_intent_id = None
@@ -636,12 +643,74 @@ def approve_action(action_id):
     return redirect(request.referrer or url_for("dashboard.index"))
 
 
+def _resolve_pending_action(action_id, org_id, new_status):
+    """Moves a still-pending SuggestedAction to a terminal status,
+    returning True only if it was actually pending.
+
+    skip_action and delete_action previously assigned action.status
+    unconditionally, which meant a POST could clobber any state at all:
+
+      - "approved" -- a gift whose card has been charged and whose order
+        is already with WDF. Overwriting it to "skipped" discards the
+        only in-app record of a completed transaction, and does it
+        silently. This is the same thing unapprove_action explicitly
+        refuses to do for PAID_ACTION_TYPES; skip and delete simply
+        weren't holding the line.
+
+      - "processing" -- a claim held by an in-flight charge. The charge
+        completes and writes "approved" over the top, so the agent's
+        skip is silently lost; the reverse interleaving loses the
+        approval instead.
+
+    Written as a conditional UPDATE rather than an `if action.status ==
+    "pending"` check for the same reason as
+    _claim_action_for_processing: a Python-side check on a row another
+    request is concurrently transitioning is a race, and this one is
+    racing against a charge.
+
+    Does not commit -- delete_action needs its audit-log row in the same
+    transaction, so the caller owns it.
+    """
+    result = db.session.execute(
+        db.update(SuggestedAction)
+        .where(
+            SuggestedAction.id == action_id,
+            SuggestedAction.org_id == org_id,
+            SuggestedAction.status == "pending",
+        )
+        .values(status=new_status, resolved_at=datetime.utcnow())
+    )
+    return result.rowcount == 1
+
+
+def _already_resolved_response(action, verb):
+    """Consistent reply when skip/delete lost to a concurrent approve
+    (or arrived for an action someone already handled elsewhere)."""
+    db.session.rollback()
+    db.session.refresh(action)
+    if action.status == "processing":
+        message = f"Can't {verb} this — it's being charged right now."
+    elif action.status == "approved":
+        message = (
+            f"Can't {verb} this — it's already been approved"
+            + (" and charged" if action.action_type in PAID_ACTION_TYPES else "")
+            + "."
+        )
+    else:
+        message = f"This suggestion has already been handled ({action.status})."
+
+    if _is_ajax_request():
+        return jsonify(ok=False, error=message), 409
+    flash(message, "error")
+    return redirect(request.referrer or url_for("dashboard.index"))
+
+
 @dashboard_bp.route("/actions/<action_id>/skip", methods=["POST"])
 @login_required
 def skip_action(action_id):
     action = _get_visible_action(action_id)
-    action.status = "skipped"
-    action.resolved_at = datetime.utcnow()
+    if not _resolve_pending_action(action.id, action.org_id, "skipped"):
+        return _already_resolved_response(action, "skip")
     db.session.commit()
     queue_event("suggested_action_ignored", action_type=action.action_type)
     if _is_ajax_request():
@@ -660,9 +729,8 @@ def delete_action(action_id):
     qualify for next year's anniversary. Logged to the contact's activity
     feed so it can be undone from there if it was a mistake."""
     action = _get_visible_action(action_id)
-    action.status = "deleted"
-    action.resolved_at = datetime.utcnow()
-
+    if not _resolve_pending_action(action.id, action.org_id, "deleted"):
+        return _already_resolved_response(action, "delete")
     db.session.add(ContactAuditLog(
         org_id=action.org_id,
         contact_id=action.contact_id,
