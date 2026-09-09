@@ -71,6 +71,12 @@ def create_app(config_name=None):
     # this distinction doesn't matter).
     app.config["STATIC_ASSET_VERSION"] = os.environ.get("GIT_COMMIT_HASH") or _compute_static_asset_version(app)
 
+    # Deliberately after STATIC_ASSET_VERSION is set above -- init_sentry
+    # uses it as the release identifier, so this can't move earlier in
+    # the factory without losing the commit-to-error mapping.
+    from app.services.observability import init_sentry
+    init_sentry(app)
+
     @app.template_global()
     def versioned_static(filename):
         from flask import url_for
@@ -187,6 +193,34 @@ def create_app(config_name=None):
             mimetype="application/javascript",
         )
         response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.route("/healthz")
+    def healthz():
+        # Liveness only: "is this process up and serving?" It
+        # deliberately does NOT touch the database.
+        #
+        # That's the counterintuitive part, so: DO App Platform
+        # restarts a container whose health check fails. If this
+        # endpoint pinged MySQL, then a managed-database blip -- a
+        # failover, a connection-pool exhaustion, a slow query storm --
+        # would fail the check on every instance at once and DO would
+        # respond by killing and restarting every container. The
+        # database would still be the problem, and now there'd be no
+        # app either. Restarting a web process fixes a wedged web
+        # process; it has never once fixed a database.
+        #
+        # Database health belongs in Sentry and DO's own database
+        # metrics, where the alert goes to a human who can act on it,
+        # not to an automated restart loop.
+        #
+        # Not behind login_required for the obvious reason, and it
+        # returns nothing an unauthenticated caller could use --
+        # STATIC_ASSET_VERSION is already public via /api/app-version.
+        from flask import jsonify
+
+        response = jsonify({"status": "ok", "version": app.config["STATIC_ASSET_VERSION"]})
+        response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.route("/api/app-version")

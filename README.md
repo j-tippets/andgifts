@@ -75,9 +75,11 @@ issues for an app this size). Name it `andgifts-db` to match `.do/app.yaml`.
 
 ### 2. Push this repo to GitHub
 
-App Platform deploys from a GitHub repo. Push this project, then update
-`.do/app.yaml`: replace both `YOUR_GITHUB_USERNAME/andgifts` placeholders
-with your actual repo path.
+App Platform deploys from a GitHub repo. `.do/app.yaml` now names
+`j-tippets/andgifts` in all four places it appears — the `web` service
+and each of the three scheduled jobs. If you fork or rename the repo,
+change all four; a job pointing at a repo that doesn't exist doesn't
+error loudly, it just never runs.
 
 ### 3. Create the App
 

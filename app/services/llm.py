@@ -19,7 +19,29 @@ def _client():
         return None
     try:
         import anthropic
-        return anthropic.Anthropic(api_key=api_key)
+        # An explicit timeout matters more here than the SDK default
+        # (10 minutes) suggests, because these calls do NOT run in a
+        # background worker -- pick_gift and the note writers are
+        # invoked inline during suggestion generation, which happens
+        # inside a dashboard request. Production runs 2 sync gunicorn
+        # workers, so a single hung Anthropic call takes 50% of the
+        # app's request capacity offline for as long as it hangs, and
+        # two concurrent hangs are a full outage that looks like the
+        # site being down rather than like an LLM problem.
+        #
+        # 10s is chosen against the fallback, not against the API:
+        # every caller here already degrades to a deterministic
+        # rule-based result when the call fails (see this module's
+        # docstring), so waiting longer for a slow response is strictly
+        # worse than taking the fallback -- the agent gets a working
+        # suggestion either way, and only one of the two paths risks
+        # the whole app.
+        #
+        # `max_retries` left at the SDK default (2): the timeout is
+        # per-attempt, so worst case is bounded at roughly 30s rather
+        # than unbounded, which is the property that actually matters.
+        timeout = float(current_app.config.get("ANTHROPIC_TIMEOUT_SECONDS", 10.0))
+        return anthropic.Anthropic(api_key=api_key, timeout=timeout)
     except Exception:
         return None
 

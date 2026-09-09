@@ -19,10 +19,21 @@ services:
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xxs
+    # Without this, App Platform health-checks by opening a TCP
+    # connection to http_port, which a wedged Python process will
+    # happily accept while serving 500s to every real request. /healthz
+    # actually runs through Flask's routing and returns a response, so
+    # a hung app fails the check instead of passing it.
+    health_check:
+      http_path: /healthz
     envs:
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY
+        type: SECRET
+      # Unset = error tracking disabled (see services/observability.py).
+      # Set this in the DO dashboard to the DSN from the Sentry project.
+      - key: SENTRY_DSN
         type: SECRET
       - key: DB_USER
         value: ${andgifts-db.USERNAME}
@@ -56,7 +67,7 @@ services:
 jobs:
   - name: nightly-suggestions
     github:
-      repo: YOUR_GITHUB_USERNAME/andgifts
+      repo: j-tippets/andgifts
       branch: main
     source_dir: /
     build_command: pip install -r requirements.txt
@@ -68,6 +79,21 @@ jobs:
     envs:
       - key: FLASK_ENV
         value: production
+      # This job reaches suggestion_engine's LLM calls (pick_gift,
+      # generate_gift_note, generate_message) and so genuinely needs
+      # the key. Without it, services/llm._client() returns None and
+      # every suggestion silently degrades to the deterministic
+      # rule-based fallback -- which looks like working output, not
+      # like a misconfiguration, and would never have surfaced as an
+      # error. The other two jobs don't touch the API and are left
+      # without it on purpose.
+      - key: ANTHROPIC_API_KEY
+        type: SECRET
+      # Scheduled jobs are the LEAST observable thing in the system --
+      # nobody is looking at a cron log at 5am. They need the DSN more
+      # than the web service does, not less.
+      - key: SENTRY_DSN
+        type: SECRET
       - key: DB_USER
         value: ${andgifts-db.USERNAME}
       - key: DB_PASSWORD
@@ -89,7 +115,7 @@ jobs:
   # them.
   - name: downgrade-expired-trials
     github:
-      repo: YOUR_GITHUB_USERNAME/andgifts
+      repo: j-tippets/andgifts
       branch: main
     source_dir: /
     build_command: pip install -r requirements.txt
@@ -101,6 +127,11 @@ jobs:
     envs:
       - key: FLASK_ENV
         value: production
+      # Scheduled jobs are the LEAST observable thing in the system --
+      # nobody is looking at a cron log at 5am. They need the DSN more
+      # than the web service does, not less.
+      - key: SENTRY_DSN
+        type: SECRET
       - key: DB_USER
         value: ${andgifts-db.USERNAME}
       - key: DB_PASSWORD
@@ -124,7 +155,7 @@ jobs:
   # unlike the once-daily jobs above where a day's delay is fine.
   - name: reconcile-stuck-actions
     github:
-      repo: YOUR_GITHUB_USERNAME/andgifts
+      repo: j-tippets/andgifts
       branch: main
     source_dir: /
     build_command: pip install -r requirements.txt
@@ -136,6 +167,11 @@ jobs:
     envs:
       - key: FLASK_ENV
         value: production
+      # Scheduled jobs are the LEAST observable thing in the system --
+      # nobody is looking at a cron log at 5am. They need the DSN more
+      # than the web service does, not less.
+      - key: SENTRY_DSN
+        type: SECRET
       - key: DB_USER
         value: ${andgifts-db.USERNAME}
       - key: DB_PASSWORD

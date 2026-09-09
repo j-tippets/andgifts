@@ -1,8 +1,38 @@
+import sqlite3
+
 import pytest
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from app import create_app
 from app.extensions import db as _db
 from app.models import Org, User
+
+
+@event.listens_for(Engine, "connect")
+def _enforce_sqlite_foreign_keys(dbapi_connection, connection_record):
+    """SQLite ships with foreign key enforcement OFF by default and has
+    to be told, per connection, to turn it on. Production is
+    MySQL/InnoDB, which enforces FKs unconditionally -- so without this
+    the test suite is running against materially different constraint
+    semantics than the thing it's supposed to be testing.
+
+    That gap is not theoretical: every deletion path in the app
+    (delete_member, delete_account, delete_org_completely,
+    delete_contact, library_delete) clears *some* of the references
+    pointing at the row being deleted and misses others. Under SQLite
+    with FKs off, the orphaned references are silently accepted and the
+    tests pass. Under MySQL they raise IntegrityError and the user gets
+    a 500. The suite could never have caught it.
+
+    Guarded to sqlite3 connections specifically: PRAGMA is SQLite
+    syntax, and this listener is registered on the base Engine class,
+    so it fires for any engine the process opens.
+    """
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 @pytest.fixture()

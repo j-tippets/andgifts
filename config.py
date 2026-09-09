@@ -134,6 +134,22 @@ class Config:
     TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
     ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+    # Per-attempt timeout on every Anthropic call -- see the comment in
+    # services/llm._client for why this is deliberately short. Env-var
+    # overridable so a hanging-API incident can be tuned without a
+    # deploy.
+    ANTHROPIC_TIMEOUT_SECONDS = float(os.environ.get("ANTHROPIC_TIMEOUT_SECONDS", "10"))
+
+    # --- Error tracking ---
+    # Unset by default, and unset means fully disabled -- same
+    # "degrade gracefully if unset" pattern as Stripe/SendGrid/WDF
+    # above, so local dev and the test suite never emit events. Set
+    # SENTRY_DSN in DO App Platform to turn it on.
+    SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+    # Fraction of requests traced for performance data. Errors are
+    # always captured regardless of this; it only governs the
+    # (much higher volume, quota-consuming) transaction sampling.
+    SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
 
     # --- Wild Dog Fulfillment ops handoff ---
     # WDF's order-tracking tool is a deliberately separate product/repo
