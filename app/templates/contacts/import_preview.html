@@ -11,10 +11,15 @@
 <div class="card" style="margin-bottom:24px;">
   <h2 style="margin:0 0 12px; font-size:20px;">
     {{ summary.created }} contact{{ 's' if summary.created != 1 }} ready to import
+    {%- if summary.updated %}, {{ summary.updated }} to update{% endif %}
   </h2>
   <ul style="margin:0; padding-left:20px;">
+    {% if summary.updated %}
+      <li>{{ summary.updated }} already in your contacts will have missing details filled in.
+          Nothing you've already entered will be changed.</li>
+    {% endif %}
     {% if summary.duplicates %}
-      <li>{{ summary.duplicates }} already in your contacts — these will be skipped.</li>
+      <li>{{ summary.duplicates }} already in your contacts and up to date — skipped.</li>
     {% endif %}
     {% if summary.errors %}
       <li>{{ summary.errors }} row{{ 's' if summary.errors != 1 }} couldn't be read. Listed below.</li>
@@ -22,7 +27,7 @@
     {% if summary.over_limit %}
       <li>{{ summary.over_limit }} won't fit your plan's contact limit.</li>
     {% endif %}
-    {% if not summary.duplicates and not summary.errors and not summary.over_limit %}
+    {% if not summary.duplicates and not summary.updated and not summary.errors and not summary.over_limit %}
       <li>Every row looks good.</li>
     {% endif %}
   </ul>
@@ -110,6 +115,29 @@
   </fieldset>
 {% endif %}
 
+{% set updates = report.rows | selectattr('status', 'equalto', 'updated') | list %}
+{% if updates %}
+  <fieldset>
+    <legend>Existing contacts we'll fill in</legend>
+    <p class="subdued" style="margin:0 0 12px;"><small>
+      Only blank details are filled. Anything already on the contact stays as it is.
+    </small></p>
+    <table style="width:100%; border-collapse:collapse;">
+      <tbody>
+        {% for row in updates[:50] %}
+          <tr>
+            <td style="padding:4px 8px 4px 0;">{{ row.household_name }}</td>
+            <td style="padding:4px 0;" class="subdued">{{ row.reason }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if updates | length > 50 %}
+      <p class="subdued" style="margin:12px 0 0;"><small>…and {{ updates | length - 50 }} more.</small></p>
+    {% endif %}
+  </fieldset>
+{% endif %}
+
 {% set previews = report.rows | selectattr('status', 'equalto', 'created') | list %}
 {% if previews %}
   <fieldset>
@@ -126,11 +154,17 @@
 {% endif %}
 
 <div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
-  {% if summary.created %}
+  {% if summary.created or summary.updated %}
     <form method="POST" action="{{ url_for('contacts.import_contacts_confirm', job_id=job.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-primary">
-        Import {{ summary.created }} contact{{ 's' if summary.created != 1 }}
+        {% if summary.created and summary.updated %}
+          Import {{ summary.created }} and update {{ summary.updated }}
+        {% elif summary.created %}
+          Import {{ summary.created }} contact{{ 's' if summary.created != 1 }}
+        {% else %}
+          Update {{ summary.updated }} contact{{ 's' if summary.updated != 1 }}
+        {% endif %}
       </button>
     </form>
   {% else %}

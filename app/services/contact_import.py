@@ -222,7 +222,8 @@ class RowResult:
 
     def __init__(self, line_number, status, household_name=None, reason=None):
         self.line_number = line_number
-        self.status = status  # "created" | "duplicate" | "error" | "over_limit"
+        # "created" | "updated" | "duplicate" | "error" | "over_limit"
+        self.status = status
         self.household_name = household_name
         self.reason = reason
 
@@ -254,6 +255,10 @@ class ImportReport:
         return self._count("duplicate")
 
     @property
+    def updated(self):
+        return self._count("updated")
+
+    @property
     def errors(self):
         return [r for r in self.rows if r.status == "error"]
 
@@ -264,6 +269,7 @@ class ImportReport:
     def summary(self):
         return {
             "created": self.created,
+            "updated": self.updated,
             "duplicates": self.duplicates,
             "errors": len(self.errors),
             "over_limit": self.over_limit,
@@ -272,25 +278,31 @@ class ImportReport:
 
 
 def _existing_emails_for_org(org_id):
-    """Every email already known to this org, lowercased.
+    """{lowercased email: contact_id} for everything this org already has.
+
+    A map rather than a set because a matched row is no longer simply
+    skipped -- it can fill blanks on the contact it matched, so the
+    match has to identify *which* contact.
 
     One query rather than a lookup per row: a 400-row import would
     otherwise issue 400 queries, and this runs inside a request in the
     web version.
     """
     rows = (
-        db.session.query(ContactMethod.value)
+        db.session.query(ContactMethod.value, Contact.id)
         .join(ContactPerson, ContactMethod.person_id == ContactPerson.id)
         .join(Contact, ContactPerson.contact_id == Contact.id)
         .filter(Contact.org_id == org_id, ContactMethod.method_type == "email")
         .all()
     )
-    return {(value or "").strip().lower() for (value,) in rows if value}
+    return {(value or "").strip().lower(): contact_id for value, contact_id in rows if value}
 
 
 def _existing_household_names_for_org(org_id):
-    rows = db.session.query(Contact.household_name).filter(Contact.org_id == org_id).all()
-    return {(name or "").strip().lower() for (name,) in rows if name}
+    rows = db.session.query(Contact.household_name, Contact.id).filter(
+        Contact.org_id == org_id
+    ).all()
+    return {(name or "").strip().lower(): contact_id for name, contact_id in rows if name}
 
 
 def _resolve_event_types(org_id, date_mapping):
@@ -463,17 +475,31 @@ def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
             # is a fallback only when there's no email to go on, since
             # "The Smiths" collides constantly.
             duplicate_key = head_email or household_name.lower()
-            if head_email and head_email in known_emails:
-                report.add(RowResult(index, "duplicate", household_name,
-                                     reason=f"{head_email} is already in your contacts."))
-                continue
-            if not head_email and household_name.lower() in known_names:
-                report.add(RowResult(index, "duplicate", household_name,
-                                     reason=f"A contact named {household_name} already exists."))
-                continue
+
             if duplicate_key in seen_in_file:
                 report.add(RowResult(index, "duplicate", household_name,
                                      reason="Appears more than once in this file."))
+                continue
+
+            # A match is no longer simply skipped. The CSV may carry
+            # something this contact doesn't have yet -- most obviously
+            # a column that couldn't be mapped on an earlier import
+            # because the milestone or custom field didn't exist then.
+            # Blanks are filled; existing values are never touched.
+            existing_id = known_emails.get(head_email) if head_email else None
+            if existing_id is None and not head_email:
+                existing_id = known_names.get(household_name.lower())
+
+            if existing_id is not None:
+                existing = db.session.get(Contact, existing_id)
+                added = _fill_blanks(existing, row, raw_row, usable_dates, custom_fields) if existing else []
+                seen_in_file.add(duplicate_key)
+                if added:
+                    report.add(RowResult(index, "updated", household_name,
+                                         reason="Adding " + ", ".join(added) + "."))
+                else:
+                    report.add(RowResult(index, "duplicate", household_name,
+                                         reason="Already up to date."))
                 continue
 
             if limit is not None and current_count >= limit:
@@ -481,14 +507,15 @@ def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
                                      reason=f"Would exceed the plan's {limit}-contact limit."))
                 continue
 
-            _create_contact_from_row(
+            contact = _create_contact_from_row(
                 row, raw_row, usable_dates, custom_fields, org, acting_user, owner_user,
             )
+            db.session.flush()
 
             seen_in_file.add(duplicate_key)
             if head_email:
-                known_emails.add(head_email)
-            known_names.add(household_name.lower())
+                known_emails[head_email] = contact.id
+            known_names[household_name.lower()] = contact.id
             current_count += 1
             report.add(RowResult(index, "created", household_name))
 
@@ -502,6 +529,125 @@ def import_contacts(csv_text, org, acting_user, owner_user=None, dry_run=True):
         raise
 
     return report
+
+
+CONTACT_TEXT_FIELDS = (
+    ("shipping_address_line1", "address"),
+    ("shipping_address_line2", "address line 2"),
+    ("shipping_city", "city"),
+    ("shipping_state", "state"),
+    ("shipping_zip", "ZIP"),
+    ("notes", "notes"),
+)
+
+
+def _fill_blanks(contact, row, raw_row, usable_dates, custom_fields):
+    """Adds anything the CSV has that this contact is missing. Never
+    overwrites a value that is already there.
+
+    Fill-blanks rather than overwrite, deliberately. A CRM export is
+    usually a snapshot of the day it was downloaded. If re-importing
+    overwrote, an agent who corrected a client's address in &Gifts and
+    then re-uploaded last month's Follow Up Boss export would silently
+    lose the correction -- with no undo, no bulk revert, and nothing to
+    tell them it happened. The failure would surface months later as a
+    gift shipped to an old address.
+
+    So re-uploading the same file is always safe: it can only ever add.
+    A true "my CRM is the source of truth" resync is a different
+    feature and needs its own explicit opt-in, not this default.
+
+    Returns a list of short human labels for what was added, which is
+    what the preview shows per contact -- an agent approving an update
+    should see exactly what it will change.
+    """
+    added = []
+
+    for attribute, label in CONTACT_TEXT_FIELDS:
+        if getattr(contact, attribute, None):
+            continue
+        value = _clean(row.get(attribute))
+        if not value:
+            continue
+        if attribute == "shipping_state":
+            value = value.upper()[:50]
+        setattr(contact, attribute, value)
+        added.append(label)
+
+    head = (
+        ContactPerson.query
+        .filter_by(contact_id=contact.id, household_role="head")
+        .first()
+    )
+    if head:
+        # Only fills a genuinely blank name. The import writes "" for a
+        # missing first or last name (both columns are NOT NULL), so
+        # these are the rows a later, more complete export can repair.
+        if not (head.first_name or "").strip() and _clean(row.get("head_first_name")):
+            head.first_name = _clean(row.get("head_first_name"))
+            added.append("first name")
+        if not (head.last_name or "").strip() and _clean(row.get("head_last_name")):
+            head.last_name = _clean(row.get("head_last_name"))
+            added.append("last name")
+
+        for method_type, subtype, value in (
+            ("email", "personal", _clean_email(row.get("head_email"))),
+            ("phone", "mobile", _clean(row.get("head_phone"))),
+        ):
+            if not value:
+                continue
+            exists = ContactMethod.query.filter_by(
+                person_id=head.id, method_type=method_type
+            ).first()
+            if exists:
+                continue
+            db.session.add(ContactMethod(
+                person_id=head.id, method_type=method_type, subtype=subtype,
+                value=value, is_primary=True,
+            ))
+            added.append(method_type)
+
+    for event_key, header in usable_dates.items():
+        event_date, year_known = parse_date(raw_row.get(header))
+        if not event_date:
+            continue
+        # Keyed on event_type, not on the date: a contact who already
+        # has a birthday recorded keeps the one the agent has, even if
+        # the spreadsheet disagrees.
+        exists = TimelineEvent.query.filter_by(
+            contact_id=contact.id, event_type=event_key
+        ).first()
+        if exists:
+            continue
+        db.session.add(TimelineEvent(
+            contact_id=contact.id,
+            event_type=event_key,
+            event_date=event_date,
+            year_known=year_known,
+            is_recurring=True,
+            recurrence_rule="annual",
+            is_important_date=True,
+        ))
+        added.append(event_key.replace("_", " "))
+
+    for header, field in custom_fields.items():
+        value = _coerce_custom_value(field, raw_row.get(header))
+        if value is None:
+            continue
+        exists = CustomFieldValue.query.filter_by(
+            contact_id=contact.id, field_definition_id=field.id
+        ).first()
+        if exists and (exists.value or "").strip():
+            continue
+        if exists:
+            exists.value = value
+        else:
+            db.session.add(CustomFieldValue(
+                contact_id=contact.id, field_definition_id=field.id, value=value,
+            ))
+        added.append(field.label)
+
+    return added
 
 
 def _create_contact_from_row(row, raw_row, usable_dates, custom_fields, org, acting_user, owner_user):

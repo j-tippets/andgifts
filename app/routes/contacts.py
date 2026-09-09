@@ -1388,8 +1388,10 @@ def import_contacts_confirm(job_id):
 
     summary = report.summary()
     message = f"Imported {summary['created']} contact{'s' if summary['created'] != 1 else ''}."
+    if summary["updated"]:
+        message += f" Filled in missing details on {summary['updated']}."
     if summary["duplicates"]:
-        message += f" Skipped {summary['duplicates']} already in your contacts."
+        message += f" Skipped {summary['duplicates']} already up to date."
     if summary["errors"]:
         message += f" {summary['errors']} row(s) couldn't be read and were left out."
     if summary["over_limit"]:

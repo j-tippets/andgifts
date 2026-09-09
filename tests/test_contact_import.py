@@ -6,6 +6,8 @@ spreadsheet and re-run; they cannot fix data they were never told was
 wrong. So most of these tests are about what gets *reported* rather
 than what gets created.
 """
+from datetime import date
+
 import pytest
 
 from app.models import (
@@ -468,3 +470,152 @@ class TestCustomFields:
 
         contact = Contact.query.filter_by(household_name="The Riveras").one()
         assert self._value(db, contact, field) is None
+
+
+class TestFillBlanksOnReimport:
+    """Re-uploading fills in what's missing and changes nothing else.
+
+    The motivating case: an agency imports, then adds a Birthday
+    milestone or custom field, then re-uploads the same export. Before
+    this, matched rows were skipped whole and the newly-mappable column
+    could never reach the contacts already imported.
+
+    The constraint that shapes the whole design: a CRM export is a
+    snapshot of the day it was downloaded, so overwriting would let a
+    stale file silently destroy corrections an agent made in &Gifts --
+    with no undo and nothing to signal it happened.
+    """
+
+    def _field(self, db, org, label, field_type="text"):
+        field = CustomFieldDefinition(
+            org_id=org.id, label=label, field_type=field_type, scope="org",
+        )
+        db.session.add(field)
+        db.session.commit()
+        return field
+
+    def test_a_newly_added_milestone_reaches_existing_contacts(self, app, db):
+        org, user = make_org_and_user(db)
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+        # The agency sets up Birthday only after the first import.
+        db.session.add(CustomEventType(org_id=org.id, key="birthday", label="Birthday", scope="org"))
+        db.session.commit()
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        assert report.created == 0
+        assert report.updated == 2
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert TimelineEvent.query.filter_by(
+            contact_id=contact.id, event_type="birthday"
+        ).count() == 1
+
+    def test_a_newly_added_custom_field_reaches_existing_contacts(self, app, db):
+        org, user = make_org_and_user(db)
+        _import(db, org, user, FOLLOW_UP_BOSS_WITH_SOURCE, dry_run=False)
+        field = self._field(db, org, "Lead Source")
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS_WITH_SOURCE, dry_run=False)
+
+        assert report.updated == 2
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert CustomFieldValue.query.filter_by(
+            contact_id=contact.id, field_definition_id=field.id
+        ).one().value == "Zillow"
+
+    def test_an_edited_value_is_never_overwritten(self, app, db):
+        """The whole reason this is fill-blanks. An agent corrected the
+        address in &Gifts; a stale export must not undo that."""
+        org, user = make_org_and_user(db)
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        contact.shipping_address_line1 = "999 Corrected Way"
+        contact.shipping_city = "Lehi"
+        db.session.commit()
+
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        db.session.refresh(contact)
+        assert contact.shipping_address_line1 == "999 Corrected Way"
+        assert contact.shipping_city == "Lehi"
+
+    def test_an_existing_birthday_is_not_replaced(self, app, db):
+        """Keyed on the milestone type, not the date -- the agent's
+        record wins over the spreadsheet's."""
+        org, user = make_org_and_user(db)
+        db.session.add(CustomEventType(org_id=org.id, key="birthday", label="Birthday", scope="org"))
+        db.session.commit()
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        event = TimelineEvent.query.filter_by(
+            contact_id=contact.id, event_type="birthday"
+        ).one()
+        event.event_date = date(1990, 1, 1)
+        db.session.commit()
+
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        events = TimelineEvent.query.filter_by(
+            contact_id=contact.id, event_type="birthday"
+        ).all()
+        assert len(events) == 1, "must not add a second birthday"
+        assert events[0].event_date == date(1990, 1, 1)
+
+    def test_a_blank_field_is_filled(self, app, db):
+        org, user = make_org_and_user(db)
+        _import(db, org, user, "First Name,Last Name,Email\nJane,Rivera,jane@example.com\n",
+                dry_run=False)
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert contact.shipping_city is None
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        db.session.refresh(contact)
+        assert contact.shipping_city == "American Fork"
+        assert report.updated >= 1
+
+    def test_a_missing_phone_is_added_without_touching_the_email(self, app, db):
+        org, user = make_org_and_user(db)
+        _import(db, org, user, "First Name,Last Name,Email\nJane,Rivera,jane@example.com\n",
+                dry_run=False)
+
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        head = ContactPerson.query.filter_by(contact_id=contact.id).one()
+        methods = {m.method_type: m.value for m in ContactMethod.query.filter_by(person_id=head.id)}
+        assert methods["phone"] == "555-0100"
+        assert methods["email"] == "jane@example.com"
+
+    def test_nothing_to_add_is_reported_as_up_to_date(self, app, db):
+        org, user = make_org_and_user(db)
+        _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS, dry_run=False)
+
+        assert report.updated == 0
+        assert report.duplicates == 2
+
+    def test_the_preview_reports_updates_without_applying_them(self, app, db):
+        """The dry run must not leave changes behind -- it runs the real
+        fill and rolls it back."""
+        org, user = make_org_and_user(db)
+        _import(db, org, user, "First Name,Last Name,Email\nJane,Rivera,jane@example.com\n",
+                dry_run=False)
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS, dry_run=True)
+
+        assert report.updated >= 1
+        contact = Contact.query.filter_by(household_name="The Riveras").one()
+        assert contact.shipping_city is None, "a preview must write nothing"
+
+    def test_the_report_names_what_will_be_added(self, app, db):
+        """An agent approving an update should see exactly what changes."""
+        org, user = make_org_and_user(db)
+        _import(db, org, user, "First Name,Last Name,Email\nJane,Rivera,jane@example.com\n",
+                dry_run=False)
+
+        report = _import(db, org, user, FOLLOW_UP_BOSS, dry_run=True)
+
+        updated = [r for r in report.rows if r.status == "updated"]
+        assert "city" in updated[0].reason
